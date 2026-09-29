@@ -1,0 +1,71 @@
+export type Priority = 'low' | 'medium' | 'high'
+
+export type ScheduleStatus = 'todo' | 'in_progress' | 'done'
+
+/** Alias of ScheduleStatus so earlier web imports keep compiling. */
+export type Status = ScheduleStatus
+
+/** Result stored after natural language is parsed on the server. */
+export type ScheduleAiMetadata = {
+  sourceText: string
+  confidence: number | null
+  model: string | null
+  parsedAt: string | null
+}
+
+export type ScheduleChangeAction = 'created' | 'updated' | 'completed' | 'deleted'
+
+/**
+ * One saved schedule. Field names stay stable for web and mobile.
+ * Times are local clock values (HH:mm). Dates are YYYY-MM-DD.
+ */
+export type Schedule = {
+  id: string
+  userId: string
+  title: string
+  description: string
+  date: string
+  startTime: string | null
+  endTime: string | null
+  /** Expected length in minutes. */
+  duration: number | null
+  categoryId: string | null
+  priority: Priority
+  status: ScheduleStatus
+  sourceText: string | null
+  /** When a reminder or push should fire. ISO 8601. */
+  reminderAt: string | null
+  completedAt: string | null
+  createdAt: string
+  updatedAt: string
+  ai: ScheduleAiMetadata | null
+}
+
+/** Partial schedule returned by the AI parser before it is saved. */
+export type ScheduleDraft = {
+  title: string
+  description?: string
+  date?: string
+  startTime?: string | null
+  endTime?: string | null
+  duration?: number | null
+  categoryId?: string | null
+  priority?: Priority
+  status?: ScheduleStatus
+  sourceText?: string | null
+  reminderAt?: string | null
+  ai?: ScheduleAiMetadata | null
+}
+
+export type ScheduleChange = {
+  id: string
+  scheduleId: string
+  userId: string
+  action: ScheduleChangeAction
+  createdAt: string
+}
+
+export type NaturalLanguageScheduleRequest = {
+  text: string
+  timezone: string
+}

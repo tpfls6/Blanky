@@ -1,0 +1,13 @@
+{
+  "name": "@blanky/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@blanky/types": "0.0.0",
+    "@supabase/supabase-js": "^2.117.2"
+  }
+}

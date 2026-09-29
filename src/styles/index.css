@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+@import './calendar.css';
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #ffffff;
+  color: #171717;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
