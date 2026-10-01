@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2023",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "strict": true,
@@ -15,5 +15,6 @@
     "noFallthroughCasesInSwitch": true,
     "types": []
   },
-  "include": ["packages"]
+  "include": ["packages"],
+  "exclude": ["packages/**/*.test.ts"]
 }

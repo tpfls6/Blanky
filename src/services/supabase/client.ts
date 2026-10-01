@@ -1,8 +1,9 @@
 import {
   createSupabaseClient,
   isSupabaseConfigValid,
-  type SupabaseClient,
+  type Database,
 } from '@blanky/api'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
@@ -14,9 +15,9 @@ const config = {
 
 export const isSupabaseConfigured = isSupabaseConfigValid(config)
 
-export const supabase: SupabaseClient | null = createSupabaseClient(config)
+export const supabase: SupabaseClient<Database> | null = createSupabaseClient(config)
 
-export function getSupabaseClient(): SupabaseClient {
+export function getSupabaseClient(): SupabaseClient<Database> {
   if (!supabase) {
     throw new Error(
       'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.',

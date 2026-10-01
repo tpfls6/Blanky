@@ -1,6 +1,128 @@
 import { createScheduleRepository, type ScheduleRepository } from '@blanky/api'
-import { getSupabaseClient } from '../supabase/client.ts'
+import { buildFeedback, parseScheduleText, type ParsedSchedule } from '@blanky/parse'
+import type { WorkspaceCategory } from '../../types/work.ts'
+import type { ScheduleDraft } from '../../utils/scheduleDraft.ts'
+import { parseScheduleFromText } from '../ai/index.ts'
+import { saveClassificationFeedback } from '../feedback/index.ts'
+import { getSupabaseClient, isSupabaseConfigured } from '../supabase/client.ts'
 
 export function getScheduleRepository(): ScheduleRepository {
   return createScheduleRepository(getSupabaseClient())
+}
+
+function minutesBetween(start: string | null, end: string | null): string {
+  if (!start || !end) return ''
+  const [startHour, startMinute] = start.split(':').map(Number)
+  const [endHour, endMinute] = end.split(':').map(Number)
+  const diff = (endHour ?? 0) * 60 + (endMinute ?? 0) - ((startHour ?? 0) * 60 + (startMinute ?? 0))
+  return diff > 0 ? String(diff) : ''
+}
+
+export function draftFromParsed(
+  parsed: ParsedSchedule,
+  sourceText: string,
+  fallbackDate: string,
+  categories: WorkspaceCategory[],
+): ScheduleDraft {
+  const categoryId = categories.some((item) => item.id === parsed.draft.categoryId)
+    ? parsed.draft.categoryId
+    : null
+  return {
+    id: null,
+    kind: parsed.type,
+    title: parsed.draft.title,
+    date: parsed.draft.date || fallbackDate,
+    endDate: parsed.draft.endDate ?? '',
+    startTime: parsed.draft.startTime ?? '',
+    endTime: parsed.draft.endTime ?? '',
+    duration: minutesBetween(parsed.draft.startTime, parsed.draft.endTime),
+    dueDate: parsed.draft.dueDate ?? '',
+    categoryId,
+    description: '',
+    status: 'todo',
+    sourceText,
+    parsed: {
+      type: parsed.type,
+      confidence: parsed.confidence,
+      source: parsed.source,
+      title: parsed.draft.title,
+      date: parsed.draft.date,
+      startTime: parsed.draft.startTime,
+      endTime: parsed.draft.endTime,
+      dueDate: parsed.draft.dueDate,
+      categoryId: parsed.draft.categoryId,
+    },
+  }
+}
+
+/** Rule parser first. The edge function adds personal rules and AI only when needed. */
+export async function classifySchedule(
+  text: string,
+  selected: string,
+  categories: WorkspaceCategory[],
+  today: Date,
+): Promise<ScheduleDraft> {
+  const local = () => draftFromParsed(
+    parseScheduleText(text, {
+      today,
+      fallbackDate: selected,
+      categories: categories.map((item) => ({
+        id: item.id,
+        name: item.name,
+        parentId: item.parentId,
+      })),
+    }),
+    text,
+    selected,
+    categories,
+  )
+  if (!isSupabaseConfigured) return local()
+  try {
+    const remote = await parseScheduleFromText({
+      text,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+    })
+    return draftFromParsed(remote, text, selected, categories)
+  } catch {
+    return local()
+  }
+}
+
+export async function recordScheduleFeedback(draft: ScheduleDraft): Promise<void> {
+  if (!draft.parsed || !draft.sourceText) return
+  const feedback = buildFeedback({
+    text: draft.sourceText,
+    predicted: {
+      type: draft.parsed.type,
+      confidence: draft.parsed.confidence,
+      source: draft.parsed.source,
+      draft: {
+        title: draft.parsed.title,
+        date: draft.parsed.date,
+        startTime: draft.parsed.startTime,
+        endTime: draft.parsed.endTime,
+        dueDate: draft.parsed.dueDate,
+        endDate: null,
+        categoryId: draft.parsed.categoryId,
+      },
+    },
+    saved: {
+      type: draft.kind,
+      title: draft.title,
+      date: draft.date || null,
+      startTime: draft.startTime || null,
+      endTime: draft.endTime || null,
+      dueDate: draft.dueDate || null,
+      categoryId: draft.categoryId,
+    },
+  })
+  if (!feedback) return
+  await saveClassificationFeedback({
+    inputText: feedback.inputText,
+    predictedType: feedback.predictedType,
+    correctedType: feedback.correctedType,
+    predictedCategoryId: feedback.predictedCategoryId,
+    correctedCategoryId: feedback.correctedCategoryId,
+    fieldCorrections: feedback.fieldCorrections,
+  })
 }

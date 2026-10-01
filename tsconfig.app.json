@@ -19,7 +19,8 @@
     "paths": {
       "@blanky/types": ["./packages/types/src/index.ts"],
       "@blanky/utils": ["./packages/utils/src/index.ts"],
-      "@blanky/api": ["./packages/api/src/index.ts"]
+      "@blanky/api": ["./packages/api/src/index.ts"],
+      "@blanky/parse": ["./packages/parse/src/index.ts"]
     },
 
     /* Linting */

@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from './database.generated.ts'
+import { AppError, mapDbError } from './errors.ts'
 import type {
   Priority,
   Schedule,
@@ -22,25 +24,25 @@ const CHANGE_ACTIONS = ['created', 'updated', 'completed', 'deleted'] as const
 
 function requireString(value: unknown, field: string): string {
   const text = readString(value)
-  if (!text) throw new Error(`Schedule row is missing ${field}.`)
+  if (!text) throw new AppError('REQUEST_FAILED', '일정 응답을 읽지 못했습니다.', field)
   return text
 }
 
 function readPriority(value: unknown): Priority {
   const priority = PRIORITIES.find((item) => item === value)
-  if (!priority) throw new Error('Schedule row has an unknown priority.')
+  if (!priority) throw new AppError('REQUEST_FAILED', '일정 응답을 읽지 못했습니다.')
   return priority
 }
 
 function readStatus(value: unknown): ScheduleStatus {
   const status = STATUSES.find((item) => item === value)
-  if (!status) throw new Error('Schedule row has an unknown status.')
+  if (!status) throw new AppError('REQUEST_FAILED', '일정 응답을 읽지 못했습니다.')
   return status
 }
 
 function readChangeAction(value: unknown): ScheduleChangeAction {
   const action = CHANGE_ACTIONS.find((item) => item === value)
-  if (!action) throw new Error('Schedule history row has an unknown action.')
+  if (!action) throw new AppError('REQUEST_FAILED', '일정 응답을 읽지 못했습니다.')
   return action
 }
 
@@ -59,8 +61,8 @@ function readAi(row: Record<string, unknown>): ScheduleAiMetadata | null {
   }
 }
 
-function toSchedule(value: unknown): Schedule {
-  if (!isRecord(value)) throw new Error('Schedule row was not an object.')
+export function mapScheduleRow(value: unknown): Schedule {
+  if (!isRecord(value)) throw new AppError('REQUEST_FAILED', '일정 응답을 읽지 못했습니다.')
 
   return {
     id: requireString(value.id, 'id'),
@@ -84,7 +86,7 @@ function toSchedule(value: unknown): Schedule {
 }
 
 function toScheduleChange(value: unknown): ScheduleChange {
-  if (!isRecord(value)) throw new Error('Schedule history row was not an object.')
+  if (!isRecord(value)) throw new AppError('REQUEST_FAILED', '일정 응답을 읽지 못했습니다.')
 
   return {
     id: requireString(value.id, 'id'),
@@ -95,12 +97,12 @@ function toScheduleChange(value: unknown): ScheduleChange {
   }
 }
 
-function draftToRow(draft: ScheduleDraft, userId?: string) {
+function scheduleColumns(draft: ScheduleDraft) {
+  if (!draft.date) throw new AppError('INVALID_INPUT', '날짜를 확인해 주세요.')
   return {
-    ...(userId ? { user_id: userId } : {}),
     title: draft.title,
     description: draft.description ?? '',
-    date: draft.date ?? null,
+    date: draft.date,
     start_time: draft.startTime ?? null,
     end_time: draft.endTime ?? null,
     duration_minutes: draft.duration ?? null,
@@ -115,12 +117,9 @@ function draftToRow(draft: ScheduleDraft, userId?: string) {
   }
 }
 
-async function readRows(
-  data: unknown,
-  mapRow: (value: unknown) => Schedule,
-): Promise<Schedule[]> {
+async function readRows(data: unknown): Promise<Schedule[]> {
   if (!Array.isArray(data)) return []
-  return data.map(mapRow)
+  return data.map(mapScheduleRow)
 }
 
 export type ScheduleRepository = {
@@ -133,7 +132,7 @@ export type ScheduleRepository = {
 }
 
 export function createScheduleRepository(
-  client: SupabaseClient,
+  client: SupabaseClient<Database>,
 ): ScheduleRepository {
   return {
     async listByDate(date) {
@@ -143,8 +142,8 @@ export function createScheduleRepository(
         .eq('date', date)
         .order('start_time', { ascending: true })
 
-      if (error) throw new Error(error.message)
-      return readRows(data, toSchedule)
+      if (error) throw mapDbError(error)
+      return readRows(data)
     },
 
     async listRange(startDate, endDate) {
@@ -156,39 +155,39 @@ export function createScheduleRepository(
         .order('date', { ascending: true })
         .order('start_time', { ascending: true })
 
-      if (error) throw new Error(error.message)
-      return readRows(data, toSchedule)
+      if (error) throw mapDbError(error)
+      return readRows(data)
     },
 
     async create(userId, draft) {
       const { data, error } = await client
         .from('schedules')
-        .insert(draftToRow(draft, userId))
+        .insert({ ...scheduleColumns(draft), user_id: userId })
         .select('*')
         .single()
 
-      if (error) throw new Error(error.message)
-      return toSchedule(data)
+      if (error) throw mapDbError(error)
+      return mapScheduleRow(data)
     },
 
     async update(id, draft) {
       const { data, error } = await client
         .from('schedules')
         .update({
-          ...draftToRow(draft),
+          ...scheduleColumns(draft),
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
         .select('*')
         .single()
 
-      if (error) throw new Error(error.message)
-      return toSchedule(data)
+      if (error) throw mapDbError(error)
+      return mapScheduleRow(data)
     },
 
     async remove(id) {
       const { error } = await client.from('schedules').delete().eq('id', id)
-      if (error) throw new Error(error.message)
+      if (error) throw mapDbError(error)
     },
 
     async listChanges(scheduleId) {
@@ -200,7 +199,7 @@ export function createScheduleRepository(
       if (scheduleId) query = query.eq('schedule_id', scheduleId)
 
       const { data, error } = await query
-      if (error) throw new Error(error.message)
+      if (error) throw mapDbError(error)
       if (!Array.isArray(data)) return []
       return data.map(toScheduleChange)
     },

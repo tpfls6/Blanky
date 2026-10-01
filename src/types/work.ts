@@ -6,11 +6,17 @@ export type WorkStatus = 'todo' | 'done'
 
 export type RepeatRule = 'none' | 'daily' | 'weekly' | 'monthly'
 
-/** UI category. Parent rows have parentId null. Maps to Category later. */
+/** area = top folder, project = a named project, topic = a subcategory. */
+export type CategoryKind = 'area' | 'project' | 'topic'
+
+/** UI category. Parent rows have parentId null. Color and icon are record labels, not the app accent. */
 export type WorkspaceCategory = {
   id: string
   name: string
   parentId: string | null
+  color?: string | null
+  icon?: string | null
+  kind?: CategoryKind
 }
 
 export type WorkItem = {

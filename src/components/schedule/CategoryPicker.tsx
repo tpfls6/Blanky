@@ -1,4 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { IconView } from '../../constants/icons.ts'
 import type { WorkspaceCategory } from '../../types/work.ts'
 import { categoryPath } from '../../utils/work.ts'
 
@@ -64,12 +66,13 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
         aria-expanded={open}
         aria-controls={listId}
         onClick={() => setOpen((valueNow) => !valueNow)}
-        className="text-sm text-neutral-700 hover:text-neutral-900"
+        className="field flex w-full items-center justify-between gap-2 text-left"
       >
-        {label}
+        <span className="truncate">{label}</span>
+        <ChevronDown className="size-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
       </button>
       {open ? (
-        <div className="absolute z-20 mt-1 w-56 rounded-md border border-neutral-100 bg-white p-2 shadow-sm">
+        <div className="menu absolute z-20 mt-1 w-56 p-1.5">
           <input
             ref={inputRef}
             value={query}
@@ -99,27 +102,34 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
                 if (option) choose(option.id)
               }
             }}
-            className="w-full bg-transparent text-sm text-neutral-900 placeholder:text-neutral-300 focus:outline-none"
+            className="field w-full"
           />
           <div id={listId} role="listbox" aria-label="카테고리" className="mt-1 max-h-56 overflow-y-auto">
-            {options.map((option, index) => (
+            {options.map((option, index) => {
+              const selected = option.id === '' ? value === null : value === option.id
+              const category = categories.find((item) => item.id === option.id)
+              return (
               <button
                 key={option.id}
                 id={`${listId}-${option.id}`}
                 type="button"
                 role="option"
-                aria-selected={option.id === '' ? value === null : value === option.id}
+                aria-selected={selected}
                 onMouseEnter={() => setActive(index)}
                 onClick={() => choose(option.id)}
                 className={[
-                  'block w-full py-1 text-left text-sm',
-                  option.depth === 1 ? 'pl-4' : 'px-1',
-                  index === active ? 'text-neutral-900' : 'text-neutral-600',
+                  'block w-full rounded-md py-1 text-left text-sm transition-colors duration-150',
+                  option.depth === 1 ? 'pl-4' : 'px-2',
+                  index === active || selected ? 'bg-accent-light text-accent-text' : 'text-neutral-600',
                 ].join(' ')}
               >
+                {category ? (
+                  <IconView name={category.icon} className="mr-1.5 inline size-3.5 align-middle" style={{ color: category.color || '#737373' }} />
+                ) : null}
                 {option.name}
               </button>
-            ))}
+              )
+            })}
           </div>
         </div>
       ) : null}

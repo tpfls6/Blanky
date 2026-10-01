@@ -1,8 +1,13 @@
 export const ROUTES = {
   home: '/',
-  tasks: '/tasks',
-  calendar: '/calendar',
-  timeline: '/timeline',
-  history: '/history',
-  categories: '/categories',
+  schedule: '/schedule',
+  diary: '/diary',
+  reading: '/reading',
+  memo: '/memo',
+  settings: '/settings',
+  custom: '/custom',
+  record: (typeId: string) => `/records/${typeId}`,
+  login: '/login',
+  signup: '/signup',
+  forgot: '/forgot',
 } as const

@@ -15,6 +15,7 @@ export default defineConfig({
       '@blanky/types': packageEntry('./packages/types/src/index.ts'),
       '@blanky/utils': packageEntry('./packages/utils/src/index.ts'),
       '@blanky/api': packageEntry('./packages/api/src/index.ts'),
+      '@blanky/parse': packageEntry('./packages/parse/src/index.ts'),
     },
   },
 })

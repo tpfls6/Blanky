@@ -1,57 +1,72 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type {
-  NaturalLanguageScheduleRequest,
-  Priority,
-  ScheduleDraft,
-  ScheduleStatus,
-} from '../../types/src/schedule.ts'
+import type { NaturalLanguageScheduleRequest } from '../../types/src/schedule.ts'
+import type { ParsedSchedule, ScheduleKind } from '../../parse/src/model.ts'
+import type { Database } from './database.generated.ts'
+import { AppError } from './errors.ts'
 import { isRecord, readNullableString, readNumber, readString } from './guards.ts'
 
 export const PARSE_SCHEDULE_FUNCTION = 'parse-schedule'
 
-const PRIORITIES = ['low', 'medium', 'high'] as const
-const STATUSES = ['todo', 'in_progress', 'done'] as const
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/
 
-function readPriority(value: unknown): Priority | undefined {
-  return PRIORITIES.find((priority) => priority === value)
+function readKind(value: unknown): ScheduleKind | null {
+  return value === 'event' || value === 'task' ? value : null
 }
 
-function readStatus(value: unknown): ScheduleStatus | undefined {
-  return STATUSES.find((status) => status === value)
+function readDay(value: unknown): string | null {
+  const text = readNullableString(value)
+  return text && DAY.test(text) ? text : null
 }
 
-function readScheduleDraft(value: unknown): ScheduleDraft {
-  if (!isRecord(value) || !isRecord(value.draft)) {
-    throw new Error('AI response did not include a schedule draft.')
+function readClock(value: unknown): string | null {
+  const text = readNullableString(value)
+  return text && CLOCK.test(text) ? text : null
+}
+
+export function mapParsedSchedule(value: unknown): ParsedSchedule {
+  if (!isRecord(value)) throw new AppError('SCHEDULE_PARSE_FAILED', '일정을 분석하지 못했습니다.')
+  if (isRecord(value.error)) {
+    const code = readString(value.error.code) ?? 'SCHEDULE_PARSE_FAILED'
+    const message = readString(value.error.message) ?? '일정을 분석하지 못했습니다.'
+    throw new AppError(code, message)
   }
-
-  const draft = value.draft
-  const title = readString(draft.title)
-  if (!title) {
-    throw new Error('AI response did not include a schedule title.')
+  const type = readKind(value.type)
+  const source = value.source === 'ai' || value.source === 'personal_rule' || value.source === 'rule'
+    ? value.source
+    : null
+  const confidence = readNumber(value.confidence)
+  if (!type || !source || confidence === null || !isRecord(value.draft)) {
+    throw new AppError('SCHEDULE_PARSE_FAILED', '일정을 분석하지 못했습니다.')
   }
+  const title = readString(value.draft.title)
+  if (!title) throw new AppError('SCHEDULE_PARSE_FAILED', '일정을 분석하지 못했습니다.')
+  return {
+    type,
+    source,
+    confidence,
+    draft: {
+      title,
+      date: readDay(value.draft.date),
+      startTime: readClock(value.draft.startTime),
+      endTime: readClock(value.draft.endTime),
+      dueDate: readDay(value.draft.dueDate),
+      endDate: readDay(value.draft.endDate),
+      categoryId: readNullableString(value.draft.categoryId),
+    },
+  }
+}
 
-  const result: ScheduleDraft = { title }
-  const description = readString(draft.description)
-  const date = readString(draft.date)
-  const sourceText = readString(draft.sourceText)
-  const priority = readPriority(draft.priority)
-  const status = readStatus(draft.status)
-  const duration = readNumber(draft.duration)
-
-  if (description) result.description = description
-  if (date) result.date = date
-  if (sourceText) result.sourceText = sourceText
-  if (priority) result.priority = priority
-  if (status) result.status = status
-  if (duration !== null) result.duration = duration
-
-  if ('startTime' in draft) result.startTime = readNullableString(draft.startTime)
-  if ('endTime' in draft) result.endTime = readNullableString(draft.endTime)
-  if ('categoryId' in draft) result.categoryId = readNullableString(draft.categoryId)
-  if ('reminderAt' in draft) result.reminderAt = readNullableString(draft.reminderAt)
-
-  return result
+async function errorFromInvoke(error: unknown): Promise<AppError> {
+  const context = isRecord(error) && error.context instanceof Response ? error.context : null
+  if (context) {
+    try {
+      mapParsedSchedule(await context.clone().json())
+    } catch (caught) {
+      if (caught instanceof AppError) return caught
+    }
+  }
+  return new AppError('SCHEDULE_PARSE_FAILED', '일정을 분석하지 못했습니다.', error)
 }
 
 /**
@@ -59,13 +74,14 @@ function readScheduleDraft(value: unknown): ScheduleDraft {
  * Provider API keys stay in the function environment, not on web or mobile.
  */
 export async function parseScheduleFromText(
-  client: SupabaseClient,
+  client: SupabaseClient<Database>,
   request: NaturalLanguageScheduleRequest,
-): Promise<ScheduleDraft> {
+): Promise<ParsedSchedule> {
+  const text = request.text.trim()
+  if (!text) throw new AppError('INVALID_INPUT', '입력 내용을 확인해주세요.')
   const { data, error } = await client.functions.invoke(PARSE_SCHEDULE_FUNCTION, {
-    body: request,
+    body: { text, timezone: request.timezone },
   })
-
-  if (error) throw new Error(error.message)
-  return readScheduleDraft(data)
+  if (error) throw await errorFromInvoke(error)
+  return mapParsedSchedule(data)
 }

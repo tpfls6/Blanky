@@ -15,6 +15,18 @@ export function tomorrowISO(): string {
   return formatISODate(addDays(new Date(), 1))
 }
 
+const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토']
+
+export function koreanLongDate(iso: string): string {
+  const date = parseISODate(iso)
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${WEEKDAY[date.getDay()]}요일`
+}
+
+export function koreanMonth(isoMonth: string): string {
+  const [year, month] = isoMonth.split('-')
+  return `${year}년 ${Number(month)}월`
+}
+
 export function longDate(iso: string): string {
   return parseISODate(iso).toLocaleDateString('en-US', {
     weekday: 'long',

@@ -1,43 +1,65 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { CaptureScreen } from './components/capture/CaptureScreen.tsx'
-import { OrganizeScreen } from './components/capture/OrganizeScreen.tsx'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout.tsx'
 import { ROUTES } from './constants/routes.ts'
-import { CalendarPage } from './pages/Calendar/CalendarPage.tsx'
-import { CategoriesPage } from './pages/Categories/CategoriesPage.tsx'
-import { HistoryPage } from './pages/History/HistoryPage.tsx'
-import { TasksPage } from './pages/Tasks/TasksPage.tsx'
-import { TimelinePage } from './pages/Timeline/TimelinePage.tsx'
-import { TodayPage } from './pages/Today/TodayPage.tsx'
-import { useWorkspace } from './state/useWorkspace.ts'
-import { WorkspaceProvider } from './state/workspace.tsx'
+import { ForgotPage, LoginPage, SignupPage } from './pages/Auth/AuthPages.tsx'
+import { DiaryPage } from './pages/Diary/DiaryPage.tsx'
+import { HomePage } from './pages/Home/HomePage.tsx'
+import { MemoPage } from './pages/Memo/MemoPage.tsx'
+import { ReadingPage } from './pages/Reading/ReadingPage.tsx'
+import { RecordPage } from './pages/Records/RecordPage.tsx'
+import { SchedulePage } from './pages/Schedule/SchedulePage.tsx'
+import { CustomPage } from './pages/Custom/CustomPage.tsx'
+import { SettingsPage } from './pages/Settings/SettingsPage.tsx'
+import { LibraryProvider } from './state/library.tsx'
+import { SessionProvider } from './state/session.tsx'
+import { useSession } from './state/useSession.ts'
+
+function RequireAuth() {
+  const { user } = useSession()
+  if (!user) return <Navigate to={ROUTES.login} replace />
+  return <Outlet />
+}
+
+function GuestOnly() {
+  const { user } = useSession()
+  if (user) return <Navigate to={ROUTES.home} replace />
+  return <Outlet />
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route element={<GuestOnly />}>
+        <Route path={ROUTES.login} element={<LoginPage />} />
+        <Route path={ROUTES.signup} element={<SignupPage />} />
+        <Route path={ROUTES.forgot} element={<ForgotPage />} />
+      </Route>
+      <Route element={<RequireAuth />}>
+        <Route element={<AppLayout />}>
+          <Route path={ROUTES.home} element={<HomePage />} />
+          <Route path={ROUTES.schedule} element={<SchedulePage />} />
+          <Route path={ROUTES.diary} element={<DiaryPage />} />
+          <Route path={ROUTES.reading} element={<ReadingPage />} />
+          <Route path={ROUTES.memo} element={<MemoPage />} />
+          <Route path={ROUTES.custom} element={<CustomPage />} />
+          <Route path={ROUTES.settings} element={<Navigate to="/settings/account" replace />} />
+          <Route path="/settings/:section" element={<SettingsPage />} />
+          <Route path="/records/:typeId" element={<RecordPage />} />
+        </Route>
+      </Route>
+      <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
+    </Routes>
+  )
+}
 
 export default function App() {
   return (
     <BrowserRouter>
-      <WorkspaceProvider>
-        <AppRoutes />
-      </WorkspaceProvider>
+      <SessionProvider>
+        <LibraryProvider>
+          <AppRoutes />
+        </LibraryProvider>
+      </SessionProvider>
     </BrowserRouter>
-  )
-}
-
-function AppRoutes() {
-  const { phase } = useWorkspace()
-  if (phase === 'organizing') return <OrganizeScreen />
-  if (phase === 'capture') return <CaptureScreen />
-
-  return (
-    <Routes>
-      <Route element={<AppLayout />}>
-        <Route path={ROUTES.home} element={<TodayPage />} />
-        <Route path={ROUTES.calendar} element={<CalendarPage />} />
-        <Route path={ROUTES.timeline} element={<TimelinePage />} />
-        <Route path={ROUTES.tasks} element={<TasksPage />} />
-        <Route path={ROUTES.history} element={<HistoryPage />} />
-        <Route path={ROUTES.categories} element={<CategoriesPage />} />
-        <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
-      </Route>
-    </Routes>
   )
 }

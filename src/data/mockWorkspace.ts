@@ -2,16 +2,16 @@ import { addDays, formatISODate } from '@blanky/utils'
 import type { WorkItem, WorkspaceCategory } from '../types/work.ts'
 
 export const CATEGORIES: WorkspaceCategory[] = [
-  { id: 'school', name: '학교', parentId: null },
-  { id: 'project', name: '프로젝트', parentId: null },
-  { id: 'personal', name: '개인', parentId: null },
-  { id: 'ai', name: '인공지능', parentId: 'school' },
-  { id: 'exam', name: '시험', parentId: 'school' },
-  { id: 'study', name: '공부', parentId: 'school' },
-  { id: 'blanky', name: 'Blanky', parentId: 'project' },
-  { id: 'stockmate', name: 'StockMate', parentId: 'project' },
-  { id: 'reading', name: '독서', parentId: 'personal' },
-  { id: 'exercise', name: '운동', parentId: 'personal' },
+  { id: 'school', name: '학교', parentId: null, kind: 'area', color: '#3A62B0', icon: 'GraduationCap' },
+  { id: 'project', name: '프로젝트', parentId: null, kind: 'area', color: '#6B5BD0', icon: 'Folder' },
+  { id: 'personal', name: '개인', parentId: null, kind: 'area', color: '#3C8664', icon: 'User' },
+  { id: 'ai', name: '인공지능', parentId: 'school', kind: 'topic', color: '#3A62B0', icon: 'Code' },
+  { id: 'exam', name: '시험', parentId: 'school', kind: 'topic', color: '#C25A54', icon: 'Pencil' },
+  { id: 'study', name: '공부', parentId: 'school', kind: 'topic', color: '#3A62B0', icon: 'BookOpen' },
+  { id: 'blanky', name: 'Blanky', parentId: 'project', kind: 'project', color: '#6B5BD0', icon: 'Code' },
+  { id: 'stockmate', name: 'StockMate', parentId: 'project', kind: 'project', color: '#6B5BD0', icon: 'Briefcase' },
+  { id: 'reading', name: '독서', parentId: 'personal', kind: 'topic', color: '#3C8664', icon: 'BookOpen' },
+  { id: 'exercise', name: '운동', parentId: 'personal', kind: 'topic', color: '#C27832', icon: 'Dumbbell' },
 ]
 
 function day(offset: number): string {

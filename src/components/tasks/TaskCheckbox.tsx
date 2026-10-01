@@ -16,15 +16,8 @@ export function TaskCheckbox({ checked, label, onChange }: TaskCheckboxProps) {
       onClick={onChange}
       className="inline-flex size-4 shrink-0 items-center justify-center"
     >
-      <span
-        className={[
-          'flex size-4 items-center justify-center rounded-[3px] border',
-          checked ? 'border-neutral-800' : 'border-neutral-300',
-        ].join(' ')}
-      >
-        {checked ? (
-          <Check className="size-3 text-neutral-800" strokeWidth={2} aria-hidden="true" />
-        ) : null}
+      <span className={checked ? 'check check-on' : 'check'}>
+        {checked ? <Check className="size-3" strokeWidth={2} aria-hidden="true" /> : null}
       </span>
     </button>
   )

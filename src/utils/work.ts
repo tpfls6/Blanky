@@ -2,7 +2,15 @@ import { formatClock, parseClock } from '@blanky/utils'
 import { CATEGORIES } from '../data/mockWorkspace.ts'
 import { parseQuick } from './parseQuick.ts'
 import type { Priority } from '@blanky/types'
-import type { RepeatRule, WorkInput, WorkItem, WorkspaceCategory } from '../types/work.ts'
+import type { CategoryKind, RepeatRule, WorkInput, WorkItem, WorkspaceCategory } from '../types/work.ts'
+
+/** Stored kind wins. Missing kind: roots are areas, children of the seed "project" area are projects. */
+export function categoryKind(category: Pick<WorkspaceCategory, 'kind' | 'parentId'>): CategoryKind {
+  if (category.kind === 'area' || category.kind === 'project' || category.kind === 'topic') return category.kind
+  if (!category.parentId) return 'area'
+  if (category.parentId === 'project') return 'project'
+  return 'topic'
+}
 
 export type TaskFilter = 'all' | 'today' | 'upcoming' | 'completed'
 
@@ -361,6 +369,9 @@ export function selfCheckWork(): void {
     },
   ]
 
+  if (categoryKind({ parentId: null }) !== 'area') throw new Error('area kind')
+  if (categoryKind({ parentId: 'project' }) !== 'project') throw new Error('project kind')
+  if (categoryKind({ parentId: 'school', kind: 'topic' }) !== 'topic') throw new Error('topic kind')
   if (filterTasks(items, 'today', today).length !== 1) throw new Error('today filter')
   if (filterTasks(items, 'upcoming', today).length !== 1) throw new Error('upcoming filter')
   if (filterTasks(items, 'completed', today).length !== 1) throw new Error('completed filter')

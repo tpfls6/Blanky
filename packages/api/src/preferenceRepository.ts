@@ -1,5 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { UserPreference } from '../../types/src/preference.ts'
+import type { Database } from './database.generated.ts'
+import { AppError, mapDbError } from './errors.ts'
+import { asJson, asRecord } from './json.ts'
 import {
   isRecord,
   readBoolean,
@@ -7,8 +10,8 @@ import {
   readString,
 } from './guards.ts'
 
-function toPreference(value: unknown): UserPreference {
-  if (!isRecord(value)) throw new Error('Preference row was not an object.')
+export function mapPreferenceRow(value: unknown): UserPreference {
+  if (!isRecord(value)) throw new AppError('REQUEST_FAILED', '설정 응답을 읽지 못했습니다.')
 
   const userId = readString(value.user_id)
   const timezone = readString(value.timezone)
@@ -18,6 +21,7 @@ function toPreference(value: unknown): UserPreference {
   const locale = readString(value.locale)
   const notificationsEnabled = readBoolean(value.notifications_enabled)
   const updatedAt = readString(value.updated_at)
+  const week = readNumber(value.week_starts_on)
 
   if (
     !userId ||
@@ -29,7 +33,7 @@ function toPreference(value: unknown): UserPreference {
     notificationsEnabled === null ||
     !updatedAt
   ) {
-    throw new Error('Preference row is incomplete.')
+    throw new AppError('REQUEST_FAILED', '설정 응답을 읽지 못했습니다.')
   }
 
   return {
@@ -40,6 +44,13 @@ function toPreference(value: unknown): UserPreference {
     defaultDuration,
     locale,
     notificationsEnabled,
+    theme: readString(value.theme) ?? 'light',
+    accentColor: readString(value.accent) ?? 'blue',
+    scheduleDefaultView: readString(value.schedule_default_view) ?? 'all',
+    weekStartsOn: week === 1 ? 1 : 0,
+    autoClassification: readBoolean(value.auto_classification) ?? true,
+    autoSaveAfterClassification: readBoolean(value.auto_save_after_classification) ?? false,
+    settings: asRecord(value.settings),
     updatedAt,
   }
 }
@@ -50,7 +61,7 @@ export type PreferenceRepository = {
 }
 
 export function createPreferenceRepository(
-  client: SupabaseClient,
+  client: SupabaseClient<Database>,
 ): PreferenceRepository {
   return {
     async get(userId) {
@@ -60,9 +71,9 @@ export function createPreferenceRepository(
         .eq('user_id', userId)
         .maybeSingle()
 
-      if (error) throw new Error(error.message)
+      if (error) throw mapDbError(error)
       if (!data) return null
-      return toPreference(data)
+      return mapPreferenceRow(data)
     },
 
     async save(preference) {
@@ -76,13 +87,20 @@ export function createPreferenceRepository(
           default_duration_minutes: preference.defaultDuration,
           locale: preference.locale,
           notifications_enabled: preference.notificationsEnabled,
+          theme: preference.theme,
+          accent: preference.accentColor,
+          schedule_default_view: preference.scheduleDefaultView,
+          week_starts_on: preference.weekStartsOn,
+          auto_classification: preference.autoClassification,
+          auto_save_after_classification: preference.autoSaveAfterClassification,
+          settings: asJson(preference.settings),
           updated_at: new Date().toISOString(),
         })
         .select('*')
         .single()
 
-      if (error) throw new Error(error.message)
-      return toPreference(data)
+      if (error) throw mapDbError(error)
+      return mapPreferenceRow(data)
     },
   }
 }

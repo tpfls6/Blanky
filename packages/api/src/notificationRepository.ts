@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from './database.generated.ts'
+import { AppError, mapDbError } from './errors.ts'
 import type {
   DevicePushToken,
   PushPlatform,
@@ -9,19 +11,19 @@ const PLATFORMS = ['ios', 'android', 'web'] as const
 
 function readPlatform(value: unknown): PushPlatform {
   const platform = PLATFORMS.find((item) => item === value)
-  if (!platform) throw new Error('Push token row has an unknown platform.')
+  if (!platform) throw new AppError('REQUEST_FAILED', '알림 토큰 응답을 읽지 못했습니다.')
   return platform
 }
 
 function toToken(value: unknown): DevicePushToken {
-  if (!isRecord(value)) throw new Error('Push token row was not an object.')
+  if (!isRecord(value)) throw new AppError('REQUEST_FAILED', '알림 토큰 응답을 읽지 못했습니다.')
 
   const id = readString(value.id)
   const userId = readString(value.user_id)
   const token = readString(value.token)
   const createdAt = readString(value.created_at)
   if (!id || !userId || !token || !createdAt) {
-    throw new Error('Push token row is incomplete.')
+    throw new AppError('REQUEST_FAILED', '알림 토큰 응답을 읽지 못했습니다.')
   }
 
   return {
@@ -42,7 +44,7 @@ export type NotificationRepository = {
 }
 
 export function createNotificationRepository(
-  client: SupabaseClient,
+  client: SupabaseClient<Database>,
 ): NotificationRepository {
   return {
     async registerToken(input) {
@@ -59,7 +61,7 @@ export function createNotificationRepository(
         .select('*')
         .single()
 
-      if (error) throw new Error(error.message)
+      if (error) throw mapDbError(error)
       return toToken(data)
     },
   }
