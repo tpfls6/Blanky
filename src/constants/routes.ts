@@ -1,10 +1,8 @@
 export const ROUTES = {
   home: '/',
-  schedule: '/schedule',
+  tasks: '/tasks',
   calendar: '/calendar',
   timeline: '/timeline',
   history: '/history',
-  journal: '/journal',
-  reading: '/reading',
-  projects: '/projects',
+  categories: '/categories',
 } as const
