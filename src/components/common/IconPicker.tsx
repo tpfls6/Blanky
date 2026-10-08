@@ -68,7 +68,7 @@ function IconButton({
 }) {
   const Icon = item.icon
   return (
-    <button
+    <button data-theme-slot="button"
       type="button"
       aria-label={item.name}
       aria-pressed={selected}
@@ -165,7 +165,7 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
       style={place.sheet ? undefined : place.style}
     >
       {place.sheet ? <p className="mb-2 text-sm">아이콘 선택</p> : null}
-      <input
+      <input data-theme-slot="input"
         ref={searchRef}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
@@ -202,7 +202,7 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
             {SWATCHES.map((swatch) => {
               const selected = color === swatch.hex
               return (
-                <button
+                <button data-theme-slot="button"
                   key={swatch.hex}
                   type="button"
                   role="radio"
@@ -221,7 +221,7 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
         </div>
       ) : null}
       {place.sheet ? (
-        <button type="button" className="btn btn-ghost mt-3 w-full" onClick={close}>
+        <button data-theme-slot="button" type="button" className="btn btn-ghost mt-3 w-full" onClick={close}>
           닫기
         </button>
       ) : null}
@@ -230,7 +230,7 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
 
   return (
     <span className="group/icon inline-flex items-center">
-      <button
+      <button data-theme-slot="button"
         ref={buttonRef}
         type="button"
         aria-label={onColor ? '아이콘과 색' : '아이콘'}

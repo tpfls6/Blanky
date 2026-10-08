@@ -1,3 +1,4 @@
+import type { Calendar } from '@blanky/types'
 import type { CustomRecordType, FieldValue } from '../features/records/schema.ts'
 import type { PageLayouts } from '../features/pages/layout.ts'
 import type { WorkItem, WorkspaceCategory } from './work.ts'
@@ -18,6 +19,10 @@ export type Capture = {
 }
 
 export type DiaryEntry = {
+  title?: string
+  mood?: string
+  weather?: string
+  isFavorite?: boolean
   id: string
   date: string
   body: string
@@ -77,6 +82,7 @@ export type NavPref = {
 export const DEFAULT_NAV: NavPref[] = [
   { id: 'home', visible: true },
   { id: 'schedule', visible: true },
+  { id: 'activity', visible: true },
   { id: 'diary', visible: true },
   { id: 'reading', visible: true },
   { id: 'memo', visible: true },
@@ -137,6 +143,8 @@ export type CustomRecord = {
 }
 
 export type LibraryData = {
+  activities?: import('../services/schedule/workStore.ts').Activity[]
+  personalCalendar?: Calendar
   categories: WorkspaceCategory[]
   items: WorkItem[]
   captures: Capture[]

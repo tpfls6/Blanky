@@ -4,6 +4,12 @@ import type { PageBlock, PageId } from '../features/pages/layout.ts'
 import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
 
 export type LibraryValue = LibraryData & {
+  commitDiary: (entry: DiaryEntry) => Promise<DiaryEntry>
+  eraseDiary: (id: string) => Promise<void>
+  diaryError: string
+  diaryLoading: boolean
+  commitWork: (before: import('../types/work.ts').WorkItem | null, after: import('../types/work.ts').WorkItem | null, source?: 'manual' | 'ai_chat') => Promise<import('../types/work.ts').WorkItem | null>
+  workError: string
   saveCapture: (content: string, type: EntryType) => string | null
   addItem: (input: WorkInput) => void
   updateItem: (id: string, patch: WorkPatch) => void

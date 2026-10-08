@@ -42,16 +42,16 @@ export function MiniCalendar({ selected, weekStartsOn, events, tasks, onSelect }
   const heading = parseISODate(`${cursor}-01`)
 
   return (
-    <div>
-      <div className="flex items-center justify-between">
+    <div data-theme-slot="calendar" className="theme-calendar">
+      <div data-theme-slot="calendar-header" className="flex items-center justify-between">
         <p className="text-sm text-neutral-800">
           {heading.getFullYear()}년 {heading.getMonth() + 1}월
         </p>
         <div className="flex gap-0.5">
-          <button type="button" onClick={() => shift(-1)} aria-label="이전 달" className="icon-btn">
+          <button data-theme-slot="button" type="button" onClick={() => shift(-1)} aria-label="이전 달" className="icon-btn">
             <ChevronLeft className="size-4" strokeWidth={1.5} />
           </button>
-          <button type="button" onClick={() => shift(1)} aria-label="다음 달" className="icon-btn">
+          <button data-theme-slot="button" type="button" onClick={() => shift(1)} aria-label="다음 달" className="icon-btn">
             <ChevronRight className="size-4" strokeWidth={1.5} />
           </button>
         </div>
@@ -70,6 +70,9 @@ export function MiniCalendar({ selected, weekStartsOn, events, tasks, onSelect }
           return (
             <button
               key={cell.iso}
+              data-theme-slot={active ? "calendar-selected" : isToday ? "calendar-today" : "calendar-day"}
+              data-selected={active}
+              data-weekend={[0,6].includes(parseISODate(cell.iso).getDay())}
               type="button"
               onClick={() => onSelect(cell.iso)}
               className={[

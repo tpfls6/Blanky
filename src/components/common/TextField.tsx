@@ -29,7 +29,7 @@ export function TextField({
     <label className="block" htmlFor={id}>
       <span className="text-xs text-neutral-500">{label}</span>
       {multiline ? (
-        <textarea
+        <textarea data-theme-slot="input"
           id={id}
           value={value}
           placeholder={placeholder}
@@ -37,7 +37,7 @@ export function TextField({
           className={`${control} min-h-28 resize-y`}
         />
       ) : (
-        <input
+        <input data-theme-slot="input"
           id={id}
           type={type}
           value={value}

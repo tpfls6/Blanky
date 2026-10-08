@@ -55,7 +55,7 @@ export function InlineName({
   }
 
   return (
-    <input
+    <input data-theme-slot="input"
       ref={inputRef}
       data-no-drag
       value={draft}

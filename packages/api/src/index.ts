@@ -1,4 +1,4 @@
-export { getCurrentUserId, signInWithPassword, signOut } from './auth.ts'
+export { getCurrentUserId, signInWithPassword, signInWithGoogle, signOut } from './auth.ts'
 export { PARSE_SCHEDULE_FUNCTION, mapParsedSchedule, parseScheduleFromText } from './ai.ts'
 export { createCategoryRepository, mapCategoryRow } from './categoryRepository.ts'
 export type { CategoryInput, CategoryRepository } from './categoryRepository.ts'
@@ -20,3 +20,14 @@ export {
 export type { SupabasePublicConfig } from './supabase.ts'
 export type { Database } from './database.generated.ts'
 export type { SupabaseClient } from '@supabase/supabase-js'
+
+export { createCalendarRepository, mapCalendarRow } from './calendarRepository.ts'
+export type { CalendarRepository } from './calendarRepository.ts'
+
+export * from './themeRepository.ts'
+
+export { createDiaryRepository, diaryTitle, mapDiaryRecord } from './diaryRepository.ts'
+export type { DiaryRecord } from './diaryRepository.ts'
+
+export * from './readingRepository.ts'
+export * from './bookSearch.ts'

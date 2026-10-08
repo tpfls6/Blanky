@@ -1,3 +1,4 @@
+import { useConfirm } from '../../state/useConfirm.ts'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { EmptyState } from '../../components/common/EmptyState.tsx'
@@ -8,6 +9,8 @@ import { useLibrary } from '../../state/useLibrary.ts'
 import type { FieldValue } from '../../types/records.ts'
 
 export function RecordPage() {
+  const confirm = useConfirm()
+
   const { typeId = '' } = useParams()
   const { recordTypes, records, addRecord, updateRecord, removeRecord } = useLibrary()
   const type = recordTypes.find((item) => item.id === typeId) ?? null
@@ -117,8 +120,8 @@ export function RecordPage() {
             <button
               type="button"
               className="text-xs text-neutral-400"
-              onClick={() => {
-                if (!window.confirm('이 기록을 삭제할까요?')) return
+              onClick={async () => {
+                if (!await confirm('이 기록을 삭제할까요?')) return
                 removeRecord(row.id)
                 if (reading === row.id) setReading(null)
               }}

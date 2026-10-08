@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Blanky Theme Package Manifest v1",
+  "type": "object",
+  "required": [
+    "formatVersion",
+    "id",
+    "name",
+    "author",
+    "version",
+    "entry"
+  ],
+  "properties": {
+    "formatVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "maxLength": 100,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "author": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "version": {
+      "type": "string",
+      "maxLength": 50,
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[a-zA-Z0-9.-]+)?$"
+    },
+    "entry": {
+      "type": "object",
+      "required": [
+        "theme"
+      ],
+      "properties": {
+        "theme": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.json$"
+        },
+        "stylesheet": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.css$"
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,63}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/path"
+      }
+    },
+    "iconPack": {
+      "type": "object",
+      "properties": {
+        "home": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "today": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "calendar": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "task": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "diary": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "memo": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "store": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "custom": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "settings": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "search": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "add": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "favorite": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "delete": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        },
+        "edit": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "\\.svg$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "previews": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/path"
+      }
+    },
+    "fonts": {
+      "type": "object",
+      "properties": {
+        "body": {
+          "$ref": "#/$defs/path"
+        },
+        "heading": {
+          "$ref": "#/$defs/path"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*//)[a-zA-Z0-9_./-]+$"
+    }
+  }
+}

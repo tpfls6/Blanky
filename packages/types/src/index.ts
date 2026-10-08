@@ -28,3 +28,11 @@ export type {
   ScheduleStatus,
   Status,
 } from './schedule.ts'
+
+export type { Calendar, CalendarType, CalendarRole, PersonalCalendarInput } from './calendar.ts'
+
+export * from './theme.ts'
+
+export * from './reading.ts'
+
+export * from './themePackage.ts';

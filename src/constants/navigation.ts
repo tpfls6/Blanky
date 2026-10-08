@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, House, Library, Settings, SlidersHorizontal, StickyNote } from 'lucide-react'
+import { Store, Palette, History, BookOpen, CalendarDays, House, Library, Settings, SlidersHorizontal, StickyNote } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { iconByName } from './icons.ts'
 import { ROUTES } from './routes.ts'
@@ -15,6 +15,7 @@ export type NavItem = {
 
 const BUILTIN: readonly NavItem[] = [
   { id: 'home', label: 'Home', to: ROUTES.home, icon: House, end: true },
+  { id: 'activity', label: 'Activity', to: ROUTES.activity, icon: History },
   { id: 'schedule', label: 'Schedule', to: ROUTES.schedule, icon: CalendarDays },
   { id: 'diary', label: 'Diary', to: ROUTES.diary, icon: BookOpen },
   { id: 'reading', label: 'Reading', to: ROUTES.reading, icon: Library },
@@ -61,3 +62,6 @@ export function visibleNav(nav: readonly NavPref[], recordTypes: readonly Custom
 export function isRecordNav(id: string): boolean {
   return id !== 'home' && id !== 'schedule' && id !== 'diary' && id !== 'reading' && id !== 'memo' && id !== 'settings' && id !== 'custom'
 }
+
+export const STORE_NAV: NavItem = {id:'store',label:'Store',to:'/store',icon:Store}
+export const THEMES_NAV: NavItem = {id:'themes',label:'내 테마',to:'/settings/themes',icon:Palette}

@@ -13,6 +13,10 @@ const config = {
   anonKey: supabaseAnonKey,
 }
 
+export function getSupabasePublicConfig() {
+  return { ...config }
+}
+
 export const isSupabaseConfigured = isSupabaseConfigValid(config)
 
 export const supabase: SupabaseClient<Database> | null = createSupabaseClient(config)

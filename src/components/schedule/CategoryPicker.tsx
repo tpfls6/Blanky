@@ -61,7 +61,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
 
   return (
     <div className="relative">
-      <button
+      <button data-theme-slot="button"
         type="button"
         aria-expanded={open}
         aria-controls={listId}
@@ -73,7 +73,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
       </button>
       {open ? (
         <div className="menu absolute z-20 mt-1 w-56 p-1.5">
-          <input
+          <input data-theme-slot="input"
             ref={inputRef}
             value={query}
             aria-label="카테고리 검색"
@@ -109,7 +109,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
               const selected = option.id === '' ? value === null : value === option.id
               const category = categories.find((item) => item.id === option.id)
               return (
-              <button
+              <button data-theme-slot="button"
                 key={option.id}
                 id={`${listId}-${option.id}`}
                 type="button"

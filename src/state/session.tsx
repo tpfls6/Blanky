@@ -2,6 +2,8 @@ import { useCallback, useState, type ReactNode } from 'react'
 import { emailError, passwordError, signupErrors, type SignupInput } from '../utils/account.ts'
 import { libraryKey, SESSION_KEY, USERS_KEY } from './storage.ts'
 import { SessionContext, type Account } from './useSession.ts'
+import { isSupabaseConfigured } from '../services/supabase/client.ts'
+import { RemoteSessionProvider } from './remoteSession.tsx'
 
 function readUsers(): Account[] {
   try {
@@ -30,6 +32,12 @@ function readSessionUser(): Account | null {
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  return isSupabaseConfigured
+    ? <RemoteSessionProvider>{children}</RemoteSessionProvider>
+    : <LocalSessionProvider>{children}</LocalSessionProvider>
+}
+
+function LocalSessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Account | null>(readSessionUser)
 
   const signUp = useCallback((input: SignupInput) => {
@@ -115,7 +123,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   return (
     <SessionContext.Provider
-      value={{ user, signUp, signIn, signOut, hasEmail, updateProfile, changePassword, deleteAccount }}
+      value={{ user, signUp, signIn, signInWithGoogle: () => 'Google 로그인은 Supabase 연결이 필요합니다.', signOut, hasEmail, updateProfile, changePassword, deleteAccount }}
     >
       {children}
     </SessionContext.Provider>

@@ -1,3 +1,9 @@
+import { getDiaryRecords, saveDiaryRecord, deleteDiaryRecord, hasSyncedDiary } from '../services/diary/index.ts'
+import { loadWork, saveWork, type Activity } from '../services/schedule/workStore.ts'
+import { getScheduleRepository } from '../services/schedule/index.ts'
+import { isSupabaseConfigured } from '../services/supabase/client.ts'
+import type { WorkItem } from '../types/work.ts'
+import { withPersonalCalendar } from '../services/calendar/local.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { freshLibrary } from '../data/freshLibrary.ts'
 import { cloneBlock, coerceRecordType, selfCheckRecords, structureKey, type CustomRecordType } from '../features/records/schema.ts'
@@ -72,6 +78,10 @@ function normalizeRecord(value: unknown): CustomRecord | null {
 }
 
 function loadLibrary(userId: string): LibraryData {
+  return withPersonalCalendar(loadStoredLibrary(userId), userId)
+}
+
+function loadStoredLibrary(userId: string): LibraryData {
   try {
     const raw = localStorage.getItem(libraryKey(userId))
     if (!raw) return freshLibrary()
@@ -89,6 +99,8 @@ function loadLibrary(userId: string): LibraryData {
         const next = normalizeCategory(item)
         return next ? [next] : []
       }),
+      activities: Array.isArray(data.activities) ? data.activities : [],
+      personalCalendar: data.personalCalendar,
       items: data.items,
       captures: Array.isArray(data.captures) ? data.captures : [],
       diaries: Array.isArray(data.diaries) ? data.diaries : [],
@@ -138,6 +150,125 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     applyAppearance(data.settings)
   }, [userId, data.settings])
 
+  const [diaryError, setDiaryError] = useState('')
+  const [diaryLoading, setDiaryLoading] = useState(Boolean(userId))
+  const diaryReady = useRef<Promise<unknown>>(Promise.resolve())
+  const diaryQueue = useRef<Promise<unknown>>(Promise.resolve())
+  const diaryUser = useRef(userId)
+  useLayoutEffect(() => { diaryUser.current = userId }, [userId])
+  useEffect(() => {
+    let cancelled = false
+    if (!userId) return
+    const owner = userId
+    diaryReady.current = (async () => {
+      await Promise.resolve()
+      if (cancelled) return
+      setDiaryLoading(true)
+      setDiaryError('')
+      const remote = await getDiaryRecords(owner)
+      const local = loadLibrary(owner).diaries
+      const migrated: DiaryEntry[] = []
+      for (const entry of local) {
+        if (cancelled) return
+        if (!remote.some(row => row.id === entry.id) && !hasSyncedDiary(owner, entry.id) && (entry.body.trim() || entry.title?.trim())) migrated.push(await saveDiaryRecord(owner, entry))
+      }
+      if (!cancelled) setData(current => ({ ...current, diaries: [...remote, ...migrated] }))
+    })().catch(error => {
+      if (!cancelled) setDiaryError(error instanceof Error ? error.message : '기록을 불러오지 못했습니다.')
+      throw error
+    }).finally(() => { if (!cancelled) setDiaryLoading(false) })
+    void diaryReady.current.catch(() => undefined)
+    return () => { cancelled = true }
+  }, [userId])
+
+  const commitDiary = useCallback((entry: DiaryEntry): Promise<DiaryEntry> => {
+    const operation = diaryQueue.current.catch(() => undefined).then(async () => {
+      await diaryReady.current
+      if (!userId || diaryUser.current !== userId) throw new Error('로그인이 필요합니다.')
+      const saved = await saveDiaryRecord(userId, { ...entry, updatedAt: new Date().toISOString() })
+      if (diaryUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
+      setData(current => {
+        const next = { ...current, diaries: [saved, ...current.diaries.filter(row => row.id !== saved.id && row.id !== entry.id)] }
+        localStorage.setItem(libraryKey(userId), JSON.stringify(next))
+        return next
+      })
+      return saved
+    })
+    diaryQueue.current = operation
+    return operation
+  }, [userId])
+  const eraseDiary = useCallback((id: string): Promise<void> => {
+    const operation = diaryQueue.current.catch(() => undefined).then(async () => {
+      await diaryReady.current
+      if (!userId || diaryUser.current !== userId) throw new Error('로그인이 필요합니다.')
+      await deleteDiaryRecord(userId, id)
+      if (diaryUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
+      setData(current => {
+        const next = { ...current, diaries: current.diaries.filter(row => row.id !== id) }
+        localStorage.setItem(libraryKey(userId), JSON.stringify(next))
+        return next
+      })
+    })
+    diaryQueue.current = operation
+    return operation
+  }, [userId])
+
+  const [workError, setWorkError] = useState('')
+  const remoteIds = useRef(new Set<string>())
+  const activeUser = useRef(userId)
+  useLayoutEffect(() => { activeUser.current = userId }, [userId])
+  const workLoaded = useRef(!isSupabaseConfigured)
+  const ready = useRef<Promise<unknown>>(Promise.resolve())
+  const workQueue = useRef<Promise<unknown>>(Promise.resolve())
+  useEffect(() => {
+    remoteIds.current = new Set()
+    workLoaded.current = !isSupabaseConfigured
+    if (!userId || !isSupabaseConfigured) return
+    let cancelled = false
+    ready.current = loadWork().then(remote => {
+      if (cancelled) return
+      remoteIds.current = new Set(remote.items.map(item => item.id))
+      workLoaded.current = true
+      setWorkError('')
+      setData(current => ({ ...current, categories: [...current.categories.filter(row => !remote.categories.some(category => category.id === row.id)), ...remote.categories], items: [...current.items.filter(item => (!item.calendarId || item.calendarId.startsWith('local-personal:')) && !remoteIds.current.has(item.id)), ...remote.items], activities: remote.activities }))
+    }).catch((error: unknown) => {
+      if (!cancelled) setWorkError(error instanceof Error
+        ? `서버 일정 조회 실패: ${error.message}`
+        : '서버 일정을 불러오지 못했습니다. 연결 및 DB 마이그레이션을 확인해 주세요.')
+    })
+    return () => { cancelled = true }
+  }, [userId])
+
+  const commitWork = useCallback((before: WorkItem | null, after: WorkItem | null, source: Activity['source'] = 'manual'): Promise<WorkItem | null> => {
+    const operation = workQueue.current.catch(() => undefined).then(async () => {
+      await ready.current
+      if (!workLoaded.current) throw new Error('서버 데이터를 먼저 불러와야 합니다.')
+      if (!userId || activeUser.current !== userId) throw new Error('로그인이 필요합니다.')
+      let saved = after
+      if (after) {
+        const normalized = createWorkItem(after)
+        if (!normalized) throw new Error('제목과 날짜를 확인해 주세요.')
+        saved = { ...normalized, id: after.id, calendarId: after.calendarId ?? data.personalCalendar?.id, createdByUserId: after.createdByUserId ?? userId }
+      }
+      let categories: WorkspaceCategory[] = []
+      if (saved) {
+        const result = await saveWork(userId, before, saved, Boolean(before && remoteIds.current.has(before.id)), source, data.categories)
+        saved = result.item
+        categories = result.categories
+      }
+      else if (before && isSupabaseConfigured && remoteIds.current.has(before.id)) await getScheduleRepository().remove(before.id)
+      if (activeUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
+      if (saved && isSupabaseConfigured) remoteIds.current.add(saved.id)
+      const activity: Activity = { id: crypto.randomUUID(), entityId: saved?.id ?? before!.id, before, after: saved,
+        action: !before ? 'created' : !saved ? 'deleted' : saved.status === 'done' && before.status !== 'done' ? 'completed' : 'updated', source, createdAt: new Date().toISOString() }
+      setData(current => ({ ...current, categories: [...current.categories.filter(row => !categories.some(category => category.id === row.id)), ...categories], items: [...current.items.filter(item => item.id !== before?.id && item.id !== saved?.id), ...(saved ? [saved] : [])], activities: [activity, ...(current.activities ?? [])] }))
+      setWorkError('')
+      return saved
+    })
+    workQueue.current = operation
+    return operation
+  }, [userId, data.categories, data.personalCalendar?.id])
+
   const remoteUser = useRef<string | null>(null)
   const settingsRef = useRef(data.settings)
 
@@ -183,61 +314,45 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const trimmed = content.trim()
     if (!trimmed) return '내용을 입력해 주세요.'
     if (type === 'auto' && !data.settings.autoClassify) return '유형을 선택해 주세요.'
-    setData((current) => applyCapture(current, trimmed, type))
+    const preview = applyCapture(data, trimmed, type)
+    const diary = preview.diaries.find(entry => !data.diaries.some(existing => existing.id === entry.id))
+    setData((current) => {
+      const next = applyCapture(current, trimmed, type)
+      const result = diary ? { ...next, diaries: [diary, ...current.diaries] } : next
+      return userId ? withPersonalCalendar(result, userId) : result
+    })
+    if (diary) void commitDiary(diary).catch(error => setDiaryError(error instanceof Error ? error.message : '기록을 저장하지 못했습니다.'))
     return null
-  }, [data.settings.autoClassify])
+  }, [data, userId, commitDiary])
 
   const addItem = useCallback((input: WorkInput) => {
     const item = createWorkItem(input)
-    if (!item) return
-    setData((current) => ({ ...current, items: [...current.items, item] }))
-  }, [])
-
+    if (item) void commitWork(null, item).catch(() => setWorkError('일정을 저장하지 못했습니다. 다시 시도해 주세요.'))
+  }, [commitWork])
   const updateItem = useCallback((id: string, patch: WorkPatch) => {
-    setData((current) => ({
-      ...current,
-      items: current.items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
-    }))
-  }, [])
-
+    const item = data.items.find(row => row.id === id)
+    if (item) void commitWork(item, { ...item, ...patch }).catch(() => setWorkError('변경을 저장하지 못했습니다.'))
+  }, [commitWork, data.items])
   const toggleItem = useCallback((id: string) => {
-    setData((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        item.id === id ? { ...item, status: item.status === 'done' ? 'todo' : 'done' } : item,
-      ),
-    }))
-  }, [])
-
+    const item = data.items.find(row => row.id === id)
+    if (item) void commitWork(item, { ...item, status: item.status === 'done' ? 'todo' : 'done' }).catch(() => setWorkError('완료 상태를 저장하지 못했습니다.'))
+  }, [commitWork, data.items])
   const removeItem = useCallback((id: string) => {
-    setData((current) => ({ ...current, items: current.items.filter((item) => item.id !== id) }))
-  }, [])
+    const item = data.items.find(row => row.id === id)
+    if (item) void commitWork(item, null).catch(() => setWorkError('삭제하지 못했습니다.'))
+  }, [commitWork, data.items])
 
   const addDiary = useCallback((entry: Pick<DiaryEntry, 'date' | 'body' | 'tags'>) => {
-    const body = entry.body.trim()
-    if (!body || !entry.date) return
-    const createdAt = new Date().toISOString()
-    setData((current) => ({
-      ...current,
-      diaries: [
-        { id: crypto.randomUUID(), date: entry.date, body, tags: entry.tags, createdAt, updatedAt: createdAt },
-        ...current.diaries,
-      ],
-    }))
-  }, [])
-
+    const now = new Date().toISOString()
+    if (entry.body.trim()) void commitDiary({ ...entry, id: crypto.randomUUID(), createdAt: now, updatedAt: now }).catch(error => setDiaryError(String(error)))
+  }, [commitDiary])
   const updateDiary = useCallback((id: string, patch: Pick<DiaryEntry, 'date' | 'body' | 'tags'>) => {
-    setData((current) => ({
-      ...current,
-      diaries: current.diaries.map((entry) =>
-        entry.id === id ? { ...entry, ...patch, body: patch.body.trim(), updatedAt: new Date().toISOString() } : entry,
-      ),
-    }))
-  }, [])
-
+    const entry = data.diaries.find(row => row.id === id)
+    if (entry) void commitDiary({ ...entry, ...patch }).catch(error => setDiaryError(String(error)))
+  }, [commitDiary, data.diaries])
   const removeDiary = useCallback((id: string) => {
-    setData((current) => ({ ...current, diaries: current.diaries.filter((entry) => entry.id !== id) }))
-  }, [])
+    void eraseDiary(id).catch(error => setDiaryError(String(error)))
+  }, [eraseDiary])
 
   const addMemo = useCallback((memo: Pick<Memo, 'title' | 'body' | 'categoryId' | 'tags'>) => {
     const id = crypto.randomUUID()
@@ -550,6 +665,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const value: LibraryValue = {
     ...data,
+    commitDiary,
+    eraseDiary,
+    diaryError,
+    diaryLoading,
+    commitWork,
+    workError,
     saveCapture,
     addItem,
     updateItem,

@@ -1,3 +1,4 @@
+import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { useMemo, useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { CategoryPicker } from '../../components/schedule/CategoryPicker.tsx'
@@ -38,7 +39,7 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
       <div className={selected ? 'hidden md:block' : 'block'}>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-medium tracking-tight">Memo</h1>
-          <button
+          <button data-theme-slot="button-primary"
             type="button"
             className="btn btn-primary"
             onClick={() => {
@@ -46,11 +47,11 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
               setSelectedId(id)
             }}
           >
-            <Plus className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
+            <ThemeIcon name="add" fallback={Plus} className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
             메모 작성
           </button>
         </div>
-        <input
+        <input data-theme-slot="input"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="검색"
@@ -60,17 +61,17 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
         <ul className="mt-2">
           {visible.map((memo) => (
             <li key={memo.id} className="group relative border-t border-line">
-              <button type="button" onClick={() => setSelectedId(memo.id)} className="w-full py-3 pr-16 text-left">
+              <button data-theme-slot="button" type="button" onClick={() => setSelectedId(memo.id)} className="w-full py-3 pr-16 text-left">
                 <p className={memo.id === selectedId ? 'truncate text-sm text-accent-text' : 'truncate text-sm text-neutral-900'}>
                   {memo.title}
                 </p>
                 <p className="mt-1 truncate text-xs text-neutral-400">{memo.body || '내용 없음'}</p>
               </button>
               <div className="reveal absolute top-2 right-0 flex">
-                <button type="button" className="icon-btn" data-tip="수정" aria-label="수정" onClick={() => setSelectedId(memo.id)}>
-                  <Pencil className="size-3.5" strokeWidth={1.5} />
+                <button data-theme-slot="button" type="button" className="icon-btn" data-tip="수정" aria-label="수정" onClick={() => setSelectedId(memo.id)}>
+                  <ThemeIcon name="edit" fallback={Pencil} className="size-3.5" strokeWidth={1.5} />
                 </button>
-                <button
+                <button data-theme-slot="button"
                   type="button"
                   className="icon-btn"
                   data-tip="삭제"
@@ -80,7 +81,7 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
                     if (selectedId === memo.id) setSelectedId(null)
                   }}
                 >
-                  <Trash2 className="size-3.5" strokeWidth={1.5} />
+                  <ThemeIcon name="delete" fallback={Trash2} className="size-3.5" strokeWidth={1.5} />
                 </button>
               </div>
             </li>
@@ -129,15 +130,15 @@ function MemoEditor({ id, onBack, onDelete }: { id: string; onBack: () => void; 
         setSaved('저장되었습니다.')
       }}
     >
-      <button type="button" onClick={onBack} className="text-sm text-neutral-400 md:hidden">
+      <button data-theme-slot="button" type="button" onClick={onBack} className="text-sm text-neutral-400 md:hidden">
         목록
       </button>
-      <input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 w-full bg-transparent text-xl outline-none" />
-      <textarea value={body} onChange={(event) => setBody(event.target.value)} className="mt-4 min-h-48 w-full resize-y bg-transparent text-sm leading-relaxed outline-none" />
+      <input data-theme-slot="input" value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 w-full bg-transparent text-xl outline-none" />
+      <textarea data-theme-slot="input" value={body} onChange={(event) => setBody(event.target.value)} className="mt-4 min-h-48 w-full resize-y bg-transparent text-sm leading-relaxed outline-none" />
       <div className="mt-4">
         <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} />
       </div>
-      <input
+      <input data-theme-slot="input"
         value={tags}
         onChange={(event) => setTags(event.target.value)}
         placeholder="태그"
@@ -147,8 +148,8 @@ function MemoEditor({ id, onBack, onDelete }: { id: string; onBack: () => void; 
         작성 {memo.createdAt.slice(0, 10)} · 수정 {memo.updatedAt.slice(0, 10)}
       </p>
       <div className="mt-4 flex gap-2">
-        <button type="submit" className="btn btn-primary">저장</button>
-        <button type="button" onClick={onDelete} className="btn btn-ghost">삭제</button>
+        <button data-theme-slot="button-primary" type="submit" className="btn btn-primary">저장</button>
+        <button data-theme-slot="button" type="button" onClick={onDelete} className="btn btn-ghost">삭제</button>
       </div>
       <p className="mt-3 text-sm text-neutral-500" role="status">{saved}</p>
     </form>

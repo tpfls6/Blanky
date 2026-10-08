@@ -20,6 +20,9 @@ export type WorkspaceCategory = {
 }
 
 export type WorkItem = {
+  /** Optional only for legacy browser data; normalized when the library loads. */
+  calendarId?: string
+  createdByUserId?: string
   id: string
   kind: WorkKind
   title: string

@@ -1,3 +1,4 @@
+import { useConfirm } from '../../state/useConfirm.ts'
 import { useRef, useState } from 'react'
 import { Copy, Pencil, Trash2 } from 'lucide-react'
 import { InlineName } from '../../components/common/InlineName.tsx'
@@ -14,6 +15,8 @@ function swatchName(hex: string): string {
 }
 
 export function RecordSection() {
+  const confirm = useConfirm()
+
   const { recordTypes, addRecordType, updateRecordType, duplicateRecordType, removeRecordType } = useLibrary()
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -132,8 +135,8 @@ export function RecordSection() {
               <button
                 type="button"
                 aria-label={`${item.name} 삭제`}
-                onClick={() => {
-                  if (!window.confirm(`${item.name} 유형과 그 기록을 삭제할까요?`)) return
+                onClick={async () => {
+                  if (!await confirm(`${item.name} 유형과 그 기록을 삭제할까요?`)) return
                   removeRecordType(item.id)
                 }}
                 className="text-neutral-400"

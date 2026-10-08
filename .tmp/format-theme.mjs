@@ -1,0 +1,5 @@
+import ts from 'typescript';
+import {readFile,writeFile} from 'node:fs/promises';
+const files=["src\\theme\\package\\features.ts","src\\theme\\package\\limits.ts","src\\theme\\package\\runtimeContext.ts","src\\theme\\package\\runtimeCss.ts","src\\theme\\package\\ThemeAssetResolver.ts","src\\theme\\package\\ThemeLoader.ts","src\\theme\\package\\ThemeRuntime.tsx","src\\theme\\package\\ThemeSanitizer.ts","src\\theme\\package\\ThemeValidator.ts","src\\theme\\package\\zip.ts","src/theme/ThemeIcon.tsx","src/theme/ThemeProvider.tsx","src/pages/Themes/PackageControls.tsx","src/pages/Themes/ThemePages.tsx","src/services/themes/index.ts","src/services/themes/packageStorage.ts","src/services/themes/localPackages.ts","packages/types/src/themePackage.ts","packages/api/src/themeRepository.ts"];
+const printer=ts.createPrinter({newLine:ts.NewLineKind.LineFeed});
+for(const p of files){const source=ts.createSourceFile(p,await readFile(p,'utf8'),ts.ScriptTarget.Latest,true,p.endsWith('.tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);await writeFile(p,printer.printFile(source));}

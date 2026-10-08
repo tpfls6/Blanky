@@ -65,8 +65,15 @@ export function mapScheduleRow(value: unknown): Schedule {
   if (!isRecord(value)) throw new AppError('REQUEST_FAILED', '일정 응답을 읽지 못했습니다.')
 
   return {
+    kind: value.kind === 'task' ? 'task' : 'event',
+    dueDate: readNullableString(value.due_date),
+    endDate: readNullableString(value.end_date),
+    allDay: value.all_day === true,
+    repeat: value.repeat_rule === 'daily' || value.repeat_rule === 'weekly' || value.repeat_rule === 'monthly' ? value.repeat_rule : 'none',
     id: requireString(value.id, 'id'),
     userId: requireString(value.user_id, 'user_id'),
+    calendarId: requireString(value.calendar_id, 'calendar_id'),
+    createdByUserId: readNullableString(value.created_by_user_id),
     title: requireString(value.title, 'title'),
     description: readNullableString(value.description) ?? '',
     date: requireString(value.date, 'date'),
@@ -90,6 +97,10 @@ function toScheduleChange(value: unknown): ScheduleChange {
 
   return {
     id: requireString(value.id, 'id'),
+    entityType: value.entity_type === 'task' ? 'task' : 'event',
+    beforeData: isRecord(value.before_data) ? mapScheduleRow(value.before_data) : null,
+    afterData: isRecord(value.after_data) ? mapScheduleRow(value.after_data) : null,
+    source: value.source === 'ai_chat' ? 'ai_chat' : 'manual',
     scheduleId: requireString(value.schedule_id, 'schedule_id'),
     userId: requireString(value.user_id, 'user_id'),
     action: readChangeAction(value.action),
@@ -100,6 +111,13 @@ function toScheduleChange(value: unknown): ScheduleChange {
 function scheduleColumns(draft: ScheduleDraft) {
   if (!draft.date) throw new AppError('INVALID_INPUT', '날짜를 확인해 주세요.')
   return {
+    ...(draft.calendarId !== undefined ? { calendar_id: draft.calendarId } : {}),
+    kind: draft.kind ?? 'event',
+    due_date: draft.dueDate ?? null,
+    end_date: draft.endDate ?? null,
+    all_day: draft.allDay ?? false,
+    repeat_rule: draft.repeat ?? 'none',
+    change_source: draft.changeSource ?? 'manual',
     title: draft.title,
     description: draft.description ?? '',
     date: draft.date,

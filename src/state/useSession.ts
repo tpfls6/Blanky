@@ -6,20 +6,23 @@ export type Account = {
   name: string
   nickname: string
   email: string
-  // ponytail: plain text in localStorage for the demo. Swap for Supabase Auth before real accounts.
+  // Legacy browser-only demo accounts; Supabase identities never store a password here.
   password: string
   avatar: string | null
 }
 
 export type SessionValue = {
   user: Account | null
-  signUp: (input: SignupInput) => string | null
-  signIn: (email: string, password: string) => string | null
-  signOut: () => void
+  loading?: boolean
+  authError?: string
+  signUp: (input: SignupInput) => string | null | Promise<string | null>
+  signIn: (email: string, password: string) => string | null | Promise<string | null>
+  signInWithGoogle: () => string | null | Promise<string | null>
+  signOut: () => void | Promise<void>
   hasEmail: (email: string) => boolean
-  updateProfile: (patch: Pick<Account, 'name' | 'nickname' | 'email' | 'avatar'>) => string | null
-  changePassword: (current: string, next: string, confirm: string) => string | null
-  deleteAccount: () => void
+  updateProfile: (patch: Pick<Account, 'name' | 'nickname' | 'email' | 'avatar'>) => string | null | Promise<string | null>
+  changePassword: (current: string, next: string, confirm: string) => string | null | Promise<string | null>
+  deleteAccount: () => void | string | Promise<void | string>
 }
 
 export const SessionContext = createContext<SessionValue | null>(null)

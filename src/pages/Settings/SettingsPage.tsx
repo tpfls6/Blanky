@@ -1,5 +1,6 @@
+import { useConfirm } from '../../state/useConfirm.ts'
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Navigate, NavLink, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, Palette, PanelLeft, Plus, Sparkles, Tag, User, type LucideIcon } from 'lucide-react'
 import { TextField } from '../../components/common/TextField.tsx'
 import { ROUTES } from '../../constants/routes.ts'
@@ -31,40 +32,55 @@ function CustomAccent({
   onPick: (accent: string) => void
   onSave: (saved: string[]) => void
 }) {
-  const custom = !ACCENTS.some((item) => item.id === accent)
-  const hex = accentHex(accent)
+  const hex = accentHex(accent).toLowerCase()
   const kept = saved.includes(hex)
+  const full = saved.length >= 8
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-3">
+    <div className="mt-4 space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
       <label className="relative flex h-7 cursor-pointer items-center gap-1 rounded-md border border-dashed border-neutral-300 px-2 text-xs text-neutral-500">
         <Plus className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
-        Custom
+        커스텀 색상
         <input
           type="color"
-          aria-label="Custom"
+          aria-label="커스텀 색상 선택"
           value={hex}
           onInput={(event) => onPick(event.currentTarget.value)}
           onChange={(event) => onPick(event.currentTarget.value)}
           className="absolute inset-0 cursor-pointer opacity-0"
         />
       </label>
-      {custom ? (
-        <button type="button" className="btn btn-ghost" disabled={kept} onClick={() => onSave([hex, ...saved.filter((color) => color !== hex)].slice(0, 8))}>
-          {kept ? '저장됨' : hex.toUpperCase()}
-        </button>
-      ) : null}
+      <span className="inline-flex items-center gap-2 text-xs text-neutral-500">
+        <span aria-hidden="true" className="size-4 rounded-full border border-line" style={{ backgroundColor: hex }} />
+        {hex.toUpperCase()}
+      </span>
+      <button
+        type="button"
+        className="btn btn-line"
+        disabled={kept || full}
+        onClick={() => onSave([hex, ...saved])}
+      >
+        {kept ? '저장됨' : '색상 저장'}
+      </button>
+      </div>
+      <p className="text-xs text-neutral-400" role="status">
+        {full && !kept ? '최대 8개까지 저장할 수 있습니다. 기존 색상을 삭제한 뒤 저장해 주세요.' : '색상을 선택한 뒤 저장하세요. 저장한 색상은 아래에서 다시 선택할 수 있습니다.'}
+      </p>
+      {saved.length > 0 ? <p className="text-xs text-neutral-400">저장한 색상 · {saved.length}/8</p> : null}
+      <div className="flex flex-wrap items-center gap-3" role="group" aria-label="저장한 커스텀 색상">
       {saved.map((color) => (
         <span key={color} className="inline-flex items-center gap-1">
           <button
             type="button"
-            aria-label={color}
-            aria-pressed={accent === color}
+            aria-label={`${color.toUpperCase()} 적용`}
+            title={color.toUpperCase()}
+            aria-pressed={hex === color}
             onClick={() => onPick(color)}
             className="size-6 rounded-full"
             style={{
               backgroundColor: color,
-              boxShadow: accent === color ? '0 0 0 2px var(--bg), 0 0 0 4px var(--fg)' : undefined,
+              boxShadow: hex === color ? '0 0 0 2px var(--bg), 0 0 0 4px var(--fg)' : undefined,
             }}
           />
           <button type="button" aria-label={`${color} 삭제`} onClick={() => onSave(saved.filter((item) => item !== color))} className="text-xs text-neutral-400">
@@ -72,11 +88,14 @@ function CustomAccent({
           </button>
         </span>
       ))}
+      </div>
     </div>
   )
 }
 
 export function SettingsPage() {
+  const confirm = useConfirm()
+
   const navigate = useNavigate()
   const params = useParams()
   const section = SECTIONS.find((item) => item.id === params.section)
@@ -98,15 +117,15 @@ export function SettingsPage() {
   if (!section) return <Navigate to="/settings/account" replace />
   const id = section.id
 
-  const saveProfile = (event: FormEvent) => {
+  const saveProfile = async (event: FormEvent) => {
     event.preventDefault()
-    const message = updateProfile({ name, nickname, email, avatar })
+    const message = await updateProfile({ name, nickname, email, avatar })
     setProfileMessage(message ?? '저장되었습니다.')
   }
 
-  const savePassword = (event: FormEvent) => {
+  const savePassword = async (event: FormEvent) => {
     event.preventDefault()
-    const message = changePassword(currentPassword, nextPassword, confirmPassword)
+    const message = await changePassword(currentPassword, nextPassword, confirmPassword)
     setPasswordMessage(message ?? '비밀번호를 바꿨습니다.')
     if (!message) {
       setCurrentPassword('')
@@ -167,13 +186,14 @@ export function SettingsPage() {
           </form>
         </div>
         <div className="flex gap-4 text-sm">
-          <button type="button" className="btn btn-ghost" onClick={() => { signOut(); navigate(ROUTES.login) }}>로그아웃</button>
+          <button type="button" className="btn btn-ghost" onClick={async () => { try { await signOut(); navigate(ROUTES.login) } catch { setProfileMessage('로그아웃하지 못했습니다. 다시 시도해 주세요.') } }}>로그아웃</button>
           <button
             type="button"
             className="text-neutral-400"
-            onClick={() => {
-              if (!window.confirm('계정을 삭제할까요? 이 기기의 기록도 함께 지워집니다.')) return
-              deleteAccount()
+            onClick={async () => {
+              if (!await confirm('계정을 삭제할까요? 이 기기의 기록도 함께 지워집니다.')) return
+              const message = await deleteAccount()
+              if (message) { setProfileMessage(message); return }
               navigate(ROUTES.login)
             }}
           >
@@ -185,6 +205,7 @@ export function SettingsPage() {
   } else if (id === 'appearance') {
     body = (
       <Section>
+        <p className="text-sm text-neutral-500">커스텀 테마가 적용되어 있으면 아래 색상 설정보다 우선합니다. <Link className="text-accent-text" to="/settings/themes">내 테마 관리</Link>에서 기존 설정으로 돌아갈 수 있습니다.</p>
         <div>
           <p className="text-sm">Theme</p>
           <div className="mt-2 flex gap-1" role="radiogroup" aria-label="Theme">

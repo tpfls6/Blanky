@@ -14,7 +14,7 @@ import type { TimelineDensity } from '../../types/records.ts'
 import type { WorkItem, WorkspaceCategory } from '../../types/work.ts'
 import { koreanLongDate, shiftISO, todayISO } from '../../utils/date.ts'
 import { selfCheckScheduleDraft, type ScheduleDraft } from '../../utils/scheduleDraft.ts'
-import { categoryKind, categoryPath, createWorkItem, hourOf, occursOn, placedTimes } from '../../utils/work.ts'
+import { categoryPath, createWorkItem, hourOf, occursOn, placedTimes } from '../../utils/work.ts'
 
 selfCheckScheduleDraft()
 
@@ -92,7 +92,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
   if (userId !== navFor) {
     setNavFor(userId)
     setNav(readTaskNav(userId, library.settings.taskView === 'all'))
-  } else if (nav.filter !== 'all' && !library.categories.some((category) => category.id === nav.filter)) {
+  } else if (nav.filter !== 'all' && !library.categories.some((category) => category.id === nav.filter && category.parentId === null)) {
     setNav((current) => (current.filter === 'all' ? current : { ...current, filter: 'all' }))
   }
   const { filter, showDone, open: openMap } = nav
@@ -101,6 +101,20 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [overHour, setOverHour] = useState<string | null>(null)
+  const draftOpen = draft !== null
+
+  useEffect(() => {
+    if (!draftOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return
+      event.preventDefault()
+      setDraft(null)
+      setReviewOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [draftOpen])
+
   const events = useMemo(() => eventDates(library.items), [library.items])
   const taskMarks = useMemo(() => taskDates(library.items), [library.items])
 
@@ -198,7 +212,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
         <div className="flex min-w-0 items-baseline gap-2">
           <h1 className="truncate text-base font-medium tracking-tight">{koreanLongDate(selected)}</h1>
           {selected !== today ? (
-            <button type="button" onClick={() => setSelected(today)} className="shrink-0 text-sm text-accent-text">
+            <button data-theme-slot="button" type="button" onClick={() => setSelected(today)} className="shrink-0 text-sm text-accent-text">
               오늘
             </button>
           ) : null}
@@ -219,7 +233,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
       return (
         <div className="relative z-20">
           <form onSubmit={analyze} className="composer-line flex w-full items-center gap-2">
-            <input
+            <input data-theme-slot="input"
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder="일정이나 할 일을 입력하세요"
@@ -227,14 +241,14 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-300"
             />
             <span className="shrink-0 text-xs text-neutral-400">자동 분류</span>
-            <button type="submit" className="btn btn-primary shrink-0 px-3" disabled={busy || !text.trim()}>
+            <button data-theme-slot="button-primary" type="submit" className="btn btn-primary shrink-0 px-3" disabled={busy || !text.trim()}>
               {busy ? '분류' : '전송'}
             </button>
           </form>
           {draft ? (
             <div className="absolute top-full right-0 z-30 mt-1 w-full max-w-xl rounded-md border border-line bg-surface shadow-lg">
               <div className="flex items-center gap-2 px-3 py-2">
-                <button
+                <button data-theme-slot="button"
                   type="button"
                   className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm"
                   aria-expanded={reviewOpen}
@@ -245,10 +259,10 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
                   </span>
                   <span className="truncate">{reviewLine(draft, library.categories)}</span>
                 </button>
-                <button type="button" className="btn btn-ghost shrink-0" onClick={() => setDraft(null)}>
+                <button data-theme-slot="button" type="button" className="btn btn-ghost shrink-0" onClick={() => setDraft(null)}>
                   취소
                 </button>
-                <button type="button" className="btn btn-primary shrink-0 px-3" onClick={saveReview}>
+                <button data-theme-slot="button-primary" type="button" className="btn btn-primary shrink-0 px-3" onClick={saveReview}>
                   확인
                 </button>
               </div>
@@ -566,23 +580,19 @@ function PlanRow({
   onToggle: (id: string) => void
 }) {
   const path = categoryPath(item.categoryId, categories)
-  const color = categories.find((category) => category.id === item.categoryId)?.color
   const done = item.status === 'done'
   return (
-    <div className="flex items-start gap-3">
+    <div data-theme-slot={item.kind === 'event' ? 'schedule-card' : 'task-card'} className={item.kind === 'event' ? 'theme-plan flex items-start gap-3 p-2 my-1' : 'theme-task flex items-start gap-3'} style={{borderLeftColor:categories.find(c=>c.id===item.categoryId)?.color??undefined,borderLeftWidth:categories.find(c=>c.id===item.categoryId)?.color?3:undefined}}>
       {item.kind === 'task' ? (
         <span className="mt-0.5">
           <TaskCheckbox checked={done} label={`${item.title} 완료`} onChange={() => onToggle(item.id)} />
         </span>
-      ) : (
-        <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
-      )}
-      <button type="button" onClick={() => onOpen(item)} className="min-w-0 flex-1 py-0.5 text-left">
-        <span className={done ? 'block text-sm text-neutral-400 line-through' : 'block text-sm text-neutral-900'}>
+      ) : null}
+      <button data-theme-slot="button" type="button" onClick={() => onOpen(item)} className="min-w-0 flex-1 py-0.5 text-left">
+        <span data-theme-slot="schedule-title" className={done ? 'block text-sm text-neutral-400 line-through' : 'block text-sm text-neutral-900'}>
           {item.title}
         </span>
-        <span className="mt-1 block text-xs text-neutral-400">
-          {color ? <span className="mr-1 inline-block size-1.5 rounded-full align-middle" style={{ backgroundColor: color }} /> : null}
+        <span data-theme-slot="schedule-time" className="mt-1 block text-xs text-neutral-400">
           {spanLabel(item)}
           {item.kind === 'event' ? ' · 일정' : ' · 할 일'}
           {item.endDate ? ` · ${item.date}–${item.endDate}` : ''}
@@ -597,7 +607,6 @@ function CategoryMark({ icon, color, compact }: { icon?: string | null; color?: 
   const tint = color || '#737373'
   return (
     <span className="inline-flex shrink-0 items-center gap-1.5">
-      <span className={compact ? 'size-1.5 rounded-full' : 'size-2 rounded-full'} style={{ backgroundColor: tint }} aria-hidden="true" />
       <IconView name={icon} className={compact ? 'size-3' : 'size-3.5'} style={{ color: tint }} />
     </span>
   )
@@ -634,10 +643,9 @@ function TaskFolders({
   onToggle: (id: string) => void
   onAssign: (item: WorkItem) => void
 }) {
-  const areas = categories.filter((category) => categoryKind(category) === 'area')
-  const projects = categories.filter((category) => categoryKind(category) === 'project')
-  const options = [{ id: 'all', name: '전체' }, ...areas, ...projects]
-  const many = areas.length + projects.length > 5
+  const areas = categories.filter((category) => category.parentId === null)
+  const options = [{ id: 'all', name: '전체' }, ...areas]
+  const many = areas.length > 5
   const visible = scopeTasks(tasks, categories, filter)
   const groups = groupTasks(visible, categories)
 
@@ -645,14 +653,14 @@ function TaskFolders({
     <div>
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-neutral-400">{heading}</p>
-        <button type="button" aria-pressed={showDone} onClick={onToggleDone} className={showDone ? 'chip chip-on' : 'chip'}>
+        <button data-theme-slot="button" type="button" aria-pressed={showDone} onClick={onToggleDone} className={showDone ? 'chip chip-on' : 'chip'}>
           완료 보기
         </button>
       </div>
       {many ? (
         <label className="mt-3 flex items-center gap-2 text-xs text-neutral-500">
           범위
-          <select
+          <select data-theme-slot="input"
             aria-label="할 일 범위"
             value={filter}
             onChange={(event) => onFilter(event.target.value)}
@@ -668,15 +676,6 @@ function TaskFolders({
                 ))}
               </optgroup>
             ) : null}
-            {projects.length > 0 ? (
-              <optgroup label="프로젝트">
-                {projects.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
           </select>
         </label>
       ) : (
@@ -684,7 +683,7 @@ function TaskFolders({
           {options.map((option) => {
             const tint = 'color' in option ? option.color : null
             return (
-              <button
+              <button data-theme-slot="button"
                 key={option.id}
                 type="button"
                 aria-pressed={filter === option.id}
@@ -708,7 +707,7 @@ function TaskFolders({
             const expanded = group.id in openMap ? openMap[group.id] : holdsDay(group.id, visible, categories, selected)
             return (
               <section key={group.id}>
-                <button
+                <button data-theme-slot="button"
                   type="button"
                   aria-expanded={expanded}
                   aria-controls={`tasks-${group.id}`}
@@ -765,7 +764,7 @@ function TaskRow({
   const done = item.status === 'done'
   return (
     <li
-      className="flex items-start gap-2 rounded-md py-2 transition-colors duration-150"
+      data-theme-slot="task-card" className="theme-task flex items-start gap-2 rounded-md py-2 transition-colors duration-150"
       draggable={assignable && !item.startTime}
       onDragStart={(event) => {
         event.dataTransfer.setData('text/plain', item.id)
@@ -778,7 +777,7 @@ function TaskRow({
         <TaskCheckbox checked={done} label={`${item.title} 완료`} onChange={() => onToggle(item.id)} />
       </span>
       <div className="min-w-0 flex-1">
-        <button type="button" onClick={() => onOpen(item)} className="block w-full text-left">
+        <button data-theme-slot="button" type="button" onClick={() => onOpen(item)} className="block w-full text-left">
           <span className={done ? 'block truncate text-sm text-neutral-400 line-through' : 'block truncate text-sm text-neutral-900'}>
             {item.title}
           </span>
@@ -788,7 +787,7 @@ function TaskRow({
             {item.date.slice(5).replace('-', '/')} · {spanLabel(item)}
           </span>
           {!item.startTime ? (
-            <button type="button" onClick={() => onAssign(item)} className="rounded-md px-1.5 py-0.5 text-xs text-accent-text hover:bg-accent-light">
+            <button data-theme-slot="button" type="button" onClick={() => onAssign(item)} className="rounded-md px-1.5 py-0.5 text-xs text-accent-text hover:bg-accent-light">
               시간 배정
             </button>
           ) : null}
@@ -831,45 +830,45 @@ function DraftEditor({
   return (
     <form onSubmit={submit} className={bare ? 'max-h-80 overflow-auto border-t border-line px-3 py-3' : 'mt-4 rounded-md border border-line px-4 py-4'}>
       <div className="flex gap-1">
-        <button type="button" onClick={() => set({ kind: 'event' })} className={task ? 'chip' : 'chip chip-on'}>
+        <button data-theme-slot="button" type="button" onClick={() => set({ kind: 'event' })} className={task ? 'chip' : 'chip chip-on'}>
           일정
         </button>
-        <button type="button" onClick={() => set({ kind: 'task' })} className={task ? 'chip chip-on' : 'chip'}>
+        <button data-theme-slot="button" type="button" onClick={() => set({ kind: 'task' })} className={task ? 'chip chip-on' : 'chip'}>
           할 일
         </button>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="sm:col-span-2 text-xs text-neutral-500">
           제목
-          <input value={draft.title} onChange={(event) => set({ title: event.target.value })} className="field mt-1 w-full" />
+          <input data-theme-slot="input" value={draft.title} onChange={(event) => set({ title: event.target.value })} className="field mt-1 w-full" />
         </label>
         <label className="text-xs text-neutral-500">
           {task ? '날짜' : '시작 날짜'}
-          <input type="date" value={draft.date} onChange={(event) => set({ date: event.target.value })} className="field mt-1 w-full" />
+          <input data-theme-slot="input" type="date" value={draft.date} onChange={(event) => set({ date: event.target.value })} className="field mt-1 w-full" />
         </label>
         {task ? (
           <label className="text-xs text-neutral-500">
             마감
-            <input type="date" value={draft.dueDate} onChange={(event) => set({ dueDate: event.target.value })} className="field mt-1 w-full" />
+            <input data-theme-slot="input" type="date" value={draft.dueDate} onChange={(event) => set({ dueDate: event.target.value })} className="field mt-1 w-full" />
           </label>
         ) : (
           <label className="text-xs text-neutral-500">
             종료 날짜
-            <input type="date" value={draft.endDate} onChange={(event) => set({ endDate: event.target.value })} className="field mt-1 w-full" />
+            <input data-theme-slot="input" type="date" value={draft.endDate} onChange={(event) => set({ endDate: event.target.value })} className="field mt-1 w-full" />
           </label>
         )}
         <label className="text-xs text-neutral-500">
           {task ? '시간' : '시작'}
-          <input type="time" value={draft.startTime} onChange={(event) => set({ startTime: event.target.value })} className="field mt-1 w-full" />
+          <input data-theme-slot="input" type="time" value={draft.startTime} onChange={(event) => set({ startTime: event.target.value })} className="field mt-1 w-full" />
         </label>
         <label className="text-xs text-neutral-500">
           {task ? '종료 시간' : '종료'}
-          <input type="time" value={draft.endTime} onChange={(event) => set({ endTime: event.target.value })} className="field mt-1 w-full" />
+          <input data-theme-slot="input" type="time" value={draft.endTime} onChange={(event) => set({ endTime: event.target.value })} className="field mt-1 w-full" />
         </label>
         {task ? (
           <label className="text-xs text-neutral-500">
             예상 소요 (분)
-            <input
+            <input data-theme-slot="input"
               inputMode="numeric"
               value={draft.duration}
               onChange={(event) => set({ duration: event.target.value })}
@@ -895,30 +894,30 @@ function DraftEditor({
         ) : null}
         <label className="sm:col-span-2 text-xs text-neutral-500">
           설명
-          <textarea value={draft.description} onChange={(event) => set({ description: event.target.value })} className="field mt-1 min-h-16 w-full resize-y" />
+          <textarea data-theme-slot="input" value={draft.description} onChange={(event) => set({ description: event.target.value })} className="field mt-1 min-h-16 w-full resize-y" />
         </label>
       </div>
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
       {bare ? (
         onDelete ? (
           <div className="mt-3">
-            <button type="button" onClick={onDelete} className="btn btn-ghost">
+            <button data-theme-slot="button" type="button" onClick={onDelete} className="btn btn-ghost">
               삭제
             </button>
           </div>
         ) : null
       ) : (
         <div className="mt-4 flex items-center justify-between">
-          <button type="button" onClick={onCancel} className="btn btn-ghost">
+          <button data-theme-slot="button" type="button" onClick={onCancel} className="btn btn-ghost">
             취소
           </button>
           <div className="flex gap-2">
             {onDelete ? (
-              <button type="button" onClick={onDelete} className="btn btn-ghost">
+              <button data-theme-slot="button" type="button" onClick={onDelete} className="btn btn-ghost">
                 삭제
               </button>
             ) : null}
-            <button type="submit" className="btn btn-primary">
+            <button data-theme-slot="button-primary" type="submit" className="btn btn-primary">
               저장
             </button>
           </div>

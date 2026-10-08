@@ -1,0 +1,30 @@
+[
+  {
+    "path": "/reading",
+    "status": 200
+  },
+  {
+    "path": "/reading/demo",
+    "status": 200
+  },
+  {
+    "path": "/src/App.tsx",
+    "status": 200
+  },
+  {
+    "path": "/src/pages/Reading/ReadingPage.tsx",
+    "status": 200
+  },
+  {
+    "path": "/src/pages/Home/HomePage.tsx",
+    "status": 200
+  },
+  {
+    "path": "/src/pages/Schedule/SchedulePage.tsx",
+    "status": 200
+  },
+  {
+    "path": "/src/pages/Diary/DiaryPage.tsx",
+    "status": 200
+  }
+]

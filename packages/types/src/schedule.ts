@@ -20,8 +20,17 @@ export type ScheduleChangeAction = 'created' | 'updated' | 'completed' | 'delete
  * Times are local clock values (HH:mm). Dates are YYYY-MM-DD.
  */
 export type Schedule = {
+  kind?: 'event' | 'task'
+  dueDate?: string | null
+  endDate?: string | null
+  allDay?: boolean
+  repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
+  changeSource?: 'manual' | 'ai_chat'
+
   id: string
   userId: string
+  calendarId: string
+  createdByUserId: string | null
   title: string
   description: string
   date: string
@@ -43,6 +52,14 @@ export type Schedule = {
 
 /** Partial schedule returned by the AI parser before it is saved. */
 export type ScheduleDraft = {
+  kind?: 'event' | 'task'
+  dueDate?: string | null
+  endDate?: string | null
+  allDay?: boolean
+  repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
+  changeSource?: 'manual' | 'ai_chat'
+
+  calendarId?: string
   title: string
   description?: string
   date?: string
@@ -58,6 +75,10 @@ export type ScheduleDraft = {
 }
 
 export type ScheduleChange = {
+  entityType: 'event' | 'task'
+  beforeData: Schedule | null
+  afterData: Schedule | null
+  source: 'manual' | 'ai_chat'
   id: string
   scheduleId: string
   userId: string
