@@ -71,72 +71,72 @@
         "home": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "today": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "calendar": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "task": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "diary": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "memo": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "store": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "custom": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "settings": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "search": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "add": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "favorite": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "delete": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         },
         "edit": {
           "type": "string",
           "maxLength": 200,
-          "pattern": "\\.svg$"
+          "pattern": "\\.(svg|png|jpe?g|webp)$"
         }
       },
       "additionalProperties": false
@@ -159,6 +159,54 @@
         }
       },
       "additionalProperties": false
+    },
+    "imageSettings": {
+      "type": "object",
+      "maxProperties": 64,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "size",
+          "x",
+          "y",
+          "opacity",
+          "fit"
+        ],
+        "properties": {
+          "size": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 200
+          },
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "opacity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "fit": {
+            "enum": [
+              "cover",
+              "contain",
+              "repeat"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "$defs": {

@@ -3,6 +3,7 @@ import type { NaturalLanguageScheduleRequest } from '../../types/src/schedule.ts
 import type { ParsedSchedule, ScheduleKind } from '../../parse/src/model.ts'
 import type { Database } from './database.generated.ts'
 import { AppError } from './errors.ts'
+import { routeInput, PlannerRequiredError } from '../../parse/src/intentRouter.ts'
 import { isRecord, readNullableString, readNumber, readString } from './guards.ts'
 
 export const PARSE_SCHEDULE_FUNCTION = 'parse-schedule'
@@ -78,6 +79,10 @@ export async function parseScheduleFromText(
   request: NaturalLanguageScheduleRequest,
 ): Promise<ParsedSchedule> {
   const text = request.text.trim()
+  if (text && routeInput(text).route === 'planner') {
+    const error = new PlannerRequiredError()
+    throw new AppError(error.code, error.message)
+  }
   if (!text) throw new AppError('INVALID_INPUT', '입력 내용을 확인해주세요.')
   const { data, error } = await client.functions.invoke(PARSE_SCHEDULE_FUNCTION, {
     body: { text, timezone: request.timezone },

@@ -23,3 +23,4 @@ export {
 export { createAIProvider, readModelFields, readModelSchedule } from './provider.ts'
 export type { AIProvider, ProviderEnv, ProviderParseInput } from './provider.ts'
 export { resolveParse } from './resolve.ts'
+export { routeInput, PlannerRequiredError } from './intentRouter.ts'

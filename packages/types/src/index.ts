@@ -36,3 +36,4 @@ export * from './theme.ts'
 export * from './reading.ts'
 
 export * from './themePackage.ts';
+export type { InputRoute } from './ai.ts'

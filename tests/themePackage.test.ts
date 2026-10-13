@@ -36,3 +36,21 @@ test('filter and transform cannot obscure structural slots or recovery controls'
 
 test('adding CSS to a package without a stylesheet preserves it on export and reimport',async()=>{const p=fixture();delete p.manifest.entry.stylesheet;const imported=await importThemePackage(await exportThemePackage(p));assert.equal(imported.manifest.entry.stylesheet,'style.css');assert.equal(imported.customCss,validatePackage(p).customCss);});
 test('export reflects unsaved display metadata while preserving original author',()=>{const p=fixture();const t={...BUILTIN_THEMES[1],name:'Renamed',description:'New description',package:p};const exported=packageFromTheme(t);assert.equal(exported.manifest.name,'Renamed');assert.equal(exported.manifest.description,'New description');assert.equal(exported.manifest.author,p.manifest.author);assert.throws(()=>validateManifest({...p.manifest,entry:{theme:'manifest.json'}}));});
+
+test('settings-only JSON import validates version, config and executable content', async () => {
+    const pkg = packageFromTheme(BUILTIN_THEMES[0]);
+    assert.deepEqual(await importThemePackage(new Blob([JSON.stringify(pkg)])), validatePackage(pkg));
+    await assert.rejects(() => importThemePackage(new Blob([JSON.stringify({ ...pkg, manifest: { ...pkg.manifest, formatVersion: 99 } })])));
+    await assert.rejects(() => importThemePackage(new Blob(['<script>alert(1)</script>'])));
+    await assert.rejects(() => importThemePackage(new Blob([JSON.stringify({ ...pkg, customCss: 'body{display:none}' })])));
+});
+
+test('image placement metadata survives ZIP roundtrip and rejects unsafe settings', async () => {
+    const pkg = fixture();
+    pkg.manifest.assets.character = 'assets/background.svg';
+    pkg.manifest.imageSettings = { character: { size: 60, x: 100, y: 50, opacity: 70, fit: 'contain', fileName: 'character.png' } };
+    assert.deepEqual((await importThemePackage(await exportThemePackage(pkg))).manifest.imageSettings, pkg.manifest.imageSettings);
+    for (const patch of [{ x: -1 }, { size: 201 }, { opacity: Infinity }, { fit: 'url(javascript:alert(1))' }]) {
+        assert.throws(() => validatePackage({ ...pkg, manifest: { ...pkg.manifest, imageSettings: { character: { ...pkg.manifest.imageSettings.character, ...patch } } } }));
+    }
+});

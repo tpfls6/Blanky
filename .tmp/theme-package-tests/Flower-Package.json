@@ -1,0 +1,72 @@
+{
+  "manifest": {
+    "formatVersion": 1,
+    "id": "8442f5f7-fbd8-4836-9da9-0581ba973dd0",
+    "name": "Flower Package",
+    "description": "Blanky 기본 제공 테마",
+    "author": "테마 테스트",
+    "version": "1.0.0",
+    "entry": {
+      "theme": "theme.json",
+      "stylesheet": "style.css"
+    },
+    "assets": {},
+    "iconPack": {},
+    "previews": []
+  },
+  "config": {
+    "colors": {
+      "background": "#e4edf9",
+      "surface": "#ffffff",
+      "primary": "#3a62b0",
+      "accent": "#c15e80",
+      "textPrimary": "#171717",
+      "textSecondary": "#737373",
+      "border": "#ebebeb"
+    },
+    "calendar": {
+      "background": "#e4edf9",
+      "todayColor": "#3a62b0",
+      "selectedColor": "#3a62b0",
+      "weekdayColor": "#171717",
+      "weekendColor": "#c15e80",
+      "hoverColor": "#f6f6f5"
+    },
+    "schedule": {
+      "background": "#f1f4fb",
+      "textColor": "#171717",
+      "borderColor": "#ebebeb",
+      "borderRadius": 6,
+      "opacity": 1,
+      "shadow": "none"
+    },
+    "task": {
+      "background": "#ffffff",
+      "checkboxColor": "#3a62b0",
+      "checkboxStyle": "square",
+      "completedStyle": "strike",
+      "completedLineColor": "#737373"
+    },
+    "card": {
+      "background": "#ffffff",
+      "borderColor": "#ebebeb",
+      "borderRadius": 8,
+      "shadow": "none",
+      "opacity": 1
+    },
+    "sidebar": {
+      "background": "#e4edf9",
+      "selectedBackground": "#f1f4fb",
+      "textColor": "#737373",
+      "iconColor": "#737373",
+      "hoverColor": "#f6f6f5"
+    },
+    "typography": {
+      "headingFont": "system-ui",
+      "bodyFont": "system-ui"
+    },
+    "iconPack": "default"
+  },
+  "customCss": "",
+  "files": {}
+}

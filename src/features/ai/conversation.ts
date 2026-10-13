@@ -1,4 +1,5 @@
 import { parseScheduleText } from '../../../packages/parse/src/parse.ts'
+import { routeInput, PlannerRequiredError } from '../../../packages/parse/src/intentRouter.ts'
 import type { WorkItem, WorkPatch, WorkspaceCategory } from '../../types/work.ts'
 
 export type Intent =
@@ -9,6 +10,7 @@ export type Intent =
 
 /** Route commands; all date/time interpretation stays in the existing parser. */
 export function conversationIntent(text: string, items: WorkItem[], lastId: string | null, today: Date, categories: WorkspaceCategory[]): Intent {
+  if (routeInput(text).route === 'planner') return { type: 'reply', text: new PlannerRequiredError().message }
   const parsed = parseScheduleText(text, { today, categories })
   if (/(정리해|시간 찾아|추천|재배치)/.test(text)) return { type: 'reply', text: '자동 정리와 빈 시간 추천은 준비 중이에요. 일정 조회, 추가, 시간 변경, 할 일 완료를 도와드릴 수 있어요.' }
   if (/(뭐 있어|보여|알려|조회)/.test(text)) return { type: 'list', date: parsed.draft.date ?? '' }

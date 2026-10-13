@@ -65,7 +65,7 @@ async function fill(selector, value) {
 const owner='22222222-2222-4222-8222-222222222222',bob='33333333-3333-4333-8333-333333333333'
 const outDir=resolve('.tmp/theme-package-tests')
 await mkdir(outDir,{recursive:true})
-for(const name of await readdir(outDir))if(name.endsWith('.blanky-theme'))await import('node:fs/promises').then(fs=>fs.unlink(join(outDir,name)))
+for(const name of await readdir(outDir))if(name.endsWith('.zip') || name === 'Flower-Package.json')await import('node:fs/promises').then(fs=>fs.unlink(join(outDir,name)))
 const assetPath=join(outDir,'flower.svg')
 await writeFile(assetPath,'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" fill="#ffc6d8"/><circle cx="24" cy="24" r="12" fill="#ff9bb7"/></svg>')
 const checks=[]
@@ -83,7 +83,40 @@ try {
  const previous=await active();assert.ok(previous);checks.push('Legacy Soft Pink applies and persists')
  await navigate(base+'/customize/theme');await wait('!!document.querySelector(".theme-editor")','editor')
  await fill('input[maxlength="100"]','Flower Package')
- for(const label of ['앱 배경 업로드','사이드바 배경 업로드','캘린더 배경 업로드','일정 카드 배경 업로드','체크박스 SVG 업로드','home 아이콘 업로드']){await upload(label,assetPath);await pause(100)}
+ await evaluate('document.querySelector(".color-choice").open=true');
+ await fill('[aria-label="배경 HEX"]','#e4edf9');
+ await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','HEX live preview');
+ assert.equal(await active(),previous);
+ await screenshot('editor-colors');
+ await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:outDir});
+ await button('테마 파일로 내보내기');
+ for(let i=0;i<80;i++){if((await readdir(outDir)).includes('Flower-Package.json'))break;await pause(100)}
+ assert.ok((await readdir(outDir)).includes('Flower-Package.json'),'actual JSON download');
+ await button('캘린더');
+ assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=task-card]")).display'),'none');
+ await button('전체');
+ await button('취소');
+ assert.equal(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--bg")'),'#ffffff');
+ checks.push('Circular HEX picker, preview screen switching and cancel preserve active theme');
+ await button('테마 가져오기');
+ await upload('테마 가져오기',join(outDir,'Flower-Package.json'));
+ await wait('!!document.querySelector(".theme-import-review")','JSON review');
+ await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','JSON right preview');
+ assert.equal(await active(),previous);
+ await click('.theme-import-review .btn-line');
+ assert.equal(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--bg")'),'#ffffff');
+ checks.push('JSON export and import show isolated right preview and cancel restores draft');
+ await fill('input[maxlength="100"]','Flower Package');
+ await button('이미지 꾸미기');
+ for(const label of ['전체 배경 업로드','사이드바 배경 업로드','캘린더 배경 업로드','일정 카드 배경 업로드','체크박스 SVG 업로드','home 아이콘 업로드']){await upload(label,assetPath);await pause(100)}
+ const png = await evaluate('(()=>{const canvas=document.createElement("canvas");canvas.width=120;canvas.height=120;const context=canvas.getContext("2d");context.fillStyle="#b8c9ef";context.beginPath();context.arc(60,60,40,0,Math.PI*2);context.fill();return canvas.toDataURL("image/png").split(",")[1]})()');
+ const characterPath=join(outDir,'character.png');await writeFile(characterPath,Buffer.from(png,'base64'));
+ await upload('캐릭터 장식 업로드',characterPath);
+ await pause(150);
+ await fill('[aria-label="캐릭터 장식 opacity"]','65');
+ await wait('getComputedStyle(document.querySelector(".theme-preview"),"::after").opacity==="0.65"','character opacity');
+ assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-preview"),"::after").pointerEvents'),'none');
+ await screenshot('editor-images');
  await button('고급 편집');await fill('[aria-label="고급 CSS"]',css)
  await wait('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=schedule-card]")).borderRadius==="24px"','live stylesheet')
  assert.match(await evaluate('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=sidebar]")).backgroundImage'),/blob:/)
@@ -101,11 +134,18 @@ try {
  const themeId=await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.name==="Flower Package").id')
  assert.equal(await active(),previous)
  assert.deepEqual(await evaluate('Object.keys(JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.id==='+q(themeId)+').package.files)'),[])
- checks.push('Save persists package assets separately in IndexedDB')
+ assert.equal(await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.id==='+q(themeId)+').package.manifest.imageSettings.character.opacity'),65);
+ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ await button('색상 테마');
+ assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
+ await screenshot('mobile-editor');
+ await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+ checks.push('Save persists PNG assets and placement separately in IndexedDB; mobile editor has no horizontal overflow')
  await button('저장하고 적용하기');await wait('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).active==='+q(themeId),'apply package')
  await navigate(base+'/schedule');await wait('document.querySelector("aside img")?.getAttribute("src")?.startsWith("blob:")','active icon')
  assert.match(await evaluate('getComputedStyle(document.querySelector("[data-theme-scope]")).backgroundImage'),/blob:/)
  assert.match(await evaluate('getComputedStyle(document.querySelector("[data-theme-slot=calendar]")).backgroundImage'),/blob:/)
+ await wait('getComputedStyle(document.querySelector("[data-theme-scope]"),"::after").opacity==="0.65"','persisted transparent PNG character');
  await screenshot('schedule-package');checks.push('Package applies to real schedule, sidebar, calendar and icons after refresh')
  await navigate(base+'/store/themes/00000000-0000-4000-8000-000000000004')
  await wait('[...document.querySelectorAll("button")].some(b=>b.textContent==="내 일정으로 미리보기")','detail')
@@ -120,8 +160,8 @@ try {
  await navigate(base+'/customize/theme?id='+themeId);await wait('!!document.querySelector(".theme-editor")','saved editor')
  await button('테마 파일로 내보내기')
  let exported
- for(let i=0;i<80;i++){exported=(await readdir(outDir)).find(n=>n.endsWith('.blanky-theme'));if(exported)break;await pause(100)}
- assert.ok(exported,'actual .blanky-theme download');checks.push('Creator export downloads the .blanky-theme extension')
+ for(let i=0;i<80;i++){exported=(await readdir(outDir)).find(n=>n.endsWith('.zip'));if(exported)break;await pause(100)}
+ assert.ok(exported,'actual .blanky-theme download');checks.push('Creator export downloads the .zip extension')
  await evaluate('localStorage.setItem("blanky.session.v1",'+q(bob)+')')
  await navigate(base+'/settings/themes');await wait('document.querySelectorAll("article").length>=4','Bob themes')
  await upload('테마 가져오기',join(outDir,exported))

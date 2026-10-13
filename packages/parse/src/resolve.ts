@@ -1,5 +1,6 @@
 import { formatISODate } from '../../utils/src/date.ts'
 import { PARSE_CONFIG } from './config.ts'
+import { routeInput, PlannerRequiredError } from './intentRouter.ts'
 import type { ParseContext, ParsedSchedule } from './model.ts'
 import { parseScheduleText } from './parse.ts'
 import type { AIProvider } from './provider.ts'
@@ -16,7 +17,9 @@ export async function resolveParse(
   const parsed = parseScheduleText(text, context)
   const threshold = options.threshold ?? PARSE_CONFIG.aiConfidenceThreshold
   const provider = options.provider
-  if (!provider || parsed.confidence >= threshold) return parsed
+  const intent = routeInput(text, parsed, threshold)
+  if (intent.route === 'planner') throw new PlannerRequiredError()
+  if (!provider || intent.route === 'parser') return parsed
   try {
     const ai = await provider.parseSchedule({
       text,

@@ -1,3 +1,4 @@
+import { mergeCategories } from '../utils/mergeCategories.ts'
 import { getDiaryRecords, saveDiaryRecord, deleteDiaryRecord, hasSyncedDiary } from '../services/diary/index.ts'
 import { loadWork, saveWork, type Activity } from '../services/schedule/workStore.ts'
 import { getScheduleRepository } from '../services/schedule/index.ts'
@@ -230,7 +231,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       remoteIds.current = new Set(remote.items.map(item => item.id))
       workLoaded.current = true
       setWorkError('')
-      setData(current => ({ ...current, categories: [...current.categories.filter(row => !remote.categories.some(category => category.id === row.id)), ...remote.categories], items: [...current.items.filter(item => (!item.calendarId || item.calendarId.startsWith('local-personal:')) && !remoteIds.current.has(item.id)), ...remote.items], activities: remote.activities }))
+      setData(current => {
+        const merged = mergeCategories(current.categories, remote.categories)
+        return { ...current, categories: merged.categories,
+          items: [...current.items.filter(item => (!item.calendarId || item.calendarId.startsWith('local-personal:')) && !remoteIds.current.has(item.id)), ...remote.items].map(merged.remap),
+          memos: current.memos.map(merged.remap), activities: remote.activities }
+      })
     }).catch((error: unknown) => {
       if (!cancelled) setWorkError(error instanceof Error
         ? `서버 일정 조회 실패: ${error.message}`
@@ -261,7 +267,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       if (saved && isSupabaseConfigured) remoteIds.current.add(saved.id)
       const activity: Activity = { id: crypto.randomUUID(), entityId: saved?.id ?? before!.id, before, after: saved,
         action: !before ? 'created' : !saved ? 'deleted' : saved.status === 'done' && before.status !== 'done' ? 'completed' : 'updated', source, createdAt: new Date().toISOString() }
-      setData(current => ({ ...current, categories: [...current.categories.filter(row => !categories.some(category => category.id === row.id)), ...categories], items: [...current.items.filter(item => item.id !== before?.id && item.id !== saved?.id), ...(saved ? [saved] : [])], activities: [activity, ...(current.activities ?? [])] }))
+      setData(current => {
+        const merged = mergeCategories(current.categories, categories)
+        return { ...current, categories: merged.categories,
+          items: [...current.items.filter(item => item.id !== before?.id && item.id !== saved?.id), ...(saved ? [saved] : [])].map(merged.remap),
+          memos: current.memos.map(merged.remap), activities: [activity, ...(current.activities ?? [])] }
+      })
       setWorkError('')
       return saved
     })

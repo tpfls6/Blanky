@@ -5,6 +5,8 @@ import { getSupabaseClient } from '../supabase/client.ts'
 
 export type { NaturalLanguageScheduleRequest } from '@blanky/types'
 export type { ParsedSchedule } from '@blanky/parse'
+export type { InputRoute } from '@blanky/types'
+export { routeInput, PlannerRequiredError } from '@blanky/parse'
 
 export async function parseScheduleFromText(
   request: NaturalLanguageScheduleRequest,

@@ -28,8 +28,21 @@ export function validateManifest(v: unknown): ThemeManifest {
         packageError('entry 파일 형식이 올바르지 않습니다.');
     const assets = mapping(v.assets), icons = mapping(v.iconPack);
     for (const [k, p] of Object.entries(icons)) {
-        if (!THEME_ICON_KEYS.includes(k as typeof THEME_ICON_KEYS[number]) || !p.endsWith('.svg'))
-            packageError('아이콘 팩은 지원되는 이름의 SVG만 사용할 수 있습니다.');
+        if (!THEME_ICON_KEYS.includes(k as typeof THEME_ICON_KEYS[number]) || !/\.(svg|png|jpe?g|webp)$/.test(p))
+            packageError('아이콘은 지원되는 이름의 SVG, PNG, JPG, WebP만 사용할 수 있습니다.');
+    }
+    const imageSettings: NonNullable<ThemeManifest['imageSettings']> = {};
+    if (v.imageSettings !== undefined) {
+        if (!record(v.imageSettings) || Object.keys(v.imageSettings).length > 64) packageError('Invalid image settings');
+        for (const [key, settings] of Object.entries(v.imageSettings)) {
+            if (!Object.hasOwn(assets, key) || !record(settings)) packageError('Invalid image settings');
+            for (const field of ['size', 'x', 'y', 'opacity']) {
+                const n = settings[field];
+                if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > (field === 'size' ? 200 : 100)) packageError('Invalid image setting range');
+            }
+            if (!['cover', 'contain', 'repeat'].includes(String(settings.fit))) packageError('Invalid image fit');
+            imageSettings[key] = { size: settings.size as number, x: settings.x as number, y: settings.y as number, opacity: settings.opacity as number, fit: settings.fit as 'cover' | 'contain' | 'repeat', ...(settings.fileName ? { fileName: text(settings.fileName, 255) } : {}) };
+        }
     }
     const previews = v.previews ?? [];
     if (!Array.isArray(previews) || previews.length > 8)
@@ -37,7 +50,7 @@ export function validateManifest(v: unknown): ThemeManifest {
     const fonts = mapping(v.fonts);
     if (Object.keys(fonts).some(k => !['body', 'heading'].includes(k)))
         packageError('폰트 mapping이 올바르지 않습니다.');
-    return { formatVersion: 1, id, name, description: text(v.description ?? '', 2000), author: text(v.author, 100), version, entry: { theme, ...(stylesheet ? { stylesheet } : {}) }, assets, iconPack: icons, previews: previews.map(p => safePath(text(p, 200))), ...(Object.keys(fonts).length ? { fonts } : {}) };
+    return { formatVersion: 1, id, name, description: text(v.description ?? '', 2000), author: text(v.author, 100), version, entry: { theme, ...(stylesheet ? { stylesheet } : {}) }, assets, ...(Object.keys(imageSettings).length ? { imageSettings } : {}), iconPack: icons, previews: previews.map(p => safePath(text(p, 200))), ...(Object.keys(fonts).length ? { fonts } : {}) };
 }
 export function validateConfig(v: unknown): ThemeConfig {
     if (!record(v) || !record(v.colors))
@@ -131,8 +144,8 @@ export function validateAsset(p: string, bytes: Uint8Array, icon = false): Theme
     }
     else
         packageError('허용되지 않거나 파일 내용과 확장자가 다른 asset입니다: ' + p);
-    if (icon && mime !== 'image/svg+xml')
-        packageError('아이콘은 SVG만 지원합니다.');
+    if (icon && !mime.startsWith('image/'))
+        packageError('아이콘은 이미지 파일만 지원합니다.');
     if (!bytes.length || bytes.length > limit)
         packageError('asset 파일 크기 제한을 초과했습니다.');
     return { mime, data: toBase64(bytes) };

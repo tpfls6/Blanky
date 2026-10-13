@@ -6,7 +6,14 @@ import { validateAsset, validateManifest, validateConfig, validatePackage } from
 export async function importThemePackage(file: Blob): Promise<ThemePackage> {
     if (file.size > LIMITS.package)
         packageError('전체 테마 패키지는 최대 20MB입니다.');
-    const files = await readZip(new Uint8Array(await file.arrayBuffer()));
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (bytes[0] !== 80 || bytes[1] !== 75) {
+        if (file.size > LIMITS.json) packageError('JSON 파일이 너무 큽니다.');
+        let parsed: unknown;
+        try { parsed = JSON.parse(decoder.decode(bytes)); } catch { packageError('잘못된 JSON 파일입니다.'); }
+        return validatePackage(parsed);
+    }
+    const files = await readZip(bytes);
     const json = (p: string) => { if (!files[p] || files[p].length > LIMITS.json)
         packageError('필수 JSON 파일이 없거나 너무 큽니다: ' + p); try {
         return JSON.parse(decoder.decode(files[p]));
@@ -47,4 +54,4 @@ export async function exportThemePackage(pkg: ThemePackage, readStorage?: (p: st
         files[p] = fromBase64(f.data!);
     return new Blob([writeZip(files) as BlobPart], { type: 'application/octet-stream' });
 }
-export function downloadTheme(blob: Blob, name: string) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name.replace(/[^a-zA-Z0-9가-힣_-]/g, '-') + '.blanky-theme'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+export function downloadTheme(blob: Blob, name: string, extension = '.blanky-theme') { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name.replace(/[^a-zA-Z0-9가-힣_-]/g, '-') + extension; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }

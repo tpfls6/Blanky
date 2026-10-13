@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { PARSE_CONFIG } from '../../../packages/parse/src/config.ts'
-import { createAIProvider, resolveParse } from '../../../packages/parse/src/index.ts'
+import { createAIProvider, resolveParse, PlannerRequiredError } from '../../../packages/parse/src/index.ts'
 import type { CategoryRef, LearnedRule, ScheduleKind } from '../../../packages/parse/src/model.ts'
 
 declare const Deno: {
@@ -129,7 +129,8 @@ Deno.serve(async (request) => {
       textLength: text.length,
     })
     return Response.json(parsed)
-  } catch {
+  } catch (error) {
+    if (error instanceof PlannerRequiredError) return fail(422, error.code, error.message)
     logParse({
       requestId,
       source: 'failed',

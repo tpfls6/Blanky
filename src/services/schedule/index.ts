@@ -1,5 +1,5 @@
 import { createScheduleRepository, type ScheduleRepository } from '@blanky/api'
-import { buildFeedback, parseScheduleText, type ParsedSchedule } from '@blanky/parse'
+import { buildFeedback, parseScheduleText, routeInput, PlannerRequiredError, type ParsedSchedule } from '@blanky/parse'
 import type { WorkspaceCategory } from '../../types/work.ts'
 import type { ScheduleDraft } from '../../utils/scheduleDraft.ts'
 import { parseScheduleFromText } from '../ai/index.ts'
@@ -62,6 +62,7 @@ export async function classifySchedule(
   categories: WorkspaceCategory[],
   today: Date,
 ): Promise<ScheduleDraft> {
+  if (routeInput(text).route === 'planner') throw new PlannerRequiredError()
   const local = () => draftFromParsed(
     parseScheduleText(text, {
       today,
@@ -83,7 +84,8 @@ export async function classifySchedule(
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
     })
     return draftFromParsed(remote, text, selected, categories)
-  } catch {
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'PLANNER_REQUIRED') throw error
     return local()
   }
 }

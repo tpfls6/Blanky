@@ -300,7 +300,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
               .filter((item) => item.kind === 'event' && !item.startTime)
               .map((item) => (
                 <li key={item.id} className="border-t border-line py-2">
-                  <PlanRow item={item} categories={library.categories} onOpen={open} onToggle={library.toggleItem} />
+                  <PlanRow item={item} categories={library.categories} draggable={!editing} onOpen={open} onToggle={library.toggleItem} />
                 </li>
               ))}
             {hours.map((hour) => {
@@ -311,6 +311,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
                   onDragOver={(event) => {
                     if (editing) return
                     event.preventDefault()
+                    event.dataTransfer.dropEffect = 'move'
                     setOverHour(hour)
                   }}
                   onDragLeave={() => setOverHour((current) => (current === hour ? null : current))}
@@ -322,7 +323,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
                   <time className="pt-2 text-xs tabular-nums text-neutral-400">{hour}</time>
                   <div className={`${slotClass} py-1`}>
                     {slot.map((item) => (
-                      <PlanRow key={item.id} item={item} categories={library.categories} onOpen={open} onToggle={library.toggleItem} />
+                      <PlanRow key={item.id} item={item} categories={library.categories} draggable={!editing} onOpen={open} onToggle={library.toggleItem} />
                     ))}
                   </div>
                 </li>
@@ -571,24 +572,35 @@ function spanLabel(item: WorkItem): string {
 function PlanRow({
   item,
   categories,
+  draggable,
   onOpen,
   onToggle,
 }: {
   item: WorkItem
   categories: { id: string; name: string; parentId: string | null; color?: string | null }[]
+  draggable: boolean
   onOpen: (item: WorkItem) => void
   onToggle: (id: string) => void
 }) {
   const path = categoryPath(item.categoryId, categories)
+  const color = categories.find(category => category.id === item.categoryId)?.color
   const done = item.status === 'done'
   return (
-    <div data-theme-slot={item.kind === 'event' ? 'schedule-card' : 'task-card'} className={item.kind === 'event' ? 'theme-plan flex items-start gap-3 p-2 my-1' : 'theme-task flex items-start gap-3'} style={{borderLeftColor:categories.find(c=>c.id===item.categoryId)?.color??undefined,borderLeftWidth:categories.find(c=>c.id===item.categoryId)?.color?3:undefined}}>
+    <div data-theme-slot={item.kind === 'event' ? 'schedule-card' : 'task-card'} className={item.kind === 'event' ? 'theme-plan flex items-start gap-3 p-2 my-1' : 'theme-task flex items-start gap-3'} style={item.kind === 'event' ? { borderLeftColor: color || 'var(--accent-color)', borderLeftWidth: 3 } : undefined}
+      draggable={draggable}
+      onDragStart={(event) => {
+        event.dataTransfer.setData('text/plain', item.id)
+        event.dataTransfer.effectAllowed = 'move'
+        event.currentTarget.classList.add('block-lift')
+      }}
+      onDragEnd={(event) => event.currentTarget.classList.remove('block-lift')}
+    >
       {item.kind === 'task' ? (
         <span className="mt-0.5">
           <TaskCheckbox checked={done} label={`${item.title} 완료`} onChange={() => onToggle(item.id)} />
         </span>
       ) : null}
-      <button data-theme-slot="button" type="button" onClick={() => onOpen(item)} className="min-w-0 flex-1 py-0.5 text-left">
+      <button data-theme-slot="button" type="button" draggable={draggable} onClick={() => onOpen(item)} className={draggable ? "min-w-0 flex-1 cursor-grab select-none py-0.5 text-left active:cursor-grabbing" : "min-w-0 flex-1 py-0.5 text-left"}>
         <span data-theme-slot="schedule-title" className={done ? 'block text-sm text-neutral-400 line-through' : 'block text-sm text-neutral-900'}>
           {item.title}
         </span>
@@ -765,7 +777,7 @@ function TaskRow({
   return (
     <li
       data-theme-slot="task-card" className="theme-task flex items-start gap-2 rounded-md py-2 transition-colors duration-150"
-      draggable={assignable && !item.startTime}
+      draggable={assignable}
       onDragStart={(event) => {
         event.dataTransfer.setData('text/plain', item.id)
         event.dataTransfer.effectAllowed = 'move'
@@ -777,7 +789,7 @@ function TaskRow({
         <TaskCheckbox checked={done} label={`${item.title} 완료`} onChange={() => onToggle(item.id)} />
       </span>
       <div className="min-w-0 flex-1">
-        <button data-theme-slot="button" type="button" onClick={() => onOpen(item)} className="block w-full text-left">
+        <button data-theme-slot="button" type="button" draggable={assignable} onClick={() => onOpen(item)} className={assignable ? "block w-full cursor-grab select-none text-left active:cursor-grabbing" : "block w-full text-left"}>
           <span className={done ? 'block truncate text-sm text-neutral-400 line-through' : 'block truncate text-sm text-neutral-900'}>
             {item.title}
           </span>
