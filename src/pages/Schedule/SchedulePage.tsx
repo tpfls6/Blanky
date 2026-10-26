@@ -1,3 +1,4 @@
+import { GoogleOriginBadge } from '../../components/schedule/GoogleOriginBadge.tsx'
 import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from 'react'
 import { CategoryPicker } from '../../components/schedule/CategoryPicker.tsx'
 import { MiniCalendar } from '../../components/schedule/MiniCalendar.tsx'
@@ -602,7 +603,7 @@ function PlanRow({
       ) : null}
       <button data-theme-slot="button" type="button" draggable={draggable} onClick={() => onOpen(item)} className={draggable ? "min-w-0 flex-1 cursor-grab select-none py-0.5 text-left active:cursor-grabbing" : "min-w-0 flex-1 py-0.5 text-left"}>
         <span data-theme-slot="schedule-title" className={done ? 'block text-sm text-neutral-400 line-through' : 'block text-sm text-neutral-900'}>
-          {item.title}
+          {item.title}<GoogleOriginBadge item={item} />
         </span>
         <span data-theme-slot="schedule-time" className="mt-1 block text-xs text-neutral-400">
           {spanLabel(item)}
@@ -791,7 +792,7 @@ function TaskRow({
       <div className="min-w-0 flex-1">
         <button data-theme-slot="button" type="button" draggable={assignable} onClick={() => onOpen(item)} className={assignable ? "block w-full cursor-grab select-none text-left active:cursor-grabbing" : "block w-full text-left"}>
           <span className={done ? 'block truncate text-sm text-neutral-400 line-through' : 'block truncate text-sm text-neutral-900'}>
-            {item.title}
+            {item.title}<GoogleOriginBadge item={item} />
           </span>
         </button>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">

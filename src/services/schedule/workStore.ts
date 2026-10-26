@@ -1,8 +1,9 @@
+import { createCalendarRepository } from '@blanky/api'
 import type { Schedule } from '@blanky/types'
 import type { WorkItem, WorkspaceCategory } from '../../types/work.ts'
 import { createCategory, getCategories } from '../categories/index.ts'
 import { getScheduleRepository } from './index.ts'
-import { isSupabaseConfigured } from '../supabase/client.ts'
+import { getSupabaseClient, isSupabaseConfigured } from '../supabase/client.ts'
 
 export type Activity = {
   id: string
@@ -14,10 +15,11 @@ export type Activity = {
   createdAt: string
 }
 
-export function workFromSchedule(row: Schedule): WorkItem {
+export function workFromSchedule(row: Schedule, calendarType?: WorkItem['calendarType']): WorkItem {
   return { ...row, createdByUserId: row.createdByUserId ?? undefined, kind: row.kind ?? 'event', status: row.status === 'done' ? 'done' : 'todo',
     dueDate: row.dueDate ?? null, endDate: row.endDate ?? null,
-    allDay: row.allDay ?? !row.startTime, repeat: row.repeat ?? 'none' }
+    allDay: row.allDay ?? !row.startTime, repeat: row.repeat ?? 'none',
+    changeSource: row.changeSource, calendarType }
 }
 
 export async function saveWork(userId: string, before: WorkItem | null, after: WorkItem, remote: boolean, source: Activity['source'], categories: WorkspaceCategory[]): Promise<{ item: WorkItem; categories: WorkspaceCategory[] }> {
@@ -47,10 +49,16 @@ export async function saveWork(userId: string, before: WorkItem | null, after: W
 
 export async function loadWork() {
   const repository = getScheduleRepository()
-  const [rows, changes, categories] = await Promise.all([repository.listRange('0001-01-01', '9999-12-31'), repository.listChanges(), getCategories()])
-  return { categories, items: rows.map(workFromSchedule), activities: changes.map((row): Activity => ({
+  const [rows, changes, categories, calendars] = await Promise.all([
+    repository.listRange('0001-01-01', '9999-12-31'),
+    repository.listChanges(),
+    getCategories(),
+    isSupabaseConfigured ? createCalendarRepository(getSupabaseClient()).getCalendars() : Promise.resolve([]),
+  ])
+  const types = new Map(calendars.map((calendar) => [calendar.id, calendar.type]))
+  return { categories, items: rows.map((row) => workFromSchedule(row, types.get(row.calendarId))), activities: changes.map((row): Activity => ({
     id: row.id, entityId: row.scheduleId, action: row.action, source: row.source,
-    before: row.beforeData ? workFromSchedule(row.beforeData) : null,
-    after: row.afterData ? workFromSchedule(row.afterData) : null, createdAt: row.createdAt,
+    before: row.beforeData ? workFromSchedule(row.beforeData, types.get(row.beforeData.calendarId)) : null,
+    after: row.afterData ? workFromSchedule(row.afterData, types.get(row.afterData.calendarId)) : null, createdAt: row.createdAt,
   })) }
 }

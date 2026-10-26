@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useLibrary } from '../../state/useLibrary.ts'
 import type { WorkItem } from '../../types/work.ts'
 import { placedTimes, categoryPath } from '../../utils/work.ts'
+import { GoogleOriginBadge } from './GoogleOriginBadge.tsx'
 export function WorkCard({ snapshot, before, deleted = false }: { snapshot: WorkItem; before?: WorkItem | null; deleted?: boolean }) {
   const confirm = useConfirm()
 
@@ -21,7 +22,7 @@ export function WorkCard({ snapshot, before, deleted = false }: { snapshot: Work
   }
   const describe = (row: WorkItem) => [row.title, row.date, row.startTime ?? '시간 없음', row.endTime, row.dueDate && '마감 '+row.dueDate, row.status === 'done' ? '완료' : '진행 전'].filter(Boolean).join(' · ')
   return <article data-theme-slot="card" className="theme-card rounded-xl border border-line p-4 text-sm">
-    <p className="text-xs text-neutral-400">{item.kind === 'task' ? '할 일' : '일정'}{deleted || !live ? ' · 삭제된 항목 / 당시 기록' : ''}</p>
+    <p className="text-xs text-neutral-400">{item.kind === 'task' ? '할 일' : '일정'}{deleted || !live ? ' · 삭제된 항목 / 당시 기록' : ''}<GoogleOriginBadge item={item} /></p>
     <p className="mt-1 font-medium">{item.title}</p><p className="mt-1 text-neutral-500">{describe(item)}</p>
     <p className="text-xs text-neutral-400">{categoryPath(item.categoryId, library.categories)}</p>
     {before && <div className="mt-3 border-t border-line pt-3"><p>변경 전: {describe(before)}</p><p>변경 후: {describe(snapshot)}</p></div>}

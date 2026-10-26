@@ -9,6 +9,7 @@ import { useSession } from '../../state/useSession.ts'
 import { ACCENTS, accentHex } from '../../theme/accent.ts'
 import { TASK_DURATIONS, type HomeInputDefault, type ScheduleTab, type Settings, type TimelineDensity } from '../../types/records.ts'
 import { CategorySection } from './CategorySection.tsx'
+import { GoogleCalendarSection } from './GoogleCalendarSection.tsx'
 import { NavSection } from './NavSection.tsx'
 import { Choice, ConfirmDialog, Section, SwitchRow } from './bits.tsx'
 
@@ -321,6 +322,7 @@ export function SettingsPage() {
             <SwitchRow label="할 일 마감 알림" checked={settings.notifyTasks} onChange={() => patch({ notifyTasks: !settings.notifyTasks })} />
           </div>
         </div>
+        <GoogleCalendarSection />
       </Section>
     )
   } else if (id === 'categories') {

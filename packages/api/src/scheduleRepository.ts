@@ -89,6 +89,7 @@ export function mapScheduleRow(value: unknown): Schedule {
     createdAt: requireString(value.created_at, 'created_at'),
     updatedAt: requireString(value.updated_at, 'updated_at'),
     ai: readAi(value),
+    changeSource: value.change_source === 'ai_chat' || value.change_source === 'calendar_sync' ? value.change_source : 'manual',
   }
 }
 

@@ -38,6 +38,8 @@ export type WorkItem = {
   endDate: string | null
   allDay: boolean
   repeat: RepeatRule
+  changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
+  calendarType?: 'personal' | 'shared' | 'external'
 }
 
 export type WorkInput = {

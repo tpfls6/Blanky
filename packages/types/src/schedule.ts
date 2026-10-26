@@ -25,7 +25,7 @@ export type Schedule = {
   endDate?: string | null
   allDay?: boolean
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
-  changeSource?: 'manual' | 'ai_chat'
+  changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
 
   id: string
   userId: string
@@ -57,7 +57,7 @@ export type ScheduleDraft = {
   endDate?: string | null
   allDay?: boolean
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
-  changeSource?: 'manual' | 'ai_chat'
+  changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
 
   calendarId?: string
   title: string
