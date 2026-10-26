@@ -151,7 +151,7 @@ export function GoogleCalendarSection() {
           <div className="mt-3">
             <SwitchRow
               label="자동 동기화"
-              hint="Schedule 화면을 열면 5분이 지난 연결을 다시 맞춥니다. 저장 버튼은 Google에 쓰지 않습니다."
+              hint="이 화면을 열면 5분이 지난 연결을 다시 맞춥니다. 일정 저장은 Google에 바로 쓰지 않습니다."
               checked={view.autoSync}
               onChange={() => void getCalendarSyncClient().setAutoSync(!view.autoSync).then(setView).catch((error) => setMessage(errorLine(error)))}
             />
