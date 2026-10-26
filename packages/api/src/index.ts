@@ -23,6 +23,19 @@ export type { SupabaseClient } from '@supabase/supabase-js'
 
 export { createCalendarRepository, mapCalendarRow } from './calendarRepository.ts'
 export type { CalendarRepository } from './calendarRepository.ts'
+export { createCalendarSyncClient } from './calendarSync/client.ts'
+export type { CalendarSyncClient } from './calendarSync/client.ts'
+export type {
+  CalendarError,
+  CalendarErrorCode,
+  ConnectionView,
+  DisconnectDisposition,
+  FirstImport,
+  GoogleCalendarChoice,
+  GoogleCalendarId,
+  LastSync,
+  SyncReport,
+} from '../../types/src/calendarSync.ts'
 
 export * from './themeRepository.ts'
 

@@ -419,3 +419,9 @@ enabled = true
 
 [functions.search-books]
 verify_jwt = true
+
+[functions.google-calendar]
+verify_jwt = true
+
+[functions.google-calendar-oauth]
+verify_jwt = false

@@ -102,6 +102,10 @@ export type GoogleEventPage = {
   nextSyncToken: import('../../../types/src/calendarSync.ts').SyncToken | null
 }
 
+export type GoogleListResult =
+  | { kind: 'page'; page: GoogleEventPage }
+  | { kind: 'gone' }
+
 export type GoogleEventWrite = {
   summary: string
   description: string
