@@ -30,6 +30,51 @@ export type {
 } from './schedule.ts'
 
 export type { Calendar, CalendarType, CalendarRole, PersonalCalendarInput } from './calendar.ts'
+export type {
+  CalendarError,
+  CalendarErrorCode,
+  CalendarId,
+  ConflictNote,
+  ConnectionId,
+  ConnectionView,
+  DateStr,
+  DisconnectDisposition,
+  Etag,
+  FirstImport,
+  GoogleCalendarChoice,
+  GoogleCalendarId,
+  GoogleEventId,
+  GoogleSub,
+  IsoDateTime,
+  IsoWeekday,
+  LastSync,
+  OAuthState,
+  PeerWhen,
+  Recurrence,
+  ScheduleId,
+  SyncCursor,
+  SyncReport,
+  SyncToken,
+  TimeStr,
+  UserId,
+} from './calendarSync.ts'
+export {
+  asCalendarId,
+  asConnectionId,
+  asDateStr,
+  asEtag,
+  asGoogleCalendarId,
+  asGoogleEventId,
+  asGoogleSub,
+  asIsoDateTime,
+  asIsoWeekday,
+  asOAuthState,
+  asScheduleId,
+  asSyncToken,
+  asTimeStr,
+  asUserId,
+} from './calendarSync.ts'
+
 
 export * from './theme.ts'
 
