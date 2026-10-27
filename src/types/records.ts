@@ -115,6 +115,7 @@ export type Settings = {
   taskView: 'open' | 'all'
   notifyEvents: boolean
   notifyTasks: boolean
+  customTemplatesGuideSeen: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -137,6 +138,7 @@ export const DEFAULT_SETTINGS: Settings = {
   taskView: 'open',
   notifyEvents: true,
   notifyTasks: true,
+  customTemplatesGuideSeen: false,
 }
 
 export type CustomRecord = {

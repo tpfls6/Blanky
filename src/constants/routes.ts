@@ -19,3 +19,7 @@ export const ROUTES = {
   signup: '/signup',
   forgot: '/forgot',
 } as const
+
+export function isCustomWorkspace(pathname: string): boolean {
+  return pathname === ROUTES.custom || pathname.startsWith('/pages/')
+}

@@ -57,7 +57,7 @@ export function BlockSettings({
   const { t } = useI18n()
   const { recordTypes, updateRecordType } = useLibrary()
   return (
-    <aside className="mt-4 border-t border-line pt-3">
+    <aside className="mt-4 border-t border-line pt-3" data-tour="block-settings">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium">{t('builder.settings')}</h2>
         <button type="button" className="text-xs text-neutral-400" onClick={onClose}>{t('builder.close')}</button>

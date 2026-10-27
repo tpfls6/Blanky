@@ -1,0 +1,12 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T03:10:00Z	start	opened figure-it-out for custom templates workspace UX	cross-cutting UI on top of PageBuilder, not a one-file feature	poteto-mode figure-it-out	open
+2026-10-27T03:12:00Z	frame	done when /custom is a Custom Templates hub, overlay sidebar peeks, click borders are gone, first-visit guide runs without mutating pages, core tabs still work	falsifiable on the running app plus unit tests	src/pages/Custom/CustomPage.tsx src/features/builder/PageBuilder.tsx	framed
+2026-10-27T03:13:00Z	frame	keep /custom and /pages/:id URLs, rename only i18n labels	bookmarks and stored data must not break	src/constants/routes.ts src/i18n/locales/ko/navigation.json	open
+2026-10-27T03:13:00Z	design	overlay peek sidebar, CSS motion, no framer-motion	package.json has no motion lib and native CSS covers 200ms slide	package.json	skipped arena
+2026-10-27T03:14:00Z	design	store guide seen on Settings, not on pages	onboarding must not mix with template data	src/types/records.ts src/services/preferences/index.ts	open
+2026-10-27T03:15:00Z	unit	i18n rename and route helper pass node tests	labels change, /custom stays	tests/customWorkspace.test.ts tests/i18n.test.ts	tests green
+2026-10-27T03:16:00Z	ui	hub reuses PageBuilder, UserPage, builtinTemplates, RecordSection	do not rebuild the block system	src/pages/Custom/CustomPage.tsx src/features/workspace/TemplateGuide.tsx	open
+2026-10-27T03:17:00Z	ui	overlay peek sidebar with 16px hover, 220ms hide, CSS 200ms slide	overlay so the canvas does not shift	src/components/layout/usePeekNav.ts src/styles/index.css	open
+2026-10-27T03:18:00Z	ui	builder input :focus-visible outline none, keep global keyboard rings	root cause was index.css :focus-visible beating textarea.outline-none	src/styles/index.css src/features/builder/PageBuilder.tsx	open
+2026-10-27T03:20:00Z	verify	headless local-auth Chromium script passed	signed-in app on 127.0.0.1:5196 with empty supabase	scripts/custom-templates-browser-test.mjs	PASS overlay peek, guide, outline, core tabs, locale, mobile
+2026-10-27T03:21:00Z	verify	live Cursor browser on :5173 hit login	supabase session required, no credentials used	http://localhost:5173/login	INCONCLUSIVE on the user's signed-in profile

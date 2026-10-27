@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { HelpCircle } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconPicker } from '../../components/common/IconPicker.tsx'
 import { ROUTES } from '../../constants/routes.ts'
 import { BUILTIN_TEMPLATES, blocksFromTemplate } from '../../features/builder/catalog.ts'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
+import { TemplateGuide } from '../../features/workspace/TemplateGuide.tsx'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -13,8 +15,9 @@ export function UserPage() {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const { t } = useI18n()
-  const { customPages, pageTemplates, updateUserPage, duplicateUserPage, removeUserPage, savePageTemplate, addPageFromTemplate } = useLibrary()
+  const { customPages, pageTemplates, updateUserPage, duplicateUserPage, removeUserPage, savePageTemplate, addPageFromTemplate, addUserPage, settings, updateSettings } = useLibrary()
   const [editing, setEditing] = useState(true)
+  const [guide, setGuide] = useState(false)
   const page = customPages.find((item) => item.id === pageId)
   const [tpl, setTpl] = useState(() => !page || (page.blocks.length <= 1 && !(page.blocks[0]?.props.text)))
   if (!page) {
@@ -46,7 +49,11 @@ export function UserPage() {
           {editing ? t('edit') : t('builder.view')}
         </button>
         <button type="button" className="chip" onClick={() => { const id = duplicateUserPage(page.id); if (id) navigate(ROUTES.page(id)) }}>{t('builder.duplicatePage')}</button>
-        <button type="button" className="chip" onClick={() => { savePageTemplate(page.id); setTpl(false) }}>{t('builder.saveTemplate')}</button>
+        <button type="button" className="chip" data-tour="save-template" onClick={() => { savePageTemplate(page.id); setTpl(false) }}>{t('builder.saveTemplate')}</button>
+        <button type="button" className="chip" onClick={() => setGuide(true)}>
+          <HelpCircle className="size-3.5" strokeWidth={1.5} />
+          {t('custom.guide')}
+        </button>
         <button type="button" className="chip" onClick={() => setTpl((value) => !value)}>{t('builder.fromTemplate')}</button>
         <button
           type="button"
@@ -79,6 +86,24 @@ export function UserPage() {
         </div>
       ) : null}
       <PageBuilder blocks={page.blocks} editing={editing} onChange={(blocks) => updateUserPage(page.id, { blocks })} />
+      {guide ? (
+        <TemplateGuide
+          onClose={() => {
+            setGuide(false)
+            if (!settings.customTemplatesGuideSeen) updateSettings({ customTemplatesGuideSeen: true })
+          }}
+          onCreate={() => {
+            setGuide(false)
+            if (!settings.customTemplatesGuideSeen) updateSettings({ customTemplatesGuideSeen: true })
+            navigate(ROUTES.page(addUserPage({ name: t('builder.newPage') })))
+          }}
+          onTemplate={() => {
+            setGuide(false)
+            if (!settings.customTemplatesGuideSeen) updateSettings({ customTemplatesGuideSeen: true })
+            setTpl(true)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

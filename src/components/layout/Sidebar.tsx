@@ -9,7 +9,13 @@ import { chromeNavLabel, isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_N
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
-export function Sidebar() {
+export function Sidebar({
+  overlay = false,
+  open = true,
+}: {
+  overlay?: boolean
+  open?: boolean
+}) {
   const { pathname } = useLocation()
   const { settings, recordTypes, customPages, addUserPage, moveUserPage } = useLibrary()
   const { t } = useI18n()
@@ -17,7 +23,12 @@ export function Sidebar() {
   const items = visibleNav(settings.nav, recordTypes)
 
   return (
-    <aside data-theme-slot="sidebar" className="theme-sidebar sticky top-0 hidden h-screen w-52 shrink-0 flex-col border-r border-line px-3 py-5 md:flex">
+    <aside
+      id="app-sidebar"
+      data-theme-slot="sidebar"
+      data-open={overlay ? String(open) : undefined}
+      className={overlay ? 'theme-sidebar peek-sidebar md:flex' : 'theme-sidebar sticky top-0 hidden h-screen w-52 shrink-0 flex-col border-r border-line px-3 py-5 md:flex'}
+    >
       <BrandLogo className="px-2 text-neutral-900" />
       <nav className="mt-6 flex min-w-0 flex-1 flex-col gap-0.5" aria-label={t('nav.main')}>
         {items.map((item, index) => {
@@ -48,6 +59,7 @@ export function Sidebar() {
         <button
           type="button"
           className="nav-link min-w-0"
+          data-tour="new-page"
           onClick={() => {
             const id = addUserPage({ name: t('builder.newPage') })
             navigate(ROUTES.page(id))

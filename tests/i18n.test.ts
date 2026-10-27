@@ -22,6 +22,10 @@ test('detectBrowserLocale uses English only for en tags', () => {
 test('translate falls back to Korean then the last key segment', () => {
   assert.equal(translate('ko', 'nav.home'), '홈')
   assert.equal(translate('en', 'nav.home'), 'Home')
+  assert.equal(translate('ko', 'nav.custom'), '커스텀 템플릿')
+  assert.equal(translate('en', 'nav.custom'), 'Custom Templates')
+  assert.equal(translate('ko', 'custom.guideWelcomeTitle'), '나만의 페이지를 만들어보세요')
+  assert.equal(translate('en', 'custom.guideWelcomeTitle'), 'Make a page of your own')
   assert.equal(translate('en', 'nav.activity'), 'Activity History')
   assert.equal(translate('ko', 'builder.newPage'), '새 페이지')
   assert.equal(translate('en', 'builder.newPage'), 'New page')

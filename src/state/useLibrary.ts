@@ -52,7 +52,7 @@ export type LibraryValue = LibraryData & {
   removeUserPage: (id: string) => void
   moveUserPage: (id: string, delta: -1 | 1) => void
   savePageTemplate: (pageId: string, name?: string) => string | null
-  addPageFromTemplate: (template: { name: string; icon: string; blocks: BuilderBlock[] }) => string
+  addPageFromTemplate: (template: { name: string; icon: string; blocks: BuilderBlock[]; collections?: CustomRecordType[] }) => string
   removePageTemplate: (id: string) => void
 }
 

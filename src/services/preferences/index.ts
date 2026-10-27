@@ -99,6 +99,7 @@ export function normalizePreferences(value: unknown): UserPreferences {
     taskView: raw.taskView === 'all' ? 'all' : 'open',
     notifyEvents: flag(raw.notifyEvents, true),
     notifyTasks: flag(raw.notifyTasks, true),
+    customTemplatesGuideSeen: flag(raw.customTemplatesGuideSeen, false),
   }
 }
 
@@ -217,6 +218,8 @@ function selfCheckPreferences(): void {
   if (!nav.some((item) => item.id === 'workout' && item.visible)) throw new Error('nav record')
   if (nav.some((item) => item.id === 'nope')) throw new Error('nav junk')
   if (defaultPreferences().autoSaveAfterClassify) throw new Error('autosave default')
+  if (defaultPreferences().customTemplatesGuideSeen) throw new Error('guide default')
+  if (!normalizePreferences({ customTemplatesGuideSeen: true }).customTemplatesGuideSeen) throw new Error('guide persist')
 }
 
 selfCheckPreferences()

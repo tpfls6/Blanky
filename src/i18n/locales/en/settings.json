@@ -65,7 +65,7 @@
     "label": "Navigation",
     "description": "Change sidebar order and visibility.",
     "sidebar": "Sidebar",
-    "hint": "Drag rows to reorder. Customize and Settings stay at the bottom.",
+    "hint": "Drag rows to reorder. Custom Templates and Settings stay at the bottom.",
     "toggle": "Show {{name}}",
     "restore": "Restore defaults"
   },

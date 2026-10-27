@@ -876,13 +876,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     return template.id
   }, [data.customPages, data.pageTemplates.length])
 
-  const addPageFromTemplate = useCallback((template: { name: string; icon: string; blocks: BuilderBlock[] }) => {
+  const addPageFromTemplate = useCallback((template: { name: string; icon: string; blocks: BuilderBlock[]; collections?: CustomRecordType[] }) => {
     const used = [...new Set(template.blocks.flatMap((block) => (block.type === 'collection' && block.props.collectionId ? [block.props.collectionId] : [])))]
     const remap = new Map<string, string>()
     const extras: CustomRecordType[] = []
     const now = new Date().toISOString()
+    const pool = [...(template.collections ?? []), ...data.recordTypes]
     for (const id of used) {
-      const source = data.recordTypes.find((item) => item.id === id)
+      const source = pool.find((item) => item.id === id)
       if (!source) continue
       const nextId = crypto.randomUUID()
       remap.set(id, nextId)

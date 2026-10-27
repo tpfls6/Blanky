@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
+import { Copy, GripVertical, Plus, Settings, Trash2 } from 'lucide-react'
 import { Sortable } from '../../components/drag/Sortable.tsx'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { filterMenu, type InsertItem } from './catalog.ts'
@@ -126,7 +126,7 @@ export function PageBuilder({
   })
 
   return (
-    <div>
+    <div className="builder-canvas">
       <BlockList
         root={blocks}
         blocks={blocks}
@@ -137,12 +137,20 @@ export function PageBuilder({
         write={write}
         onMenu={openMenu}
         onContext={(id, rect) => setCtx({ id, top: rect.bottom + 4, left: rect.left })}
+        onSettings={(id) => { setSelectedId(id); setSettings(true) }}
         t={t}
       />
       {editing ? (
-        <button type="button" className="mt-2 text-sm text-neutral-400" onClick={(event) => openMenu(null, blocks.length, event.currentTarget.getBoundingClientRect())}>
-          + {t('builder.addBlock')}
-        </button>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <button type="button" className="text-sm text-neutral-400" data-tour="add-block" onClick={(event) => openMenu(null, blocks.length, event.currentTarget.getBoundingClientRect())}>
+            + {t('builder.addBlock')}
+          </button>
+          {selected ? (
+            <button type="button" className="text-sm text-neutral-400" data-tour="block-settings" onClick={() => setSettings(true)}>
+              {t('builder.settings')}
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {menu ? (
         <div className="fixed z-50 w-60" style={{ top: menu.top, left: menu.left }} data-block-menu>
@@ -248,6 +256,7 @@ function BlockList({
   write,
   onMenu,
   onContext,
+  onSettings,
   t,
 }: {
   root: BuilderBlock[]
@@ -259,10 +268,11 @@ function BlockList({
   write: (blocks: BuilderBlock[], record?: boolean) => void
   onMenu: (parentId: string | null, index: number, anchor: DOMRect, replaceId?: string) => void
   onContext: (id: string, rect: DOMRect) => void
+  onSettings: (id: string) => void
   t: (key: string) => string
 }) {
   const row = (block: BuilderBlock) => (
-    <BlockView root={root} block={block} editing={editing} selected={selectedId === block.id} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} t={t} />
+    <BlockView root={root} block={block} editing={editing} selected={selectedId === block.id} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
   )
   if (!editing) return <div>{blocks.map((block) => <div key={block.id}>{row(block)}</div>)}</div>
   return (
@@ -307,6 +317,7 @@ function BlockView({
   write,
   onMenu,
   onContext,
+  onSettings,
   t,
 }: {
   root: BuilderBlock[]
@@ -318,6 +329,7 @@ function BlockView({
   write: (blocks: BuilderBlock[], record?: boolean) => void
   onMenu: (parentId: string | null, index: number, anchor: DOMRect, replaceId?: string) => void
   onContext: (id: string, rect: DOMRect) => void
+  onSettings: (id: string) => void
   t: (key: string) => string
 }) {
   const [open, setOpen] = useState(true)
@@ -327,17 +339,22 @@ function BlockView({
         {(block.children ?? []).map((column, index) => (
           <div key={column.id} className="relative min-w-0" style={{ flexGrow: column.props.width ?? 50, flexBasis: 0 }}>
             {editing && index > 0 ? <ResizeHandle root={root} columnId={column.id} write={write} /> : null}
-            <BlockList root={root} blocks={column.children ?? []} parentId={column.id} editing={editing} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} t={t} />
+            <BlockList root={root} blocks={column.children ?? []} parentId={column.id} editing={editing} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
           </div>
         ))}
       </div>
     )
   }
   return (
-    <div className={['group relative rounded-md py-1 pr-2 pl-7', selected && editing ? 'bg-[color-mix(in_srgb,var(--accent-color)_8%,transparent)]' : ''].join(' ')} onClick={() => onSelect(block.id)}>
-      {editing ? <span className="pointer-events-none absolute top-2 left-0 text-neutral-300 opacity-40 lg:opacity-0 lg:group-hover:opacity-100"><GripVertical className="size-4" strokeWidth={1.5} /></span> : null}
+    <div
+      data-builder-block={block.id}
+      className={['group relative rounded-md py-1 pr-2 pl-7', selected && editing ? 'bg-[color-mix(in_srgb,var(--accent-color)_8%,transparent)]' : ''].join(' ')}
+      onClick={() => onSelect(block.id)}
+    >
+      {editing ? <span data-tour="drag-handle" className="pointer-events-none absolute top-2 left-0 text-neutral-300 opacity-40 lg:opacity-0 lg:group-hover:opacity-100"><GripVertical className="size-4" strokeWidth={1.5} /></span> : null}
       {editing ? (
         <span className="absolute top-1 right-1 hidden gap-1 group-hover:flex">
+          <button type="button" aria-label={t('builder.settings')} onClick={(event) => { event.stopPropagation(); onSettings(block.id) }} className="icon-btn"><Settings className="size-3.5" strokeWidth={1.5} /></button>
           <button type="button" aria-label={t('builder.duplicate')} onClick={() => write(duplicateBlock(root, block.id))} className="icon-btn"><Copy className="size-3.5" strokeWidth={1.5} /></button>
           <button type="button" aria-label={t('delete')} onClick={() => write(removeBlock(root, block.id))} className="icon-btn"><Trash2 className="size-3.5" strokeWidth={1.5} /></button>
         </span>
@@ -353,7 +370,7 @@ function BlockView({
       </div>
       {block.type === 'toggle' && open ? (
         <div className="mt-1 pl-4">
-          <BlockList root={root} blocks={block.children ?? []} parentId={block.id} editing={editing} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} t={t} />
+          <BlockList root={root} blocks={block.children ?? []} parentId={block.id} editing={editing} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
         </div>
       ) : null}
     </div>
