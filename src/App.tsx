@@ -15,6 +15,7 @@ const ReadingPage = lazy(()=>import('./pages/Reading/ReadingPage.tsx').then(modu
 const RecordPage = lazy(()=>import('./pages/Records/RecordPage.tsx').then(module=>({default:module.RecordPage})))
 const SchedulePage = lazy(()=>import('./pages/Schedule/SchedulePage.tsx').then(module=>({default:module.SchedulePage})))
 const CustomPage = lazy(()=>import('./pages/Custom/CustomPage.tsx').then(module=>({default:module.CustomPage})))
+const UserPage = lazy(()=>import('./pages/Pages/UserPage.tsx').then(module=>({default:module.UserPage})))
 const TrashPage = lazy(()=>import('./pages/Trash/TrashPage.tsx').then(module=>({default:module.TrashPage})))
 const SettingsPage = lazy(()=>import('./pages/Settings/SettingsPage.tsx').then(module=>({default:module.SettingsPage})))
 import { ThemeProvider } from './theme/ThemeProvider.tsx'
@@ -67,6 +68,7 @@ function AppRoutes() {
           <Route path="/reading/:bookId" element={<ReadingPage />} />
           <Route path={ROUTES.memo} element={<MemoPage />} />
           <Route path={ROUTES.custom} element={<CustomPage />} />
+          <Route path="/pages/:pageId" element={<UserPage />} />
           <Route path={ROUTES.trash} element={<TrashPage />} />
           <Route path={ROUTES.settings} element={<Navigate to="/settings/general" replace />} />
           <Route path="/store" element={<StorePage />} />

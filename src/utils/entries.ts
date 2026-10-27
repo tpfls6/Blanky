@@ -224,6 +224,8 @@ export function selfCheckEntries(): void {
     trash: [],
     settings: DEFAULT_SETTINGS,
     pageLayouts: {},
+    customPages: [],
+    pageTemplates: [],
   }
   const schedule = applyCapture(base, '내일 오후 3시 병원 예약', 'auto', now)
   const event = schedule.items[0]

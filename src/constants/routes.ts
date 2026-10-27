@@ -14,6 +14,7 @@ export const ROUTES = {
   themeDetail: (id: string) => '/store/themes/' + id,
   creator: (id: string) => '/creator/' + id,
   record: (typeId: string) => `/records/${typeId}`,
+  page: (id: string) => `/pages/${id}`,
   login: '/login',
   signup: '/signup',
   forgot: '/forgot',

@@ -1,14 +1,17 @@
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { NavLink, useLocation } from 'react-router-dom'
-import { chromeNavLabel, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
+import { iconByName } from '../../constants/icons.ts'
+import { ROUTES } from '../../constants/routes.ts'
+import { chromeNavLabel, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, visibleNav, type NavItem } from '../../constants/navigation.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
 export function MobileNav() {
   const { pathname } = useLocation()
-  const { settings, recordTypes } = useLibrary()
+  const { settings, recordTypes, customPages } = useLibrary()
   const { t } = useI18n()
-  const items = [...visibleNav(settings.nav, recordTypes), CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV]
+  const pages: NavItem[] = customPages.map((page) => ({ id: page.id, label: page.name, to: ROUTES.page(page.id), icon: iconByName(page.icon) }))
+  const items = [...visibleNav(settings.nav, recordTypes), ...pages, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV]
 
   return (
     <nav

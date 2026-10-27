@@ -23,6 +23,9 @@ test('translate falls back to Korean then the last key segment', () => {
   assert.equal(translate('ko', 'nav.home'), '홈')
   assert.equal(translate('en', 'nav.home'), 'Home')
   assert.equal(translate('en', 'nav.activity'), 'Activity History')
+  assert.equal(translate('ko', 'builder.newPage'), '새 페이지')
+  assert.equal(translate('en', 'builder.newPage'), 'New page')
+  assert.equal(translate('ko', 'builder.deleteAsk', { name: '공부' }), '공부 페이지를 삭제할까요?')
   assert.equal(translate('ko', 'missing.totally.unknownKey'), 'unknownKey')
 })
 

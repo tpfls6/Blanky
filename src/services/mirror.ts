@@ -1,5 +1,7 @@
 import { createCategoryRepository, createRecordRepository } from '@blanky/api'
+import type { UserPage } from '../features/builder/schema.ts'
 import type { CustomRecordType } from '../features/records/schema.ts'
+import { deleteUserPage, upsertUserPage } from './pages/index.ts'
 import type { FieldValue } from '../types/records.ts'
 import type { WorkspaceCategory } from '../types/work.ts'
 import { getCurrentUserId } from './auth/index.ts'
@@ -129,5 +131,34 @@ export function mirrorRecordDelete(id: string): void {
     const current = await session()
     if (!current) return
     await createRecordRepository(current.client).deleteCustomRecord(id)
+  })
+}
+
+const pageTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+export function mirrorPageSave(page: UserPage, kind: 'page' | 'template' = 'page'): void {
+  const prev = pageTimers.get(page.id)
+  if (prev) clearTimeout(prev)
+  pageTimers.set(
+    page.id,
+    setTimeout(() => {
+      pageTimers.delete(page.id)
+      run(async () => {
+        const current = await session()
+        if (!current) return
+        await upsertUserPage(page, kind)
+      })
+    }, 600),
+  )
+}
+
+export function mirrorPageDelete(id: string): void {
+  const prev = pageTimers.get(id)
+  if (prev) clearTimeout(prev)
+  pageTimers.delete(id)
+  run(async () => {
+    const current = await session()
+    if (!current) return
+    await deleteUserPage(id)
   })
 }

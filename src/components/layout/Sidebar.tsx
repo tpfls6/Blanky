@@ -1,15 +1,19 @@
+import { Plus } from 'lucide-react'
 import { BrandLogo } from '../common/BrandLogo.tsx'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { Fragment } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { IconView } from '../../constants/icons.ts'
+import { ROUTES } from '../../constants/routes.ts'
 import { chromeNavLabel, isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
 export function Sidebar() {
   const { pathname } = useLocation()
-  const { settings, recordTypes } = useLibrary()
+  const { settings, recordTypes, customPages, addUserPage, moveUserPage } = useLibrary()
   const { t } = useI18n()
+  const navigate = useNavigate()
   const items = visibleNav(settings.nav, recordTypes)
 
   return (
@@ -30,6 +34,28 @@ export function Sidebar() {
             </Fragment>
           )
         })}
+        <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.pages')}</p>
+        {customPages.map((page, index) => (
+          <div key={page.id} className="flex items-center gap-0.5">
+            <NavLink data-theme-slot="sidebar-item" to={ROUTES.page(page.id)} className="nav-link min-w-0 flex-1">
+              <IconView name={page.icon} className="size-4 shrink-0" />
+              <span className="min-w-0 truncate">{page.name}</span>
+            </NavLink>
+            <button type="button" aria-label={t('builder.moveUp')} className="icon-btn" disabled={index === 0} onClick={() => moveUserPage(page.id, -1)}>↑</button>
+            <button type="button" aria-label={t('builder.moveDown')} className="icon-btn" disabled={index === customPages.length - 1} onClick={() => moveUserPage(page.id, 1)}>↓</button>
+          </div>
+        ))}
+        <button
+          type="button"
+          className="nav-link min-w-0"
+          onClick={() => {
+            const id = addUserPage({ name: t('builder.newPage') })
+            navigate(ROUTES.page(id))
+          }}
+        >
+          <Plus className="size-4" strokeWidth={1.5} />
+          <span className="min-w-0 truncate">{t('builder.newPage')}</span>
+        </button>
       </nav>
       <div className="mt-auto border-t border-line pt-3">
         <NavLink data-theme-slot="sidebar-item" to={STORE_NAV.to} className="nav-link min-w-0"><ThemeIcon name="store" fallback={STORE_NAV.icon} strokeWidth={1.5} /><span className="min-w-0 truncate">{t('nav.store')}</span></NavLink>

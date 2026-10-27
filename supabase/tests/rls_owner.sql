@@ -1,6 +1,6 @@
 begin;
 
-select plan(8);
+select plan(9);
 
 select tests.create_supabase_user('owner@example.com', 'password');
 select tests.create_supabase_user('other@example.com', 'password');
@@ -32,6 +32,14 @@ where user_id = tests.get_supabase_uid('owner@example.com');
 insert into public.classification_feedback (user_id, input_text, predicted_type, corrected_type)
 values (tests.get_supabase_uid('owner@example.com'), '문제 풀기', 'event', 'task');
 
+insert into public.user_pages (id, user_id, name, blocks)
+values (
+  '22222222-2222-2222-2222-222222222222',
+  tests.get_supabase_uid('owner@example.com'),
+  '공부',
+  '[]'::jsonb
+);
+
 select tests.authenticate_as('other@example.com');
 
 select is_empty('select id from public.categories', 'other user cannot read categories');
@@ -40,6 +48,7 @@ select is_empty('select user_id from public.user_preferences', 'other user canno
 select is_empty('select id from public.custom_record_types', 'other user cannot read record types');
 select is_empty('select id from public.custom_records', 'other user cannot read records');
 select is_empty('select id from public.classification_feedback', 'other user cannot read feedback');
+select is_empty('select id from public.user_pages', 'other user cannot read user pages');
 
 select throws_ok(
   format(

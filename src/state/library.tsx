@@ -9,6 +9,9 @@ import { withPersonalCalendar } from '../services/calendar/local.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { freshLibrary } from '../data/freshLibrary.ts'
 import { cloneBlock, coerceRecordType, selfCheckRecords, structureKey, type CustomRecordType } from '../features/records/schema.ts'
+import { remapCollections } from '../features/workspace/templates.ts'
+import { cloneBlocks, createPage, normalizePages, touchPage, type BuilderBlock, type UserPage } from '../features/builder/schema.ts'
+import { listUserPages } from '../services/pages/index.ts'
 import { normalizeLayouts, type PageBlock, type PageId } from '../features/pages/layout.ts'
 import {
   type Book,
@@ -38,6 +41,8 @@ import {
   mirrorCategoryUpdate,
   mirrorRecordDelete,
   mirrorRecordSave,
+  mirrorPageDelete,
+  mirrorPageSave,
   mirrorRecordTypeDelete,
   mirrorRecordTypeSave,
 } from '../services/mirror.ts'
@@ -122,6 +127,8 @@ function loadStoredLibrary(userId: string): LibraryData {
       }) : [],
       settings,
       pageLayouts: normalizeLayouts(data.pageLayouts),
+      customPages: normalizePages(data.customPages),
+      pageTemplates: normalizePages(data.pageTemplates),
     }
   } catch {
     return withFirstLocale(freshLibrary())
@@ -776,6 +783,135 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  useEffect(() => {
+    if (!userId || !isSupabaseConfigured) return
+    let cancel = false
+    void Promise.all([listUserPages('page'), listUserPages('template')]).then(([pages, templates]) => {
+      if (cancel) return
+      setData((current) => {
+        const merge = (local: UserPage[], remote: UserPage[]) => {
+          const map = new Map(local.map((item) => [item.id, item]))
+          for (const row of remote) {
+            const existing = map.get(row.id)
+            if (!existing || row.updatedAt >= existing.updatedAt) map.set(row.id, row)
+          }
+          return [...map.values()].sort((a, b) => a.sort - b.sort || a.createdAt.localeCompare(b.createdAt))
+        }
+        const customPages = merge(current.customPages, pages)
+        const pageTemplates = merge(current.pageTemplates, templates)
+        for (const page of customPages) {
+          const remote = pages.find((item) => item.id === page.id)
+          if (!remote || page.updatedAt > remote.updatedAt) mirrorPageSave(page, 'page')
+        }
+        for (const page of pageTemplates) {
+          const remote = templates.find((item) => item.id === page.id)
+          if (!remote || page.updatedAt > remote.updatedAt) mirrorPageSave(page, 'template')
+        }
+        return { ...current, customPages, pageTemplates }
+      })
+    }).catch(() => undefined)
+    return () => {
+      cancel = true
+    }
+  }, [userId])
+
+  const addUserPage = useCallback((input: { name?: string; icon?: string; blocks?: BuilderBlock[] }) => {
+    const page = createPage(input.name ?? '새 페이지', input.icon ?? 'StickyNote', input.blocks ?? [], data.customPages.length)
+    setData((current) => ({ ...current, customPages: [...current.customPages, { ...page, sort: current.customPages.length }] }))
+    mirrorPageSave({ ...page, sort: data.customPages.length })
+    return page.id
+  }, [data.customPages.length])
+
+  const updateUserPage = useCallback((id: string, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks'>>) => {
+    const saved: { value: UserPage | null } = { value: null }
+    setData((current) => ({
+      ...current,
+      customPages: current.customPages.map((item) => {
+        if (item.id !== id) return item
+        const next = touchPage(item, patch)
+        saved.value = next
+        return next
+      }),
+    }))
+    if (saved.value) mirrorPageSave(saved.value)
+  }, [])
+
+  const duplicateUserPage = useCallback((id: string) => {
+    const source = data.customPages.find((item) => item.id === id)
+    if (!source) return null
+    const copy = createPage(`${source.name} 복사본`, source.icon, cloneBlocks(source.blocks), data.customPages.length)
+    setData((current) => ({ ...current, customPages: [...current.customPages, copy] }))
+    mirrorPageSave(copy)
+    return copy.id
+  }, [data.customPages])
+
+  const removeUserPage = useCallback((id: string) => {
+    setData((current) => ({ ...current, customPages: current.customPages.filter((item) => item.id !== id) }))
+    mirrorPageDelete(id)
+  }, [])
+
+  const moveUserPage = useCallback((id: string, delta: -1 | 1) => {
+    setData((current) => {
+      const index = current.customPages.findIndex((item) => item.id === id)
+      const nextIndex = index + delta
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.customPages.length) return current
+      const list = current.customPages.slice()
+      const [item] = list.splice(index, 1)
+      list.splice(nextIndex, 0, item)
+      const customPages = list.map((page, sort) => {
+        const next = page.sort === sort ? page : touchPage(page, { sort })
+        if (next !== page) mirrorPageSave(next)
+        return next
+      })
+      return { ...current, customPages }
+    })
+  }, [])
+
+  const savePageTemplate = useCallback((pageId: string, name?: string) => {
+    const source = data.customPages.find((item) => item.id === pageId)
+    if (!source) return null
+    const template = createPage(name?.trim() || source.name, source.icon, cloneBlocks(source.blocks), data.pageTemplates.length)
+    setData((current) => ({ ...current, pageTemplates: [...current.pageTemplates, template] }))
+    mirrorPageSave(template, 'template')
+    return template.id
+  }, [data.customPages, data.pageTemplates.length])
+
+  const addPageFromTemplate = useCallback((template: { name: string; icon: string; blocks: BuilderBlock[] }) => {
+    const used = [...new Set(template.blocks.flatMap((block) => (block.type === 'collection' && block.props.collectionId ? [block.props.collectionId] : [])))]
+    const remap = new Map<string, string>()
+    const extras: CustomRecordType[] = []
+    const now = new Date().toISOString()
+    for (const id of used) {
+      const source = data.recordTypes.find((item) => item.id === id)
+      if (!source) continue
+      const nextId = crypto.randomUUID()
+      remap.set(id, nextId)
+      extras.push({
+        ...source,
+        id: nextId,
+        blocks: source.blocks.map(cloneBlock),
+        version: 1,
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
+    const page = createPage(template.name, template.icon, remapCollections(cloneBlocks(template.blocks), remap), data.customPages.length)
+    setData((current) => ({
+      ...current,
+      recordTypes: [...current.recordTypes, ...extras],
+      customPages: [...current.customPages, page],
+      settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...extras.map((item) => item.id)]) },
+    }))
+    for (const item of extras) mirrorRecordTypeSave(item)
+    mirrorPageSave(page)
+    return page.id
+  }, [data.customPages.length, data.recordTypes])
+
+  const removePageTemplate = useCallback((id: string) => {
+    setData((current) => ({ ...current, pageTemplates: current.pageTemplates.filter((item) => item.id !== id) }))
+    mirrorPageDelete(id)
+  }, [])
+
   const value: LibraryValue = {
     ...data,
     commitDiary,
@@ -819,6 +955,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     emptyTrash,
     setPageLayout,
     resetPageLayout,
+    addUserPage,
+    updateUserPage,
+    duplicateUserPage,
+    removeUserPage,
+    moveUserPage,
+    savePageTemplate,
+    addPageFromTemplate,
+    removePageTemplate,
   }
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>

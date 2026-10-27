@@ -282,6 +282,41 @@ export type Database = {
           updated_at?: string
         }
       >
+      user_pages: Table<
+        {
+          id: string
+          user_id: string
+          name: string
+          icon: string
+          sort: number
+          kind: string
+          schema_version: number
+          blocks: Json
+          created_at: string
+          updated_at: string
+        },
+        {
+          id?: string
+          user_id: string
+          name: string
+          icon?: string
+          sort?: number
+          kind?: string
+          schema_version?: number
+          blocks?: Json
+          created_at?: string
+          updated_at?: string
+        },
+        {
+          name?: string
+          icon?: string
+          sort?: number
+          kind?: string
+          schema_version?: number
+          blocks?: Json
+          updated_at?: string
+        }
+      >
       custom_records: Table<
         {
           id: string

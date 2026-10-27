@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { Book, CustomRecordType, DiaryEntry, EntryType, FieldValue, LibraryData, Memo, Settings } from '../types/records.ts'
+import type { BuilderBlock, UserPage } from '../features/builder/schema.ts'
 import type { PageBlock, PageId } from '../features/pages/layout.ts'
 import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
 
@@ -45,6 +46,14 @@ export type LibraryValue = LibraryData & {
   emptyTrash: () => void
   setPageLayout: (pageId: PageId, blocks: PageBlock[]) => void
   resetPageLayout: (pageId: PageId) => void
+  addUserPage: (input: { name?: string; icon?: string; blocks?: BuilderBlock[] }) => string
+  updateUserPage: (id: string, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks'>>) => void
+  duplicateUserPage: (id: string) => string | null
+  removeUserPage: (id: string) => void
+  moveUserPage: (id: string, delta: -1 | 1) => void
+  savePageTemplate: (pageId: string, name?: string) => string | null
+  addPageFromTemplate: (template: { name: string; icon: string; blocks: BuilderBlock[] }) => string
+  removePageTemplate: (id: string) => void
 }
 
 export const LibraryContext = createContext<LibraryValue | null>(null)
