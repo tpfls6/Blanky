@@ -9,10 +9,12 @@ import { PageCanvas } from '../../features/pages/PageCanvas.tsx'
 import { resolveLayout } from '../../features/pages/layout.ts'
 import { EmptyState } from '../../components/common/EmptyState.tsx'
 import { useConfirm } from '../../state/useConfirm.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { categoryPath } from '../../utils/work.ts'
 
 export function MemoPage({ editing = false }: { editing?: boolean }) {
+  const { t } = useI18n()
   const confirm = useConfirm()
   const library = useLibrary()
   const [query, setQuery] = useState('')
@@ -52,7 +54,7 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
     <div className="memo-layout grid w-full gap-8 md:grid-cols-[260px_minmax(0,1fr)]">
       <div className={selected ? 'hidden md:block' : 'block'}>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-medium tracking-tight">Memo</h1>
+          <h1 className="text-2xl font-medium tracking-tight">{t('memo.title')}</h1>
           <button data-theme-slot="button-primary"
             type="button"
             className="btn btn-primary"
@@ -90,7 +92,7 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
           })}
         </nav>
         <p className="memo-list-label">{activeFolder === 'all' ? '전체 메모' : activeFolder === 'none' ? '미분류' : categoryPath(activeFolder, library.categories)} <span>{visible.length}</span></p>
-        {visible.length === 0 ? <EmptyState>메모가 없습니다.</EmptyState> : null}
+        {visible.length === 0 ? <EmptyState>{t('memo.empty')}</EmptyState> : null}
         <ul className="mt-2">
           {visible.map((memo) => (
             <li key={memo.id} className="group relative border-t border-line">

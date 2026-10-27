@@ -1,0 +1,16 @@
+{
+  "main": "Main menu",
+  "mobile": "Mobile menu",
+  "records": "Records",
+  "home": "Home",
+  "schedule": "Schedule",
+  "diary": "Diary",
+  "reading": "Reading",
+  "memo": "Memo",
+  "activity": "Activity History",
+  "store": "Store",
+  "themes": "My Themes",
+  "custom": "Customize",
+  "settings": "Settings",
+  "trash": "Trash"
+}

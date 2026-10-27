@@ -61,6 +61,7 @@ export type GoogleCalendarChoice = {
 export type CalendarErrorCode =
   | 'UNAUTHENTICATED'
   | 'GOOGLE_ENV_MISSING'
+  | 'GOOGLE_FN_MISSING'
   | 'GOOGLE_DENIED'
   | 'NOT_CONNECTED'
   | 'NEEDS_CALENDAR'

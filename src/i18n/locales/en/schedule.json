@@ -1,0 +1,16 @@
+{
+  "title": "Schedule",
+  "placeholder": "Add an event or task",
+  "inputLabel": "Event or task",
+  "events": "Events",
+  "tasks": "Tasks",
+  "completed": "Done",
+  "unscheduled": "Unscheduled",
+  "emptyTasks": "No tasks.",
+  "emptyRange": "No tasks in this range.",
+  "taskRange": "Task range",
+  "conflicts": "{{count}} AI events overlap other events. Events you created stay as they are.",
+  "replanHome": "Review rescheduling on Home",
+  "kindEvent": "Event",
+  "kindTask": "Task"
+}

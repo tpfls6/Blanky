@@ -6,16 +6,12 @@ import { MemoPage } from '../Memo/MemoPage.tsx'
 import { ReadingPage } from '../Reading/ReadingPage.tsx'
 import { RecordSection } from '../Settings/RecordSection.tsx'
 import { BLOCK_LABEL, PAGE_IDS, isUserLayout, type PageId } from '../../features/pages/layout.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
-const LABELS: Record<PageId, string> = {
-  schedule: 'Schedule',
-  diary: 'Diary',
-  reading: 'Reading',
-  memo: 'Memo',
-}
-
 export function CustomPage() {
+  const { t } = useI18n()
+  const pageLabel = (id: PageId) => t(`nav.${id}`)
   const [params, setParams] = useSearchParams()
   const panel = params.get('panel') === 'records' ? 'records' : 'pages'
   const requested = params.get('page')
@@ -31,11 +27,11 @@ export function CustomPage() {
 
   return (
     <div className="flex min-h-full flex-col lg:flex-row">
-      <nav aria-label="커스텀" className="flex gap-1 overflow-x-auto border-b border-line px-4 py-3 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0 lg:px-3 lg:py-5">
-        <p className="hidden px-2 pb-2 text-sm font-medium lg:block">Custom</p>
+      <nav aria-label={t('custom.nav')} className="flex gap-1 overflow-x-auto border-b border-line px-4 py-3 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0 lg:px-3 lg:py-5">
+        <p className="hidden px-2 pb-2 text-sm font-medium lg:block">{t('nav.custom')}</p>
         {PAGE_IDS.map((id) => (
           <button key={id} type="button" onClick={() => select(id)} className={panel === 'pages' && page === id ? 'nav-link shrink-0' : 'nav-link shrink-0'} aria-current={panel === 'pages' && page === id ? 'page' : undefined}>
-            {LABELS[id]}
+            {pageLabel(id)}
           </button>
         ))}
         <button
@@ -44,14 +40,14 @@ export function CustomPage() {
           aria-current={panel === 'records' ? 'page' : undefined}
           onClick={() => setParams({ panel: 'records' })}
         >
-          Records
+          {t('custom.records')}
         </button>
       </nav>
       <div className="min-w-0 flex-1">
         {panel === 'records' ? (
           <div className="px-4 py-5 md:px-6">
-            <h1 className="text-lg font-medium">Custom Records</h1>
-            <p className="mt-1 text-sm text-neutral-500">기록 페이지의 블록을 만들고 순서를 바꿉니다.</p>
+            <h1 className="text-lg font-medium">{t('custom.recordsTitle')}</h1>
+            <p className="mt-1 text-sm text-neutral-500">{t('custom.recordsHint')}</p>
             <div className="mt-6">
               <RecordSection />
             </div>
@@ -60,9 +56,9 @@ export function CustomPage() {
           <div>
             <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 md:px-6">
               <div className="min-w-0">
-                <h1 className="text-base font-medium">{LABELS[page]} 편집</h1>
+                <h1 className="text-base font-medium">{t('custom.editing', { page: pageLabel(page) })}</h1>
                 <p className="text-xs text-neutral-400">
-                  {custom ? '사용자 템플릿' : `${page}.default`} · 블록을 끌어 배치합니다. 저장은 바로 반영됩니다.
+                  {custom ? t('custom.userTemplate') : `${page}.default`} · 블록을 끌어 배치합니다. 저장은 바로 반영됩니다.
                 </p>
               </div>
               <button
@@ -70,10 +66,10 @@ export function CustomPage() {
                 className="btn btn-ghost ml-auto"
                 onClick={() => {
                   resetPageLayout(page)
-                  setNotice('기본 레이아웃으로 되돌렸습니다.')
+                  setNotice(t('custom.resetNotice'))
                 }}
               >
-                기본 화면으로 초기화
+                {t('custom.resetLayout')}
               </button>
             </div>
             {notice ? <p className="px-4 pt-3 text-sm text-neutral-500 md:px-6" role="status">{notice}</p> : null}

@@ -7,6 +7,8 @@ import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
 import type { DiaryEntry } from '../../types/records.ts'
 import { diaryTitle, readDiaryDraft, storeDiaryDraft, clearSavedDiaryDraft } from '../../services/diary/index.ts'
+import { formatDisplayDate } from '../../i18n/format.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
 import { todayISO } from '../../utils/date.ts'
 import { DiaryCalendar } from './DiaryCalendar.tsx'
 import './diary.css'
@@ -25,13 +27,12 @@ function blankEntry(): DiaryEntry {
   const now = new Date().toISOString()
   return { id: crypto.randomUUID(), title: '', body: '', date: todayISO(), tags: [], isFavorite: false, createdAt: now, updatedAt: now }
 }
-const fullDate = (date: string) => new Date(date + 'T12:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
-
 export function DiaryPage({ editing = false }: { editing?: boolean }) {
   const { user } = useSession()
   return <DiaryWorkspace key={user?.id ?? 'guest'} userId={user?.id ?? ''} editing={editing} />
 }
 function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean }) {
+  const { t, locale } = useI18n()
   const { diaries, commitDiary, eraseDiary, diaryLoading, diaryError, settings, pageLayouts, setPageLayout } = useLibrary()
   const [tab, setTab] = useState<string>('records')
   const [search, setSearch] = useState('')
@@ -202,14 +203,14 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
           {draft ? <>
             <div className="diary-editor-top"><button data-theme-slot="button" type="button" className="btn btn-ghost diary-back" onClick={async () => { if (await save()) setShowEditor(false) }}><ArrowLeft size={15} />목록</button><div className="diary-editor-actions"><button data-theme-slot="button" type="button" className="icon-btn diary-star" aria-label={draft.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'} aria-pressed={Boolean(draft.isFavorite)} disabled={busy} onClick={() => edit({ isFavorite: !draft.isFavorite })}><ThemeIcon name="favorite" fallback={Star} size={18} fill={draft.isFavorite ? 'currentColor' : 'none'} strokeWidth={1.5} /></button><button data-theme-slot="button" type="button" aria-label="기록 삭제" className="icon-btn" disabled={busy} onClick={() => { setDialogOpen(true); dialog.current?.showModal() }}><ThemeIcon name="delete" fallback={Trash2} size={16} strokeWidth={1.5} /></button></div></div>
             <fieldset disabled={busy || diaryLoading} className="diary-writing-fields">
-              <p className="diary-date-heading">{fullDate(draft.date)}</p><label className="diary-date-input">기록 날짜 <input data-theme-slot="input" type="date" aria-label="기록 날짜" value={draft.date} onChange={e => { if (e.target.value) edit({ date: e.target.value }) }} /></label>
+              <p className="diary-date-heading">{formatDisplayDate(locale, draft.date, 'full')}</p><label className="diary-date-input">기록 날짜 <input data-theme-slot="input" type="date" aria-label="기록 날짜" value={draft.date} onChange={e => { if (e.target.value) edit({ date: e.target.value }) }} /></label>
               <input data-theme-slot="input" ref={titleInput} aria-label="기록 제목" className="diary-title-input" placeholder="제목을 입력하세요" value={draft.title ?? ''} onChange={e => edit({ title: e.target.value })} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} />
-              <div className="diary-feelings">{[{ label: '오늘의 기분', choices: MOODS, field: 'mood' as const }, { label: '오늘의 날씨', choices: WEATHER, field: 'weather' as const }].map(group => <fieldset key={group.field} className="diary-choices"><legend>{group.label}</legend><div>{group.choices.map(([value, icon, label]) => <button data-theme-slot="button" key={value} type="button" title={label} aria-label={label} aria-pressed={draft[group.field] === value} className={'diary-choice' + (draft[group.field] === value ? ' diary-choice-on' : '')} onClick={() => edit({ [group.field]: draft[group.field] === value ? undefined : value })}>{icon}</button>)}</div></fieldset>)}</div>
+              <div className="diary-feelings">{[{ label: t('diary.mood'), choices: MOODS, field: 'mood' as const }, { label: t('diary.weather'), choices: WEATHER, field: 'weather' as const }].map(group => <fieldset key={group.field} className="diary-choices"><legend>{group.label}</legend><div>{group.choices.map(([value, icon, label]) => <button data-theme-slot="button" key={value} type="button" title={label} aria-label={label} aria-pressed={draft[group.field] === value} className={'diary-choice' + (draft[group.field] === value ? ' diary-choice-on' : '')} onClick={() => edit({ [group.field]: draft[group.field] === value ? undefined : value })}>{icon}</button>)}</div></fieldset>)}</div>
               <label className="diary-tags"><span className="diary-tags-label">태그</span><span className="diary-tags-field"><input data-theme-slot="input" aria-label="기록 태그" placeholder="#학교, #데이트, #프로젝트" value={tagsText} onChange={e => { setTagsText(e.target.value); edit({ tags: [...new Set(e.target.value.split(/[,#]+/).map(tag => tag.trim()).filter(Boolean))] }) }} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} /></span></label>
               <textarea data-theme-slot="input" aria-label="기록 본문" className="diary-body-input" placeholder="오늘 있었던 일이나 생각을 자유롭게 기록해보세요." value={draft.body} onChange={e => edit({ body: e.target.value })} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} />
             </fieldset>
             <footer className="diary-save-footer"><span>{draft.body.length.toLocaleString()}자</span><div><span role="status">{status === '저장 중…' ? <LoaderCircle size={12} className="animate-spin" /> : !dirty && status === '저장됨' ? <Check size={12} /> : null}{status}</span>{dirty && <button data-theme-slot="button" type="button" className="btn btn-ghost" disabled={busy || diaryLoading} onClick={() => void save()}>{error ? '다시 저장' : '지금 저장'}</button>}</div></footer>
-          </> : <div className="diary-editor-empty"><ThemeIcon name="diary" fallback={BookOpen} size={32} strokeWidth={1} /><h2>오늘의 한 줄을 남겨보세요</h2><p>완벽한 문장이 아니어도 괜찮아요.<br />하루의 순간과 생각을 편하게 적어두세요.</p><button data-theme-slot="button-secondary" type="button" className="btn btn-line" disabled={diaryLoading} onClick={() => void open(null)}><ThemeIcon name="add" fallback={Plus} size={14} />새 기록</button></div>}
+          </> : <div className="diary-editor-empty"><ThemeIcon name="diary" fallback={BookOpen} size={32} strokeWidth={1} /><h2>{t('diary.emptyTitle')}</h2><p>{t('diary.emptyBody')}<br />{t('diary.emptyHint')}</p><button data-theme-slot="button-secondary" type="button" className="btn btn-line" disabled={diaryLoading} onClick={() => void open(null)}><ThemeIcon name="add" fallback={Plus} size={14} />{t('diary.newEntry')}</button></div>}
           {error && <p className="diary-error" role="alert">{error} 입력한 내용은 임시 보관되어 있습니다.</p>}
         </section>
       </div>

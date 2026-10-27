@@ -1,0 +1,16 @@
+{
+  "main": "주요 메뉴",
+  "mobile": "모바일 메뉴",
+  "records": "기록",
+  "home": "홈",
+  "schedule": "일정",
+  "diary": "일기",
+  "reading": "독서",
+  "memo": "메모",
+  "activity": "활동 기록",
+  "store": "스토어",
+  "themes": "내 테마",
+  "custom": "꾸미기",
+  "settings": "설정",
+  "trash": "휴지통"
+}

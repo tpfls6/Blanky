@@ -1,0 +1,36 @@
+{
+  "brand": "Blanky",
+  "save": "Save",
+  "saved": "Saved",
+  "saving": "Saving…",
+  "retrySave": "Save again",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "add": "Add",
+  "apply": "Apply",
+  "close": "Close",
+  "confirm": "Confirm",
+  "reset": "Reset",
+  "loading": "Loading…",
+  "checkingLogin": "Checking sign-in…",
+  "today": "Today",
+  "tomorrow": "Tomorrow",
+  "me": "Me",
+  "empty": "Nothing here yet.",
+  "search": "Search",
+  "clearSearch": "Clear search",
+  "type": {
+    "auto": "Auto classify",
+    "schedule": "Schedule",
+    "task": "Task",
+    "diary": "Diary",
+    "memo": "Memo",
+    "reading": "Reading log",
+    "event": "Event"
+  },
+  "source": {
+    "ai": "AI",
+    "manual": "Manual"
+  }
+}
