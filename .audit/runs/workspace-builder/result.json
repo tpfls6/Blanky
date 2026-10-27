@@ -1,0 +1,43 @@
+{
+  "started": "2026-10-27T04:20:30.894Z",
+  "ended": "2026-10-27T04:20:39.979Z",
+  "ok": true,
+  "log": [
+    "started 2026-10-27T04:20:30.894Z",
+    "2026-10-27T04:20:33.477Z logged in as seeded local user",
+    "2026-10-27T04:20:33.860Z custom hub",
+    "2026-10-27T04:20:33.944Z opened workout starter /pages/b919edef-dff3-4087-a09b-63e62c548c31",
+    "2026-10-27T04:20:34.234Z screenshot 01-workout-starter.png",
+    "2026-10-27T04:20:34.345Z saved squat {\"e44972b2-8d67-42c8-b2e4-d166b59319a7\":\"스쿼트\",\"bb65ad95-e658-403c-947b-408ccb9a1a03\":\"2026-10-27\",\"a7184255-19f4-4d77-a5b6-b10f1d1183d1\":40,\"278de7e5-eaf2-4945-b141-60a4d62676c1\":8,\"55496264-cae2-4309-ba16-61b1b6dfc858\":\"\",\"d6cb1f3a-4555-4c99-bafa-4b6130b2b67b\":false}",
+    "2026-10-27T04:20:34.399Z screenshot 02-after-save.png",
+    "2026-10-27T04:20:35.002Z reload kept squat",
+    "2026-10-27T04:20:35.614Z reopened page b919edef-dff3-4087-a09b-63e62c548c31",
+    "2026-10-27T04:20:36.124Z rename persisted",
+    "2026-10-27T04:20:36.186Z screenshot 03-renamed.png",
+    "2026-10-27T04:20:36.236Z calendar shows squat on 2026-10-27",
+    "2026-10-27T04:20:37.250Z relogin kept page and record",
+    "2026-10-27T04:20:37.295Z screenshot 04-after-relogin.png",
+    "2026-10-27T04:20:39.979Z core tabs have labeled ui"
+  ],
+  "errors": [],
+  "extra": {
+    "pageId": "b919edef-dff3-4087-a09b-63e62c548c31",
+    "record": {
+      "id": "1a91cedd-e7d9-4a76-8148-f990eaa708d7",
+      "typeId": "c57a4412-bc40-4fc5-b6f4-c532cf843bb3",
+      "title": "스쿼트",
+      "values": {
+        "e44972b2-8d67-42c8-b2e4-d166b59319a7": "스쿼트",
+        "bb65ad95-e658-403c-947b-408ccb9a1a03": "2026-10-27",
+        "a7184255-19f4-4d77-a5b6-b10f1d1183d1": 40,
+        "278de7e5-eaf2-4945-b141-60a4d62676c1": 8,
+        "55496264-cae2-4309-ba16-61b1b6dfc858": "",
+        "d6cb1f3a-4555-4c99-bafa-4b6130b2b67b": false
+      },
+      "templateVersion": 1,
+      "createdAt": "2026-10-27T04:20:34.313Z",
+      "updatedAt": "2026-10-27T04:20:34.313Z"
+    }
+  },
+  "serverTail": "  ➜  Local:   http://127.0.0.1:5198/\n"
+}

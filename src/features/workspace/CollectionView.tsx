@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { CustomRecordRenderer } from '../records/Renderer.tsx'
-import { flatten, hydrateValues, requiredError, titleFrom, blankValues, isFieldBlock, type Block } from '../records/schema.ts'
+import { hydrateValues, requiredError, titleFrom, blankValues } from '../records/schema.ts'
 import type { CustomRecord, CustomRecordType, FieldValue } from '../../types/records.ts'
+import { todayISO } from '../../utils/date.ts'
 import type { DataView } from './model.ts'
+import { assignSelect, chartSeries, dateKey, fieldValue, fieldsOf, monthCells, shiftMonth, textOf } from './views.ts'
 
 const VIEWS: { id: DataView; label: string }[] = [
   { id: 'table', label: '테이블' },
@@ -12,22 +15,6 @@ const VIEWS: { id: DataView; label: string }[] = [
   { id: 'kanban', label: '칸반' },
   { id: 'chart', label: '차트' },
 ]
-
-function fieldsOf(type: CustomRecordType): Block[] {
-  return flatten(type.blocks).filter((block) => block.fieldKey && isFieldBlock(block.type))
-}
-
-function textOf(value: FieldValue | undefined): string {
-  if (typeof value === 'string') return value
-  if (typeof value === 'number') return String(value)
-  if (typeof value === 'boolean') return value ? '예' : '아니오'
-  if (Array.isArray(value)) return value.join(', ')
-  return ''
-}
-
-function fieldValue(row: CustomRecord, block: Block): FieldValue | undefined {
-  return block.fieldKey ? row.values[block.fieldKey] : undefined
-}
 
 export function CollectionView({
   type,
@@ -51,6 +38,7 @@ export function CollectionView({
   const [editing, setEditing] = useState<string | 'new' | null>(null)
   const [values, setValues] = useState<Record<string, FieldValue>>({})
   const [error, setError] = useState('')
+  const [month, setMonth] = useState(() => todayISO().slice(0, 7))
 
   const visible = useMemo(() => {
     const text = query.trim().toLowerCase()
@@ -64,6 +52,12 @@ export function CollectionView({
   const openNew = () => {
     setEditing('new')
     setValues(blankValues(type.blocks))
+    setError('')
+  }
+
+  const openRow = (row: CustomRecord) => {
+    setEditing(row.id)
+    setValues(hydrateValues(type.blocks, row.values, row.title))
     setError('')
   }
 
@@ -82,7 +76,7 @@ export function CollectionView({
   const dateField = fields.find((block) => block.type === 'date' || block.type === 'dateTime')
   const selectField = fields.find((block) => block.type === 'select')
   const imageField = fields.find((block) => block.type === 'image')
-  const numberField = fields.find((block) => block.type === 'number' || block.type === 'rating' || block.type === 'progress')
+  const chart = chartSeries(type, visible)
 
   return (
     <div>
@@ -133,7 +127,9 @@ export function CollectionView({
         </form>
       ) : null}
 
-      {visible.length === 0 && !editing ? <p className="mt-4 text-sm text-neutral-400">기록이 없습니다.</p> : null}
+      {visible.length === 0 && !editing && view !== 'calendar' && view !== 'chart' && view !== 'kanban' ? (
+        <p className="mt-4 text-sm text-neutral-400">기록이 없습니다.</p>
+      ) : null}
 
       {view === 'table' ? (
         <div className="mt-4 overflow-x-auto">
@@ -159,7 +155,7 @@ export function CollectionView({
                     </td>
                   ))}
                   <td className="py-2 text-right">
-                    <button type="button" className="text-xs text-neutral-400" onClick={() => { setEditing(row.id); setValues(hydrateValues(type.blocks, row.values, row.title)); setError('') }}>수정</button>
+                    <button type="button" className="text-xs text-neutral-400" onClick={() => openRow(row)}>수정</button>
                     <button type="button" className="ml-2 text-xs text-neutral-400" onClick={() => onRemove(row.id)}>삭제</button>
                   </td>
                 </tr>
@@ -186,7 +182,7 @@ export function CollectionView({
                     ))}
                   </ul>
                   <div className="mt-3 flex gap-2">
-                    <button type="button" className="text-xs text-neutral-400" onClick={() => { setEditing(row.id); setValues(hydrateValues(type.blocks, row.values, row.title)); setError('') }}>수정</button>
+                    <button type="button" className="text-xs text-neutral-400" onClick={() => openRow(row)}>수정</button>
                     <button type="button" className="text-xs text-neutral-400" onClick={() => onRemove(row.id)}>삭제</button>
                   </div>
                 </div>
@@ -197,68 +193,104 @@ export function CollectionView({
       ) : null}
 
       {view === 'calendar' ? (
-        <ul className="mt-4 space-y-2">
-          {visible.map((row) => (
-            <li key={row.id} className="flex items-center justify-between gap-3 border-b border-line py-2 text-sm">
-              <span>{dateField ? textOf(fieldValue(row, dateField)).slice(0, 10) || '날짜 없음' : row.createdAt.slice(0, 10)}</span>
-              <button type="button" className="min-w-0 flex-1 text-left" onClick={() => { setEditing(row.id); setValues(hydrateValues(type.blocks, row.values, row.title)); setError('') }}>{row.title}</button>
-            </li>
-          ))}
-        </ul>
+        dateField ? (
+          <div className="diary-calendar mt-4" aria-label="컬렉션 캘린더">
+            <div className="diary-calendar-heading">
+              <button type="button" className="icon-btn" aria-label="이전 달" onClick={() => setMonth(shiftMonth(month, -1))}><ChevronLeft size={16} /></button>
+              <h2 aria-live="polite">{month}</h2>
+              <button type="button" className="icon-btn" aria-label="다음 달" onClick={() => setMonth(shiftMonth(month, 1))}><ChevronRight size={16} /></button>
+            </div>
+            <div className="diary-calendar-weekdays" aria-hidden="true">
+              {['일', '월', '화', '수', '목', '금', '토'].map((day) => <span key={day}>{day}</span>)}
+            </div>
+            <div className="diary-calendar-days">
+              {monthCells(month).map((cell) => {
+                const dayRows = visible.filter((row) => dateKey(fieldValue(row, dateField)) === cell.date)
+                return (
+                  <div key={cell.date} data-date={cell.date} className={'diary-calendar-day' + (cell.inMonth ? '' : ' diary-calendar-outside')}>
+                    <span>{Number(cell.date.slice(8))}</span>
+                    <ul className="mt-1 space-y-0.5">
+                      {dayRows.map((row) => (
+                        <li key={row.id}>
+                          <button type="button" className="block w-full truncate text-left text-[11px]" onClick={() => openRow(row)}>{row.title}</button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-neutral-400">캘린더는 날짜 필드가 필요합니다.</p>
+        )
       ) : null}
 
       {view === 'kanban' ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {(selectField?.props.options ?? [{ id: 'none', label: '없음', color: '#737373' }]).map((option) => {
-            const group = visible.filter((row) => {
-              if (!selectField) return option.id === 'none'
-              const value = textOf(fieldValue(row, selectField))
-              return value === option.id || value === option.label
-            })
-            return (
-              <section key={option.id} className="panel p-3">
-                <h3 className="text-xs text-neutral-400">{option.label}</h3>
-                <ul className="mt-2 space-y-2">
-                  {group.map((row) => (
-                    <li key={row.id}>
-                      <button type="button" className="w-full rounded-md border border-line px-2 py-1.5 text-left text-sm" onClick={() => { setEditing(row.id); setValues(hydrateValues(type.blocks, row.values, row.title)); setError('') }}>
-                        {row.title}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )
-          })}
-        </div>
+        selectField?.fieldKey ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {selectField.props.options?.map((option) => {
+              const group = visible.filter((row) => {
+                const value = textOf(fieldValue(row, selectField))
+                return value === option.id || value === option.label
+              })
+              return (
+                <section
+                  key={option.id}
+                  data-kanban-col={option.id}
+                  className="panel p-3"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    const id = event.dataTransfer.getData('text/plain')
+                    const row = visible.find((item) => item.id === id)
+                    if (!row || !selectField.fieldKey) return
+                    onUpdate(row.id, { title: row.title, values: assignSelect(row.values, selectField.fieldKey, option.id) })
+                  }}
+                >
+                  <h3 className="text-xs text-neutral-400">{option.label}</h3>
+                  <ul className="mt-2 space-y-2">
+                    {group.map((row) => (
+                      <li key={row.id}>
+                        <button
+                          type="button"
+                          draggable
+                          data-kanban-card={row.id}
+                          onDragStart={(event) => event.dataTransfer.setData('text/plain', row.id)}
+                          className="w-full cursor-grab rounded-md border border-line px-2 py-1.5 text-left text-sm"
+                          onClick={() => openRow(row)}
+                        >
+                          {row.title}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-neutral-400">칸반은 선택 필드가 필요합니다.</p>
+        )
       ) : null}
 
       {view === 'chart' ? (
-        <ul className="mt-4 space-y-2">
-          {(selectField?.props.options ?? []).map((option) => {
-            const count = visible.filter((row) => {
-              const value = selectField ? textOf(fieldValue(row, selectField)) : ''
-              return value === option.id || value === option.label
-            }).length
-            const max = Math.max(1, visible.length)
-            return (
-              <li key={option.id}>
-                <p className="text-xs text-neutral-500">{option.label} · {count}</p>
-                <div className="mt-1 h-2 rounded-full bg-hover">
-                  <div className="h-2 rounded-full bg-neutral-400" style={{ width: `${(count / max) * 100}%` }} />
-                </div>
-              </li>
-            )
-          })}
-          {!selectField && numberField ? (
-            <li>
-              <p className="text-xs text-neutral-500">
-                {numberField.props.label} 합계 {visible.reduce((sum, row) => sum + (typeof fieldValue(row, numberField) === 'number' ? Number(fieldValue(row, numberField)) : 0), 0)}
-              </p>
-            </li>
-          ) : null}
-          {!selectField && !numberField ? <li className="text-sm text-neutral-400">차트는 선택 또는 숫자 필드가 있을 때 표시됩니다.</li> : null}
-        </ul>
+        chart.kind === 'empty' ? (
+          <p className="mt-4 text-sm text-neutral-400">{chart.message}</p>
+        ) : (
+          <ul className="mt-4 space-y-2" aria-label={chart.label}>
+            {chart.items.map((item) => {
+              const max = Math.max(1, ...chart.items.map((entry) => entry.value))
+              return (
+                <li key={item.id}>
+                  <p className="text-xs text-neutral-500">{item.label} · {item.value}</p>
+                  <div className="mt-1 h-2 rounded-full bg-hover">
+                    <div className="h-2 rounded-full bg-neutral-400" style={{ width: `${(item.value / max) * 100}%` }} data-chart-bar={item.id} />
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )
       ) : null}
     </div>
   )

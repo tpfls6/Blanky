@@ -3,7 +3,8 @@ import { test } from 'node:test'
 import { cloneBlocks, coercePage, createBlock, findBlocksByText } from '../src/features/builder/schema.ts'
 import { createBlock as createField } from '../src/features/records/registry.ts'
 import { coerceRecordType, requiredError, validateField } from '../src/features/records/schema.ts'
-import { builtinTemplates, forkCollections, remapCollections } from '../src/features/workspace/templates.ts'
+import { builtinTemplates, forkCollections, remapCollections, snapshotCollections } from '../src/features/workspace/templates.ts'
+import { assignSelect, chartSeries, monthCells, shiftMonth } from '../src/features/workspace/views.ts'
 
 test('builtin templates cover the starter set', () => {
   const names = builtinTemplates().map((item) => item.name)
@@ -136,4 +137,51 @@ test('field rename keeps the field key', () => {
   const field = type.blocks.find((block) => block.fieldKey === 'name')
   assert.ok(field)
   assert.equal(field.fieldKey, 'name')
+})
+
+test('saved template keeps collection schema without live rows', () => {
+  const starter = builtinTemplates().find((item) => item.id === 'tpl-workout')
+  assert.ok(starter)
+  const snap = snapshotCollections(starter.blocks, starter.collections)
+  assert.equal(snap.length, 1)
+  assert.equal(snap[0]?.id, starter.collections[0]?.id)
+  assert.ok(snap[0]?.blocks.some((block) => block.props.label === '무게'))
+  const page = coercePage({
+    id: 'tpl',
+    name: '운동 관리',
+    blocks: starter.blocks,
+    collections: snap,
+  })
+  assert.ok(page)
+  assert.equal(page.collections?.[0]?.id, snap[0]?.id)
+  const forked = forkCollections(page.blocks, [], page.collections)
+  assert.notEqual(forked.collections[0]?.id, snap[0]?.id)
+  assert.equal(forked.blocks.find((block) => block.type === 'collection')?.props.collectionId, forked.collections[0]?.id)
+})
+
+test('calendar cells cover a month and chart groups date plus number', () => {
+  const cells = monthCells('2026-10')
+  assert.ok(cells.length >= 28)
+  assert.equal(cells.filter((cell) => cell.date === '2026-10-01').length, 1)
+  assert.equal(shiftMonth('2026-10', 1), '2026-11')
+  const type = coerceRecordType({
+    id: 'col',
+    name: '운동',
+    icon: 'Dumbbell',
+    color: '#3C8664',
+    blocks: [
+      { id: 'd', type: 'date', fieldKey: 'day', props: { label: '날짜' } },
+      { id: 'n', type: 'number', fieldKey: 'kg', props: { label: '무게' } },
+    ],
+  })
+  assert.ok(type)
+  const series = chartSeries(type, [
+    { id: 'r1', typeId: 'col', title: '스쿼트', values: { day: '2026-10-27', kg: 40 }, templateVersion: 1, createdAt: '', updatedAt: '' },
+    { id: 'r2', typeId: 'col', title: '스쿼트', values: { day: '2026-10-27', kg: 20 }, templateVersion: 1, createdAt: '', updatedAt: '' },
+  ])
+  assert.equal(series.kind, 'bars')
+  if (series.kind === 'bars') {
+    assert.equal(series.items.find((item) => item.id === '2026-10-27')?.value, 60)
+  }
+  assert.equal(assignSelect({ day: '2026-10-27' }, 'status', 'done').status, 'done')
 })

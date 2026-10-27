@@ -9,7 +9,7 @@ import { withPersonalCalendar } from '../services/calendar/local.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { freshLibrary } from '../data/freshLibrary.ts'
 import { cloneBlock, coerceRecordType, selfCheckRecords, structureKey, type CustomRecordType } from '../features/records/schema.ts'
-import { forkCollections } from '../features/workspace/templates.ts'
+import { forkCollections, snapshotCollections } from '../features/workspace/templates.ts'
 import { cloneBlocks, createPage, normalizePages, touchPage, type BuilderBlock, type UserPage } from '../features/builder/schema.ts'
 import { listUserPages } from '../services/pages/index.ts'
 import { normalizeLayouts, type PageBlock, type PageId } from '../features/pages/layout.ts'
@@ -877,11 +877,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const savePageTemplate = useCallback((pageId: string, name?: string) => {
     const source = data.customPages.find((item) => item.id === pageId)
     if (!source) return null
-    const template = createPage(name?.trim() || source.name, source.icon, cloneBlocks(source.blocks), data.pageTemplates.length)
+    const collections = snapshotCollections(source.blocks, data.recordTypes)
+    const template = { ...createPage(name?.trim() || source.name, source.icon, cloneBlocks(source.blocks), data.pageTemplates.length), collections }
     setData((current) => ({ ...current, pageTemplates: [...current.pageTemplates, template] }))
     mirrorPageSave(template, 'template')
     return template.id
-  }, [data.customPages, data.pageTemplates.length])
+  }, [data.customPages, data.pageTemplates.length, data.recordTypes])
 
   const addPageFromTemplate = useCallback((template: { name: string; icon: string; blocks: BuilderBlock[]; collections?: CustomRecordType[] }) => {
     const forked = forkCollections(template.blocks, data.recordTypes, template.collections ?? [])

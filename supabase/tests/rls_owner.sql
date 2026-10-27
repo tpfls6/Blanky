@@ -1,6 +1,6 @@
 begin;
 
-select plan(9);
+select plan(12);
 
 select tests.create_supabase_user('owner@example.com', 'password');
 select tests.create_supabase_user('other@example.com', 'password');
@@ -50,6 +50,11 @@ select is_empty('select id from public.custom_records', 'other user cannot read 
 select is_empty('select id from public.classification_feedback', 'other user cannot read feedback');
 select is_empty('select id from public.user_pages', 'other user cannot read user pages');
 
+update public.user_pages set name = 'stolen';
+update public.custom_records set title = 'stolen';
+delete from public.user_pages;
+delete from public.custom_records;
+
 select throws_ok(
   format(
     'insert into public.categories (user_id, name) values (%L, %L)',
@@ -60,6 +65,11 @@ select throws_ok(
   null,
   'other user cannot insert with a foreign id'
 );
+
+select tests.authenticate_as('owner@example.com');
+select results_eq('select name from public.user_pages', $$values ('공부'::text)$$, 'other user cannot change page name');
+select results_eq('select title from public.custom_records', $$values ('스쿼트'::text)$$, 'other user cannot change records');
+select isnt_empty('select id from public.user_pages', 'other user cannot delete owner pages');
 
 select tests.clear_authentication();
 select is_empty('select id from public.categories', 'anonymous cannot read categories');

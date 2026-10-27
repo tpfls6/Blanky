@@ -1,3 +1,5 @@
+import { coerceRecordType, type CustomRecordType } from '../records/schema.ts'
+
 export const SCHEMA_VERSION = 1
 
 export const CONTENT_TYPES = [
@@ -71,6 +73,7 @@ export type UserPage = {
   sort: number
   schemaVersion: number
   blocks: BuilderBlock[]
+  collections?: CustomRecordType[]
   createdAt: string
   updatedAt: string
 }
@@ -176,6 +179,12 @@ export function coercePage(value: unknown): UserPage | null {
     sort: typeof row.sort === 'number' ? row.sort : 0,
     schemaVersion: typeof row.schemaVersion === 'number' ? row.schemaVersion : SCHEMA_VERSION,
     blocks,
+    collections: Array.isArray(row.collections)
+      ? row.collections.flatMap((item) => {
+          const next = coerceRecordType(item)
+          return next ? [next] : []
+        })
+      : undefined,
     createdAt: typeof row.createdAt === 'string' ? row.createdAt : new Date().toISOString(),
     updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : new Date().toISOString(),
   }

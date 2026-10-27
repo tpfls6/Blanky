@@ -13,3 +13,9 @@ ts	phase	decision	why	evidence	result
 2026-10-27T03:58:00Z	review	supersede 03:51 RLS on schema.ts	field types are in schema.ts; owner RLS is supabase/tests/rls_owner.sql; gallery calendar kanban chart are list views	src/features/workspace/CollectionView.tsx	browser only clicked 카드
 2026-10-27T03:58:00Z	review	savePageTemplate still has no collection snapshot	a later instantiate forks the live type id; deleting that type breaks the template	src/state/library.tsx:870	known gap
 2026-10-27T03:59:00Z	verify	re-ran the three unit files in this follow-up	node --experimental-strip-types --test tests/workspace.test.ts tests/customWorkspace.test.ts tests/pageBuilder.test.ts	18 pass 0 fail	green this run
+2026-10-27T04:18:00Z	start	new run to close template snapshot, real views, and saved evidence	prior rows through 03:59:00Z belong to the earlier custom-blocks run	this chat after 645d060	open
+2026-10-27T04:19:00Z	fix	savePageTemplate stores collection schemas on the page	instantiate must work after the live type is gone	src/state/library.tsx src/features/workspace/templates.ts snapshotCollections	open
+2026-10-27T04:20:00Z	ui	calendar month grid, kanban drop columns, date-number chart	same rows, no second copy	src/features/workspace/views.ts src/features/workspace/CollectionView.tsx	open
+2026-10-27T04:21:00Z	verify	unit 20 pass written to evidence	.audit/runs/workspace-builder/unit.txt	20 pass 0 fail	tests green
+2026-10-27T04:20:39Z	verify	browser workout starter save reload reopen calendar relogin	.audit/runs/workspace-builder/result.json scripts/workspace-builder-test.mjs port 5198	ok true, screenshots 01-04
+2026-10-27T04:21:00Z	verify	supabase test db refused local postgres	.audit/runs/workspace-builder/rls.txt	NOT RUN docker down

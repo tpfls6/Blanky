@@ -151,6 +151,13 @@ export function remapCollections(blocks: BuilderBlock[], fromTo: Map<string, str
   })
 }
 
+export function snapshotCollections(blocks: readonly BuilderBlock[], types: readonly CustomRecordType[]): CustomRecordType[] {
+  return collectionIds(blocks).flatMap((id) => {
+    const source = types.find((item) => item.id === id)
+    return source ? [{ ...source, blocks: source.blocks.map((block) => ({ ...block, props: { ...block.props } })) }] : []
+  })
+}
+
 export function forkCollections(
   blocks: readonly BuilderBlock[],
   existing: readonly CustomRecordType[],
