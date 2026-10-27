@@ -1,52 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { IconPicker } from '../../components/common/IconPicker.tsx'
 import { ROUTES } from '../../constants/routes.ts'
 import type { UserPage as UserPageModel } from '../../features/builder/schema.ts'
 import { packDiary, packMemo, packReading, recordsForPage, unpackDiary, unpackMemo, unpackReading } from '../../features/pages/pageRecords.ts'
-import { DEFAULT_FIELD_LABELS, FIELD_KEYS, fieldLabel, type PageTemplateKind } from '../../features/pages/templates.ts'
+import { DEFAULT_FIELD_LABELS, type PageTemplateKind } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
+import { PageSettings } from '../Custom/PageSettings.tsx'
 import { DiaryWorkspace } from '../Diary/DiaryPage.tsx'
 import { MemoPage } from '../Memo/MemoPage.tsx'
 import { ReadingCatalog } from '../Reading/ReadingCatalog.tsx'
 import type { DiaryEntry, Memo } from '../../types/records.ts'
-
-function PageSettings({ page }: { page: UserPageModel }) {
-  const { t } = useI18n()
-  const { updateUserPage } = useLibrary()
-  const template = page.template
-  if (!template) return null
-  return (
-    <details className="mb-6 rounded-md border border-line p-3">
-      <summary className="cursor-pointer text-sm font-medium">{t('custom.pageSettings')}</summary>
-      <div className="mt-3 flex items-start gap-3">
-        <IconPicker value={page.icon} onChange={(icon) => updateUserPage(page.id, { icon })} />
-        <input
-          value={page.name}
-          onChange={(event) => updateUserPage(page.id, { name: event.target.value })}
-          className="field min-w-0 flex-1"
-          aria-label={t('custom.pageName')}
-        />
-      </div>
-      <div className="mt-4 grid gap-3">
-        {FIELD_KEYS[template].map((key) => (
-          <label key={key} className="block text-sm">
-            <span className="text-neutral-400">{DEFAULT_FIELD_LABELS[template][key as keyof (typeof DEFAULT_FIELD_LABELS)[typeof template]]}</span>
-            <input
-              value={page.fieldLabels[key] ?? ''}
-              onChange={(event) => updateUserPage(page.id, { fieldLabels: { ...page.fieldLabels, [key]: event.target.value } })}
-              placeholder={fieldLabel(template, key)}
-              className="field mt-1 w-full"
-            />
-          </label>
-        ))}
-      </div>
-    </details>
-  )
-}
 
 function DiaryHost({ page }: { page: UserPageModel }) {
   const { user } = useSession()
@@ -179,7 +145,7 @@ export function UserPage() {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const { t } = useI18n()
-  const { customPages, removeUserPage } = useLibrary()
+  const { customPages, records, removeUserPage } = useLibrary()
   const page = customPages.find((item) => item.id === pageId)
   const ready = useMemo(() => page, [page])
   if (!ready) {
@@ -198,7 +164,7 @@ export function UserPage() {
           type="button"
           className="chip ml-auto"
           onClick={async () => {
-            if (await confirm(t('builder.deleteAsk', { name: ready.name }))) {
+            if (await confirm(t('custom.deleteBody', { name: ready.name, count: recordsForPage(records, ready.id).length }), { title: t('custom.deleteTitle', { name: ready.name }) })) {
               removeUserPage(ready.id)
               navigate(ROUTES.home)
             }
@@ -207,7 +173,12 @@ export function UserPage() {
           {t('delete')}
         </button>
       </div>
-      <PageSettings page={ready} />
+      <details className="mb-6 rounded-md border border-line p-3">
+        <summary className="cursor-pointer text-sm font-medium">{t('custom.pageSettings')}</summary>
+        <div className="mt-3">
+          <PageSettings page={ready} />
+        </div>
+      </details>
       <Body page={ready} />
     </div>
   )

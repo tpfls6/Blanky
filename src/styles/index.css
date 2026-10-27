@@ -585,6 +585,45 @@ html.dark .border-neutral-300 {
   color: var(--accent-color);
 }
 
+.template-card {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
+}
+
+@media (hover: hover) {
+  .template-card:hover {
+    transform: scale(1.02);
+    border-color: var(--accent-border);
+    box-shadow: var(--shadow);
+    background: var(--hover);
+  }
+}
+
+.template-card:focus-visible,
+.template-card[aria-pressed='true'] {
+  transform: scale(1.02);
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow);
+}
+
+.template-preview-slot {
+  min-height: 12rem;
+}
+
+.template-preview {
+  overflow: hidden;
+  max-height: 22rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.template-preview-inner {
+  transform: scale(0.72);
+  transform-origin: top left;
+  width: 138.9%;
+  pointer-events: none;
+}
+
 .settings-link[aria-current='page']::before {
   content: '';
   position: absolute;

@@ -30,6 +30,12 @@ export type PageBlock = {
 
 export type PageLayouts = Partial<Record<PageId, PageBlock[]>>
 
+export type PageGaps = Partial<Record<PageId, number>>
+
+export const DEFAULT_PAGE_GAP = 16
+
+export const PAGE_GAP_OPTIONS = [8, 12, 16, 24, 32] as const
+
 const ALL_TYPES = new Set<string>([...CORE_TYPES, ...LAYOUT_TYPES])
 
 export const BLOCK_LABEL: Record<BlockType, string> = {
@@ -78,6 +84,26 @@ export function defaultLayout(pageId: PageId): PageBlock[] {
 
 export function isUserLayout(stored: PageBlock[] | undefined): boolean {
   return Array.isArray(stored) && stored.length > 0
+}
+
+export function isRequiredType(pageId: PageId, type: BlockType): boolean {
+  return defaultLayout(pageId).some((block) => block.type === type)
+}
+
+export function normalizePageGaps(value: unknown): PageGaps {
+  if (!value || typeof value !== 'object') return {}
+  const gaps: PageGaps = {}
+  for (const pageId of PAGE_IDS) {
+    const raw = (value as Record<string, unknown>)[pageId]
+    if (typeof raw === 'number' && PAGE_GAP_OPTIONS.includes(raw as (typeof PAGE_GAP_OPTIONS)[number])) {
+      gaps[pageId] = raw
+    }
+  }
+  return gaps
+}
+
+export function resolveGap(pageId: PageId, stored: PageGaps | undefined): number {
+  return stored?.[pageId] ?? DEFAULT_PAGE_GAP
 }
 
 function spanOf(value: unknown): Span {
@@ -159,7 +185,7 @@ export function addBlock(blocks: readonly PageBlock[], type: BlockType): PageBlo
 }
 
 function selfCheckLayout(): void {
-  if (!import.meta.env.DEV) return
+  if (!import.meta.env?.DEV) return
   const schedule = defaultLayout('schedule')
   if (schedule.map((item) => item.type).join() !== 'date-header,quick-input,timeline,task-list,calendar') throw new Error('schedule default')
   if (schedule[0]?.span !== 1 || schedule[1]?.span !== 2) throw new Error('header spans')
@@ -171,6 +197,9 @@ function selfCheckLayout(): void {
   if (again.filter((item) => item.type === 'timeline' && !item.hidden).length !== 1) throw new Error('restore')
   if (defaultLayout('diary')[0]?.type !== 'page-body') throw new Error('diary default')
   if (!isUserLayout(schedule) || isUserLayout(undefined)) throw new Error('user layout')
+  if (!isRequiredType('schedule', 'timeline') || isRequiredType('schedule', 'spacer')) throw new Error('required')
+  if (resolveGap('diary', { diary: 24 }) !== 24 || resolveGap('memo', {}) !== DEFAULT_PAGE_GAP) throw new Error('gap')
+  if (normalizePageGaps({ diary: 24, memo: 7 }).memo) throw new Error('gap clamp')
 }
 
 selfCheckLayout()

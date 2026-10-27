@@ -17,7 +17,7 @@ import { cloneBlocks, createPage, normalizePages, touchPage, type BuilderBlock, 
 import { pageTypeMarker, type PageTemplateKind } from '../features/pages/templates.ts'
 import { listUserPages } from '../services/pages/index.ts'
 import { getAllCustomRecords, getCustomRecordTypes } from '../services/records/index.ts'
-import { normalizeLayouts, type PageBlock, type PageId } from '../features/pages/layout.ts'
+import { normalizeLayouts, normalizePageGaps, type PageBlock, type PageId } from '../features/pages/layout.ts'
 import {
   type Book,
   type BookStatus,
@@ -132,6 +132,7 @@ function loadStoredLibrary(userId: string): LibraryData {
       }) : [],
       settings,
       pageLayouts: normalizeLayouts(data.pageLayouts),
+      pageGaps: normalizePageGaps(data.pageGaps),
       customPages: normalizePages(data.customPages),
       pageTemplates: normalizePages(data.pageTemplates),
     }
@@ -848,11 +849,17 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     setData((current) => ({ ...current, pageLayouts: { ...current.pageLayouts, [pageId]: blocks } }))
   }, [])
 
+  const setPageGap = useCallback((pageId: PageId, gap: number) => {
+    setData((current) => ({ ...current, pageGaps: { ...current.pageGaps, [pageId]: gap } }))
+  }, [])
+
   const resetPageLayout = useCallback((pageId: PageId) => {
     setData((current) => {
       const pageLayouts = { ...current.pageLayouts }
+      const pageGaps = { ...current.pageGaps }
       delete pageLayouts[pageId]
-      return { ...current, pageLayouts }
+      delete pageGaps[pageId]
+      return { ...current, pageLayouts, pageGaps }
     })
   }, [])
 
@@ -1051,6 +1058,19 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const reorderUserPages = useCallback((ordered: UserPage[]) => {
+    setData((current) => {
+      const ids = new Set(ordered.map((item) => item.id))
+      if (ordered.length !== current.customPages.length || current.customPages.some((item) => !ids.has(item.id))) return current
+      const customPages = ordered.map((page, sort) => {
+        const next = page.sort === sort ? page : touchPage(page, { sort })
+        if (next !== page) mirrorPageSave(next)
+        return next
+      })
+      return { ...current, customPages }
+    })
+  }, [])
+
   const savePageTemplate = useCallback((pageId: string, name?: string) => {
     const source = data.customPages.find((item) => item.id === pageId)
     if (!source) return null
@@ -1143,12 +1163,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     purgeTrash,
     emptyTrash,
     setPageLayout,
+    setPageGap,
     resetPageLayout,
     addUserPage,
     updateUserPage,
     duplicateUserPage,
     removeUserPage,
     moveUserPage,
+    reorderUserPages,
     savePageTemplate,
     addPageFromTemplate,
     adoptInstalledPage,

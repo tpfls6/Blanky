@@ -224,6 +224,7 @@ export function selfCheckEntries(): void {
     trash: [],
     settings: DEFAULT_SETTINGS,
     pageLayouts: {},
+    pageGaps: {},
     customPages: [],
     pageTemplates: [],
   }
