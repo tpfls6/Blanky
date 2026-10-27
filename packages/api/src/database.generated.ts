@@ -282,6 +282,28 @@ export type Database = {
           updated_at?: string
         }
       >
+      app_admins: Table<{ user_id: string }, { user_id: string }, { user_id?: string }>
+      template_listings: Table<TemplateListingRow, TemplateListingInsert, Partial<TemplateListingInsert> & { install_count?: number; status?: string; current_version?: number; current_version_id?: string | null; reject_reason?: string }>
+      template_versions: Table<
+        { id: string; listing_id: string; version: number; snapshot: Json; created_at: string },
+        { id?: string; listing_id: string; version: number; snapshot: Json },
+        { snapshot?: Json }
+      >
+      template_installs: Table<
+        { id: string; user_id: string; listing_id: string; version_id: string; page_id: string; request_id: string; created_at: string },
+        { user_id: string; listing_id: string; version_id: string; page_id: string; request_id: string },
+        { page_id?: string }
+      >
+      template_favorites: Table<
+        { user_id: string; listing_id: string; created_at: string },
+        { user_id: string; listing_id: string },
+        Record<string, never>
+      >
+      template_reports: Table<
+        { id: string; listing_id: string; reporter_id: string; reason: string; status: string; created_at: string },
+        { listing_id: string; reporter_id: string; reason: string },
+        { status?: string }
+      >
       user_pages: Table<
         {
           id: string
@@ -407,7 +429,7 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: {
-      write_planner_draft: { Args:{p_user_id:string;p_expected_revision:number;p_payload:Json};Returns:{user_id:string;revision:number;payload:Json;updated_at:string}[] }; planner_snapshot: { Args: Record<string, never>; Returns: Json }; approve_planner: { Args: { p_user_id: string; p_revision: string; p_rows: Json }; Returns: ScheduleRow[] }; reorder_reading_shelves: { Args: { p_ids: string[] }; Returns: undefined }; add_reading_book: { Args: { p_book: Json; p_status: string; p_shelves: string[] }; Returns: string }; install_theme: { Args: { p_theme_id: string }; Returns: undefined } }
+      write_planner_draft: { Args:{p_user_id:string;p_expected_revision:number;p_payload:Json};Returns:{user_id:string;revision:number;payload:Json;updated_at:string}[] }; planner_snapshot: { Args: Record<string, never>; Returns: Json }; approve_planner: { Args: { p_user_id: string; p_revision: string; p_rows: Json }; Returns: ScheduleRow[] }; reorder_reading_shelves: { Args: { p_ids: string[] }; Returns: undefined }; add_reading_book: { Args: { p_book: Json; p_status: string; p_shelves: string[] }; Returns: string }; install_theme: { Args: { p_theme_id: string }; Returns: undefined }; is_blanky_admin: { Args: Record<string, never>; Returns: boolean }; publish_template: { Args: { p_source_page_id: string; p_name: string; p_description: string; p_category: string; p_tags: string[]; p_thumbnail_url: string; p_gallery: string[]; p_language: string; p_guide: string; p_sample_ids: string[] | null }; Returns: string }; publish_template_version: { Args: { p_listing_id: string; p_source_page_id: string; p_guide: string; p_sample_ids: string[] | null }; Returns: number }; review_template: { Args: { p_listing_id: string; p_status: string; p_reason?: string }; Returns: undefined }; install_template: { Args: { p_listing_id: string; p_request_id: string; p_payload: Json }; Returns: Json }; report_template: { Args: { p_listing_id: string; p_reason: string }; Returns: undefined } }
   }
 }
 
@@ -420,3 +442,5 @@ export type FeedbackRow = Database['public']['Tables']['classification_feedback'
 
 export type ThemeInsert = {id?:string;creator_id?:string|null;creator_name?:string;name:string;description?:string;thumbnail_url?:string;category?:string;tags?:string[];visibility?:string;pricing_type?:string;price?:number;theme_config:Json;theme_type?:string;format_version?:number;package_version?:string;manifest?:Json|null;custom_css?:string;theme_package?:Json|null;package_url?:string;preview_images?:string[]}
 export type ThemeRow = Required<ThemeInsert> & {id:string;download_count:number;rating_average:number;rating_count:number;created_at:string;updated_at:string}
+export type TemplateListingInsert = { id?: string; creator_id?: string | null; creator_name?: string; name: string; description?: string; thumbnail_url?: string; gallery?: string[]; category?: string; tags?: string[]; language?: string; status?: string; source_page_id?: string | null }
+export type TemplateListingRow = Required<TemplateListingInsert> & { id: string; current_version: number; current_version_id: string | null; install_count: number; reject_reason: string; created_at: string; updated_at: string }

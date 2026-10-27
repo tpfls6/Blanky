@@ -21,6 +21,9 @@ const SettingsPage = lazy(()=>import('./pages/Settings/SettingsPage.tsx').then(m
 import { ThemeProvider } from './theme/ThemeProvider.tsx'
 const StorePage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.StorePage})))
 const ThemeDetailPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.ThemeDetailPage})))
+const TemplateDetailPage=lazy(()=>import('./pages/Store/TemplateStore.tsx').then(module=>({default:module.TemplateDetailPage})))
+const TemplateLibraryPage=lazy(()=>import('./pages/Store/TemplateStore.tsx').then(module=>({default:module.TemplateLibraryPage})))
+const PublishTemplatePage=lazy(()=>import('./pages/Store/TemplateStore.tsx').then(module=>({default:module.PublishTemplatePage})))
 const MyThemesPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.MyThemesPage})))
 const ThemeEditorPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.ThemeEditorPage})))
 const CreatorPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.CreatorPage})))
@@ -73,6 +76,9 @@ function AppRoutes() {
           <Route path={ROUTES.settings} element={<Navigate to="/settings/general" replace />} />
           <Route path="/store" element={<StorePage />} />
           <Route path="/store/themes/:themeId" element={<ThemeDetailPage />} />
+          <Route path="/store/templates/library" element={<TemplateLibraryPage />} />
+          <Route path="/store/templates/publish" element={<PublishTemplatePage />} />
+          <Route path="/store/templates/:templateId" element={<TemplateDetailPage />} />
           <Route path="/settings/themes" element={<MyThemesPage />} />
           <Route path="/customize/theme" element={<ThemeEditorPage />} />
           <Route path="/creator/:userId" element={<CreatorPage />} />

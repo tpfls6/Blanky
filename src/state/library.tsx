@@ -12,6 +12,7 @@ import { cloneBlock, coerceRecordType, selfCheckRecords, structureKey, type Cust
 import { forkCollections, snapshotCollections } from '../features/workspace/templates.ts'
 import { cloneBlocks, createPage, normalizePages, touchPage, type BuilderBlock, type UserPage } from '../features/builder/schema.ts'
 import { listUserPages } from '../services/pages/index.ts'
+import { getAllCustomRecords, getCustomRecordTypes } from '../services/records/index.ts'
 import { normalizeLayouts, type PageBlock, type PageId } from '../features/pages/layout.ts'
 import {
   type Book,
@@ -786,7 +787,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId || !isSupabaseConfigured) return
     let cancel = false
-    void Promise.all([listUserPages('page'), listUserPages('template')]).then(([pages, templates]) => {
+    void Promise.all([listUserPages('page'), listUserPages('template'), getCustomRecordTypes(), getAllCustomRecords()]).then(([pages, templates, types, remoteRecords]) => {
       if (cancel) return
       setData((current) => {
         const merge = (local: UserPage[], remote: UserPage[]) => {
@@ -807,7 +808,41 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           const remote = templates.find((item) => item.id === page.id)
           if (!remote || page.updatedAt > remote.updatedAt) mirrorPageSave(page, 'template')
         }
-        return { ...current, customPages, pageTemplates }
+        const recordMap = new Map(current.recordTypes.map((item) => [item.id, item]))
+        for (const page of [...customPages, ...pageTemplates]) {
+          for (const item of page.collections ?? []) {
+            const next = coerceRecordType(item)
+            if (next && !recordMap.has(next.id)) recordMap.set(next.id, next)
+          }
+        }
+        for (const item of types) {
+          const next = coerceRecordType({
+            id: item.id,
+            name: item.name,
+            icon: item.icon,
+            color: item.color,
+            description: item.description,
+            schemaVersion: item.schemaVersion,
+            version: item.version,
+            blocks: item.blocks,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })
+          if (next) recordMap.set(next.id, next)
+        }
+        const records = new Map(current.records.map((item) => [item.id, item]))
+        for (const item of remoteRecords) {
+          records.set(item.id, {
+            id: item.id,
+            typeId: item.recordTypeId,
+            title: item.title,
+            values: item.values as Record<string, FieldValue>,
+            templateVersion: item.templateVersion,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })
+        }
+        return { ...current, customPages, pageTemplates, recordTypes: [...recordMap.values()], records: [...records.values()] }
       })
     }).catch(() => undefined)
     return () => {
@@ -898,6 +933,26 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     return page.id
   }, [data.customPages.length, data.recordTypes])
 
+  const adoptInstalledPage = useCallback((input: { page: UserPage; collections: CustomRecordType[]; records: CustomRecord[] }, persist = true) => {
+    setData((current) => {
+      if (current.customPages.some((item) => item.id === input.page.id)) return current
+      const page = { ...input.page, sort: current.customPages.length }
+      return {
+        ...current,
+        recordTypes: [...current.recordTypes, ...input.collections.filter((item) => !current.recordTypes.some((row) => row.id === item.id))],
+        records: [...input.records.filter((item) => !current.records.some((row) => row.id === item.id)), ...current.records],
+        customPages: [...current.customPages, page],
+        settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...input.collections.map((item) => item.id)]) },
+      }
+    })
+    if (persist) {
+      for (const item of input.collections) mirrorRecordTypeSave(item)
+      for (const item of input.records) mirrorRecordSave({ id: item.id, typeId: item.typeId, title: item.title, values: item.values, templateVersion: item.templateVersion }, true)
+      mirrorPageSave(input.page)
+    }
+    return input.page.id
+  }, [])
+
   const removePageTemplate = useCallback((id: string) => {
     setData((current) => ({ ...current, pageTemplates: current.pageTemplates.filter((item) => item.id !== id) }))
     mirrorPageDelete(id)
@@ -953,6 +1008,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     moveUserPage,
     savePageTemplate,
     addPageFromTemplate,
+    adoptInstalledPage,
     removePageTemplate,
   }
 

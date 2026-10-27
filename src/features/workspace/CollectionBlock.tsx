@@ -3,6 +3,7 @@ import { createBlock as createField } from '../records/registry.ts'
 import { insertBlock as insertField, moveBlock as moveField, patchBlock as patchField, removeBlock as removeField, type BlockType } from '../records/schema.ts'
 import type { CustomRecordType } from '../../types/records.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
+import { useTemplatePreview } from '../marketplace/preview.tsx'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { CollectionView } from './CollectionView.tsx'
 import type { DataView } from './model.ts'
@@ -29,8 +30,9 @@ export function insertCollectionBlock(name: string): BuilderBlock {
 
 export function CollectionBlock({ root, block, write }: { root: BuilderBlock[]; block: BuilderBlock; write: (blocks: BuilderBlock[], record?: boolean) => void }) {
   const { t } = useI18n()
+  const preview = useTemplatePreview()
   const { recordTypes, records, addRecord, updateRecord, removeRecord, addRecordType } = useLibrary()
-  const type = recordTypes.find((item) => item.id === block.props.collectionId)
+  const type = preview?.collections.find((item) => item.id === block.props.collectionId) ?? recordTypes.find((item) => item.id === block.props.collectionId)
   if (!type) {
     return (
       <div className="space-y-2 text-sm">
@@ -65,12 +67,12 @@ export function CollectionBlock({ root, block, write }: { root: BuilderBlock[]; 
   return (
     <CollectionView
       type={type}
-      rows={records.filter((item) => item.typeId === type.id)}
+      rows={(preview?.records ?? records).filter((item) => item.typeId === type.id)}
       view={block.props.view ?? 'table'}
-      onView={(view) => write(patchBlock(root, block.id, { view }))}
-      onAdd={(input) => addRecord(type.id, input)}
-      onUpdate={updateRecord}
-      onRemove={removeRecord}
+      onView={(view) => { if (!preview) write(patchBlock(root, block.id, { view })) }}
+      onAdd={(input) => { if (!preview) addRecord(type.id, input) }}
+      onUpdate={(id, input) => { if (!preview) updateRecord(id, input) }}
+      onRemove={(id) => { if (!preview) removeRecord(id) }}
     />
   )
 }

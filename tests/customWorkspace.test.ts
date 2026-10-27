@@ -7,6 +7,8 @@ import { cloneBlocks } from '../src/features/builder/schema.ts'
 import { DEFAULT_SETTINGS } from '../src/types/records.ts'
 
 test('custom workspace routes stay on /custom and /pages', () => {
+  assert.equal(ROUTES.templateDetail('abc'), '/store/templates/abc')
+  assert.equal(ROUTES.storeTemplates, '/store?tab=templates')
   assert.equal(ROUTES.custom, '/custom')
   assert.equal(isCustomWorkspace('/custom'), true)
   assert.equal(isCustomWorkspace('/pages/abc'), true)

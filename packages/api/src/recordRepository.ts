@@ -87,6 +87,7 @@ export type RecordRepository = {
   updateCustomRecordType: (id: string, input: Partial<CustomRecordTypeInput>) => Promise<CustomRecordType>
   deleteCustomRecordType: (id: string) => Promise<void>
   getCustomRecords: (typeId: string) => Promise<CustomRecord[]>
+  getAllCustomRecords: () => Promise<CustomRecord[]>
   getCustomRecord: (id: string) => Promise<CustomRecord>
   createCustomRecord: (userId: string, input: CustomRecordInput) => Promise<CustomRecord>
   updateCustomRecord: (id: string, input: Partial<CustomRecordInput>) => Promise<CustomRecord>
@@ -165,6 +166,12 @@ export function createRecordRepository(client: SupabaseClient<Database>): Record
         .select('*')
         .eq('record_type_id', typeId)
         .order('created_at', { ascending: false })
+      if (error) throw mapDbError(error)
+      return (data ?? []).map(mapCustomRecordRow)
+    },
+
+    async getAllCustomRecords() {
+      const { data, error } = await client.from('custom_records').select('*').order('created_at', { ascending: false })
       if (error) throw mapDbError(error)
       return (data ?? []).map(mapCustomRecordRow)
     },

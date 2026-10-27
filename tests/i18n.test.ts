@@ -31,6 +31,8 @@ test('translate falls back to Korean then the last key segment', () => {
   assert.equal(translate('en', 'builder.newPage'), 'New page')
   assert.equal(translate('ko', 'builder.deleteAsk', { name: '공부' }), '공부 페이지를 삭제할까요?')
   assert.equal(translate('ko', 'missing.totally.unknownKey'), 'unknownKey')
+  assert.equal(translate('ko', 'templates.install'), '내 페이지에 추가')
+  assert.equal(translate('en', 'templates.installHint'), 'Installing copies the template into your pages so you can edit it freely.')
 })
 
 test('display dates follow the locale without changing the ISO value', () => {

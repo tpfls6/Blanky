@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { Book, CustomRecordType, DiaryEntry, EntryType, FieldValue, LibraryData, Memo, Settings } from '../types/records.ts'
+import type { Book, CustomRecord, CustomRecordType, DiaryEntry, EntryType, FieldValue, LibraryData, Memo, Settings } from '../types/records.ts'
 import type { BuilderBlock, UserPage } from '../features/builder/schema.ts'
 import type { PageBlock, PageId } from '../features/pages/layout.ts'
 import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
@@ -53,6 +53,7 @@ export type LibraryValue = LibraryData & {
   moveUserPage: (id: string, delta: -1 | 1) => void
   savePageTemplate: (pageId: string, name?: string) => string | null
   addPageFromTemplate: (template: { name: string; icon: string; blocks: BuilderBlock[]; collections?: CustomRecordType[] }) => string
+  adoptInstalledPage: (input: { page: UserPage; collections: CustomRecordType[]; records: CustomRecord[] }, persist?: boolean) => string
   removePageTemplate: (id: string) => void
 }
 

@@ -57,6 +57,7 @@ export function UserPage() {
         <input id="page-find" value={find} onChange={(event) => setFind(event.target.value)} placeholder={t('builder.find')} className="field w-36 text-sm" />
         <button type="button" className="chip" onClick={() => { const id = duplicateUserPage(page.id); if (id) navigate(ROUTES.page(id)) }}>{t('builder.duplicatePage')}</button>
         <button type="button" className="chip" data-tour="save-template" onClick={() => { savePageTemplate(page.id); setTpl(false) }}>{t('builder.saveTemplate')}</button>
+        <button type="button" className="chip" onClick={() => navigate(ROUTES.templatePublish)}>{t('templates.publish')}</button>
         <button type="button" className="chip" onClick={() => setGuide(true)}>
           <HelpCircle className="size-3.5" strokeWidth={1.5} />
           {t('custom.guide')}

@@ -38,6 +38,7 @@ export type {
 } from '../../types/src/calendarSync.ts'
 
 export * from './themeRepository.ts'
+export * from './templateRepository.ts'
 
 export { createDiaryRepository, diaryTitle, mapDiaryRecord } from './diaryRepository.ts'
 export type { DiaryRecord } from './diaryRepository.ts'
