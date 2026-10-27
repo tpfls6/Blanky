@@ -6,3 +6,4 @@ ts	phase	decision	why	evidence	result
 2026-10-27T07:24:00Z	implement	two left tabs, Sortable page list, delete confirm, wizard preview, layout without add-block	reuse Settings chrome and existing page APIs	src/pages/Custom/CustomPage.tsx src/pages/Custom/CreatePageWizard.tsx src/features/pages/PageCanvas.tsx	open
 2026-10-27T07:28:00Z	verify	npm run test:pages 28 pass	layout helpers and copy are checkable without login	tests/customWorkspace.test.ts	tests green
 2026-10-27T07:29:00Z	verify	browser /custom redirected to login	live app uses RemoteSessionProvider and this session has no Supabase user	http://localhost:5174/login	INCONCLUSIVE
+2026-10-27T07:31:00Z	verify	trail reviewer stopped after resume loops	second-opinion scan did not finish, parent checked the log against this run	.audit/custom-settings-ui.tsv commit 5557516	INCONCLUSIVE
