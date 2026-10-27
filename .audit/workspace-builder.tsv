@@ -1,0 +1,11 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T02:35:00Z	start	opened figure-it-out for the workspace builder	large cross-cutting feature, no narrower playbook	poteto-mode playbooks	open
+2026-10-27T02:40:00Z	frame	reuse CustomRecordType as collections and add workspace pages on top	records already have schemas, RLS, builder, slash, starters	src/features/records/schema.ts src/features/pages/PageCanvas.tsx supabase/migrations/20261001120000_custom_records.sql	open
+2026-10-27T02:41:00Z	frame	skip Tiptap page doc and dnd-kit	Sortable and record block tree already edit pages	package.json src/components/drag/Sortable.tsx	open
+2026-10-27T02:42:00Z	design	views store collectionId plus view kind only	same rows must appear as table and card without a second copy	src/features/workspace/model.ts	open
+2026-10-27T03:50:00Z	start	new run for custom blocks on the existing engine	prior rows 2026-10-27T02:35:00Z to 2026-10-27T02:42:00Z were an earlier attempt	this chat	open
+2026-10-27T03:51:00Z	frame	reuse PageBuilder CustomRecordType CollectionView, do not add a second registry	records schema already has the field types and RLS	src/features/records/schema.ts src/features/workspace/CollectionView.tsx	open
+2026-10-27T03:52:00Z	design	forkCollections remaps nested collection ids on duplicate and template	top-level remap missed columns and duplicateUserPage shared live data	src/features/workspace/templates.ts src/state/library.tsx	open
+2026-10-27T03:55:00Z	verify	workspace unit tests 18 pass	node --experimental-strip-types --test tests/workspace.test.ts tests/customWorkspace.test.ts tests/pageBuilder.test.ts	18 pass 0 fail	tests green
+2026-10-27T03:56:00Z	verify	headless local-auth browser passed workout movie links	scripts/workspace-builder-test.mjs port 5197	PASS blank page, collection fields, save row, card, template clone, starters, core tabs
+2026-10-27T03:56:00Z	verify	other-user isolation stays on the existing RLS test	supabase/tests/rls_owner.sql	not re-run this session

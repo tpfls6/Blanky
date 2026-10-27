@@ -25,6 +25,10 @@ test('nav label follows locale without changing the route', () => {
   assert.equal(translate('en', 'nav.custom'), 'Custom Templates')
   assert.equal(translate('ko', 'custom.title'), '커스텀 템플릿')
   assert.equal(translate('en', 'custom.title'), 'Custom Templates')
+  assert.equal(translate('ko', 'builder.pickCollection'), '기존 컬렉션 연결')
+  assert.equal(translate('en', 'builder.pickCollection'), 'Link an existing collection')
+  assert.equal(translate('ko', 'builder.saved'), '저장됨')
+  assert.equal(translate('en', 'builder.find'), 'Find in page')
 })
 
 test('starter collections remap without sharing ids', () => {

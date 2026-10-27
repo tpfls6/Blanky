@@ -204,6 +204,21 @@ export function cloneBlocks(blocks: readonly BuilderBlock[]): BuilderBlock[] {
 
 export type Found = { block: BuilderBlock; parent: BuilderBlock | null; list: BuilderBlock[]; index: number }
 
+export function findBlocksByText(blocks: readonly BuilderBlock[], query: string): string[] {
+  const text = query.trim().toLowerCase()
+  if (!text) return []
+  const ids: string[] = []
+  const walk = (list: readonly BuilderBlock[]) => {
+    for (const block of list) {
+      const blob = `${block.props.text ?? ''} ${block.props.url ?? ''} ${block.props.alt ?? ''}`.toLowerCase()
+      if (blob.includes(text)) ids.push(block.id)
+      if (block.children) walk(block.children)
+    }
+  }
+  walk(blocks)
+  return ids
+}
+
 export function findBlock(blocks: readonly BuilderBlock[], id: string, parent: BuilderBlock | null = null): Found | null {
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index]

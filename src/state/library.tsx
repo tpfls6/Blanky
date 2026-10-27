@@ -9,7 +9,7 @@ import { withPersonalCalendar } from '../services/calendar/local.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { freshLibrary } from '../data/freshLibrary.ts'
 import { cloneBlock, coerceRecordType, selfCheckRecords, structureKey, type CustomRecordType } from '../features/records/schema.ts'
-import { remapCollections } from '../features/workspace/templates.ts'
+import { forkCollections } from '../features/workspace/templates.ts'
 import { cloneBlocks, createPage, normalizePages, touchPage, type BuilderBlock, type UserPage } from '../features/builder/schema.ts'
 import { listUserPages } from '../services/pages/index.ts'
 import { normalizeLayouts, type PageBlock, type PageId } from '../features/pages/layout.ts'
@@ -839,11 +839,18 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const duplicateUserPage = useCallback((id: string) => {
     const source = data.customPages.find((item) => item.id === id)
     if (!source) return null
-    const copy = createPage(`${source.name} 복사본`, source.icon, cloneBlocks(source.blocks), data.customPages.length)
-    setData((current) => ({ ...current, customPages: [...current.customPages, copy] }))
+    const forked = forkCollections(source.blocks, data.recordTypes)
+    const copy = { ...createPage(`${source.name} 복사본`, source.icon, forked.blocks, data.customPages.length), description: source.description }
+    setData((current) => ({
+      ...current,
+      recordTypes: [...current.recordTypes, ...forked.collections],
+      customPages: [...current.customPages, copy],
+      settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...forked.collections.map((item) => item.id)]) },
+    }))
+    for (const item of forked.collections) mirrorRecordTypeSave(item)
     mirrorPageSave(copy)
     return copy.id
-  }, [data.customPages])
+  }, [data.customPages, data.recordTypes])
 
   const removeUserPage = useCallback((id: string) => {
     setData((current) => ({ ...current, customPages: current.customPages.filter((item) => item.id !== id) }))
@@ -877,33 +884,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [data.customPages, data.pageTemplates.length])
 
   const addPageFromTemplate = useCallback((template: { name: string; icon: string; blocks: BuilderBlock[]; collections?: CustomRecordType[] }) => {
-    const used = [...new Set(template.blocks.flatMap((block) => (block.type === 'collection' && block.props.collectionId ? [block.props.collectionId] : [])))]
-    const remap = new Map<string, string>()
-    const extras: CustomRecordType[] = []
-    const now = new Date().toISOString()
-    const pool = [...(template.collections ?? []), ...data.recordTypes]
-    for (const id of used) {
-      const source = pool.find((item) => item.id === id)
-      if (!source) continue
-      const nextId = crypto.randomUUID()
-      remap.set(id, nextId)
-      extras.push({
-        ...source,
-        id: nextId,
-        blocks: source.blocks.map(cloneBlock),
-        version: 1,
-        createdAt: now,
-        updatedAt: now,
-      })
-    }
-    const page = createPage(template.name, template.icon, remapCollections(cloneBlocks(template.blocks), remap), data.customPages.length)
+    const forked = forkCollections(template.blocks, data.recordTypes, template.collections ?? [])
+    const page = createPage(template.name, template.icon, forked.blocks, data.customPages.length)
     setData((current) => ({
       ...current,
-      recordTypes: [...current.recordTypes, ...extras],
+      recordTypes: [...current.recordTypes, ...forked.collections],
       customPages: [...current.customPages, page],
-      settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...extras.map((item) => item.id)]) },
+      settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...forked.collections.map((item) => item.id)]) },
     }))
-    for (const item of extras) mirrorRecordTypeSave(item)
+    for (const item of forked.collections) mirrorRecordTypeSave(item)
     mirrorPageSave(page)
     return page.id
   }, [data.customPages.length, data.recordTypes])

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { IconPicker } from '../../components/common/IconPicker.tsx'
@@ -6,6 +6,7 @@ import { ROUTES } from '../../constants/routes.ts'
 import { BUILTIN_TEMPLATES, blocksFromTemplate } from '../../features/builder/catalog.ts'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import { TemplateGuide } from '../../features/workspace/TemplateGuide.tsx'
+import { builtinTemplates } from '../../features/workspace/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -18,8 +19,11 @@ export function UserPage() {
   const { customPages, pageTemplates, updateUserPage, duplicateUserPage, removeUserPage, savePageTemplate, addPageFromTemplate, addUserPage, settings, updateSettings } = useLibrary()
   const [editing, setEditing] = useState(true)
   const [guide, setGuide] = useState(false)
+  const [find, setFind] = useState('')
   const page = customPages.find((item) => item.id === pageId)
   const [tpl, setTpl] = useState(() => !page || (page.blocks.length <= 1 && !(page.blocks[0]?.props.text)))
+  const starters = useMemo(() => builtinTemplates(), [])
+  const extras = BUILTIN_TEMPLATES.filter((item) => item.id === 'dashboard' || item.id === 'reading' || item.id === 'weekly')
   if (!page) {
     return (
       <div className="px-6 py-10">
@@ -48,6 +52,9 @@ export function UserPage() {
         <button type="button" className={editing ? 'chip chip-on' : 'chip'} onClick={() => setEditing((value) => !value)}>
           {editing ? t('edit') : t('builder.view')}
         </button>
+        <p className="text-xs text-neutral-400" data-save-state>{t('builder.saved')}</p>
+        <label className="sr-only" htmlFor="page-find">{t('builder.find')}</label>
+        <input id="page-find" value={find} onChange={(event) => setFind(event.target.value)} placeholder={t('builder.find')} className="field w-36 text-sm" />
         <button type="button" className="chip" onClick={() => { const id = duplicateUserPage(page.id); if (id) navigate(ROUTES.page(id)) }}>{t('builder.duplicatePage')}</button>
         <button type="button" className="chip" data-tour="save-template" onClick={() => { savePageTemplate(page.id); setTpl(false) }}>{t('builder.saveTemplate')}</button>
         <button type="button" className="chip" onClick={() => setGuide(true)}>
@@ -72,7 +79,12 @@ export function UserPage() {
         <div className="mb-4 rounded-md border border-line p-3">
           <p className="mb-2 text-xs text-neutral-400">{t('builder.templates')}</p>
           <div className="flex flex-wrap gap-2">
-            {BUILTIN_TEMPLATES.map((item) => (
+            {starters.map((item) => (
+              <button key={item.id} type="button" className="chip" onClick={() => { const id = addPageFromTemplate({ name: item.name, icon: item.icon, blocks: item.blocks, collections: item.collections }); navigate(ROUTES.page(id)); setTpl(false) }}>
+                {t(`builder.template.${item.id.replace('tpl-', '')}`)}
+              </button>
+            ))}
+            {extras.map((item) => (
               <button key={item.id} type="button" className="chip" onClick={() => { const id = addPageFromTemplate({ name: item.name, icon: item.icon, blocks: blocksFromTemplate(item) }); navigate(ROUTES.page(id)); setTpl(false) }}>
                 {t(`builder.template.${item.id}`)}
               </button>
@@ -85,7 +97,7 @@ export function UserPage() {
           </div>
         </div>
       ) : null}
-      <PageBuilder blocks={page.blocks} editing={editing} onChange={(blocks) => updateUserPage(page.id, { blocks })} />
+      <PageBuilder blocks={page.blocks} editing={editing} find={find} onChange={(blocks) => updateUserPage(page.id, { blocks })} />
       {guide ? (
         <TemplateGuide
           onClose={() => {

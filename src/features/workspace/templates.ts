@@ -1,8 +1,7 @@
-import { createBlock } from '../builder/schema.ts'
+import { cloneBlocks, createBlock, type BuilderBlock } from '../builder/schema.ts'
 import { createBlock as createField } from '../records/registry.ts'
+import { cloneBlock as cloneField, type CustomRecordType } from '../records/schema.ts'
 import { SWATCHES } from '../../constants/swatches.ts'
-import type { CustomRecordType } from '../records/schema.ts'
-import type { BuilderBlock } from '../builder/schema.ts'
 
 function options(labels: string[]) {
   return labels.map((label, index) => ({
@@ -128,10 +127,52 @@ export function builtinTemplates(): StarterTemplate[] {
   ]
 }
 
+export function collectionIds(blocks: readonly BuilderBlock[]): string[] {
+  const ids: string[] = []
+  const walk = (list: readonly BuilderBlock[]) => {
+    for (const block of list) {
+      if (block.type === 'collection' && block.props.collectionId) ids.push(block.props.collectionId)
+      if (block.children) walk(block.children)
+    }
+  }
+  walk(blocks)
+  return [...new Set(ids)]
+}
+
 export function remapCollections(blocks: BuilderBlock[], fromTo: Map<string, string>): BuilderBlock[] {
   return blocks.map((block) => {
-    if (block.type !== 'collection' || !block.props.collectionId) return block
+    const children = block.children ? remapCollections(block.children, fromTo) : undefined
+    if (block.type !== 'collection' || !block.props.collectionId) {
+      return children ? { ...block, children } : block
+    }
     const next = fromTo.get(block.props.collectionId)
-    return next ? { ...block, props: { ...block.props, collectionId: next } } : block
+    const props = next ? { ...block.props, collectionId: next } : block.props
+    return children ? { ...block, props, children } : { ...block, props }
   })
+}
+
+export function forkCollections(
+  blocks: readonly BuilderBlock[],
+  existing: readonly CustomRecordType[],
+  snapshots: readonly CustomRecordType[] = [],
+): { blocks: BuilderBlock[]; collections: CustomRecordType[] } {
+  const pool = [...snapshots, ...existing]
+  const remap = new Map<string, string>()
+  const collections: CustomRecordType[] = []
+  const now = new Date().toISOString()
+  for (const id of collectionIds(blocks)) {
+    const source = pool.find((item) => item.id === id)
+    if (!source) continue
+    const nextId = crypto.randomUUID()
+    remap.set(id, nextId)
+    collections.push({
+      ...source,
+      id: nextId,
+      blocks: source.blocks.map(cloneField),
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+    })
+  }
+  return { blocks: remapCollections(cloneBlocks([...blocks]), remap), collections }
 }

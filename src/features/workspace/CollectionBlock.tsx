@@ -29,9 +29,39 @@ export function insertCollectionBlock(name: string): BuilderBlock {
 
 export function CollectionBlock({ root, block, write }: { root: BuilderBlock[]; block: BuilderBlock; write: (blocks: BuilderBlock[], record?: boolean) => void }) {
   const { t } = useI18n()
-  const { recordTypes, records, addRecord, updateRecord, removeRecord } = useLibrary()
+  const { recordTypes, records, addRecord, updateRecord, removeRecord, addRecordType } = useLibrary()
   const type = recordTypes.find((item) => item.id === block.props.collectionId)
-  if (!type) return <p className="text-sm text-neutral-400">{t('builder.missingCollection')}</p>
+  if (!type) {
+    return (
+      <div className="space-y-2 text-sm">
+        <p className="text-neutral-400">{t('builder.missingCollection')}</p>
+        {recordTypes.length > 0 ? (
+          <label className="block text-xs text-neutral-500">
+            {t('builder.pickCollection')}
+            <select
+              className="field mt-1 w-full"
+              value=""
+              onChange={(event) => {
+                if (event.target.value) write(patchBlock(root, block.id, { collectionId: event.target.value }))
+              }}
+            >
+              <option value="">{t('builder.pickCollection')}</option>
+              {recordTypes.map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <button
+          type="button"
+          className="chip"
+          onClick={() => write(patchBlock(root, block.id, { collectionId: createCollectionType(t('builder.newCollection'), addRecordType) }))}
+        >
+          {t('builder.newCollection')}
+        </button>
+      </div>
+    )
+  }
   return (
     <CollectionView
       type={type}
@@ -107,7 +137,7 @@ function CollectionFields({
   type: CustomRecordType | null
   view: DataView
   onView: (view: DataView) => void
-  onType: (id: string, patch: Partial<Pick<CustomRecordType, 'name' | 'blocks'>>) => void
+  onType: (id: string, patch: Partial<Pick<CustomRecordType, 'name' | 'color' | 'blocks'>>) => void
 }) {
   const { t } = useI18n()
   if (!type) return <p className="mt-4 text-sm text-neutral-400">{t('builder.missingCollection')}</p>
@@ -118,6 +148,7 @@ function CollectionFields({
         {t('builder.collectionName')}
         <input value={type.name} onChange={(event) => onType(type.id, { name: event.target.value })} className="field mt-1 w-full" />
       </label>
+      <ColorDots value={type.color} onChange={(color) => onType(type.id, { color })} />
       <div className="flex flex-wrap gap-1">
         {(['table', 'card', 'gallery', 'calendar', 'kanban', 'chart'] as DataView[]).map((item) => (
           <button key={item} type="button" className={view === item ? 'chip chip-on' : 'chip'} onClick={() => onView(item)}>{item}</button>
@@ -125,12 +156,27 @@ function CollectionFields({
       </div>
       <ul className="space-y-2">
         {fields.map((field, index) => (
-          <li key={field.id} className="flex items-center gap-1">
-            <input value={field.props.label ?? ''} onChange={(event) => onType(type.id, { blocks: patchField(type.blocks, field.id, { label: event.target.value }) })} className="field min-w-0 flex-1 text-xs" />
-            <button type="button" className={field.props.required ? 'chip chip-on' : 'chip'} onClick={() => onType(type.id, { blocks: patchField(type.blocks, field.id, { required: !field.props.required }) })}>*</button>
-            <button type="button" className="text-xs text-neutral-400" disabled={index === 0} onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index - 1) })}>↑</button>
-            <button type="button" className="text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index + 2) })}>↓</button>
-            <button type="button" className="text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: removeField(type.blocks, field.id) })}>{t('delete')}</button>
+          <li key={field.id} className="space-y-1">
+            <div className="flex items-center gap-1">
+              <input value={field.props.label ?? ''} onChange={(event) => onType(type.id, { blocks: patchField(type.blocks, field.id, { label: event.target.value }) })} className="field min-w-0 flex-1 text-xs" />
+              <button type="button" className={field.props.required ? 'chip chip-on' : 'chip'} onClick={() => onType(type.id, { blocks: patchField(type.blocks, field.id, { required: !field.props.required }) })}>*</button>
+              <button type="button" className="text-xs text-neutral-400" disabled={index === 0} onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index - 1) })}>↑</button>
+              <button type="button" className="text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index + 2) })}>↓</button>
+              <button type="button" className="text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: removeField(type.blocks, field.id) })}>{t('delete')}</button>
+            </div>
+            {field.type === 'textField' || field.type === 'longText' || field.type === 'number' ? (
+              <input
+                value={field.props.defaultValue === undefined || field.props.defaultValue === null ? '' : String(field.props.defaultValue)}
+                placeholder={t('builder.defaultValue')}
+                onChange={(event) => {
+                  const raw = event.target.value
+                  const parsed = Number(raw)
+                  const defaultValue = field.type === 'number' ? (raw === '' || !Number.isFinite(parsed) ? undefined : parsed) : raw
+                  onType(type.id, { blocks: patchField(type.blocks, field.id, { defaultValue }) })
+                }}
+                className="field w-full text-xs"
+              />
+            ) : null}
           </li>
         ))}
       </ul>

@@ -134,6 +134,8 @@
     "hideContent": "내용 숨기기",
     "saved": "저장됨",
     "find": "페이지에서 찾기",
+    "pickCollection": "기존 컬렉션 연결",
+    "defaultValue": "기본값",
     "align": { "left": "왼쪽", "center": "가운데", "right": "오른쪽" },
     "pad": { "sm": "좁게", "md": "보통", "lg": "넓게" },
     "field": {

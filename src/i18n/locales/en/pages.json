@@ -134,6 +134,8 @@
     "hideContent": "Hide content",
     "saved": "Saved",
     "find": "Find in page",
+    "pickCollection": "Link an existing collection",
+    "defaultValue": "Default",
     "align": { "left": "Left", "center": "Center", "right": "Right" },
     "pad": { "sm": "Tight", "md": "Normal", "lg": "Roomy" },
     "field": {

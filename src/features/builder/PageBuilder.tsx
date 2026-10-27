@@ -9,6 +9,7 @@ import {
   duplicateBlock,
   emptyHistory,
   findBlock,
+  findBlocksByText,
   insertBlock,
   moveBy,
   moveBlock,
@@ -46,22 +47,29 @@ export function PageBuilder({
   blocks,
   editing,
   onChange,
+  find = '',
 }: {
   blocks: BuilderBlock[]
   editing: boolean
   onChange: (blocks: BuilderBlock[]) => void
+  find?: string
 }) {
   const { t } = useI18n()
   const { addRecordType } = useLibrary()
   const [settings, setSettings] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id ?? null)
   const selected = selectedId ? findBlock(blocks, selectedId)?.block ?? null : null
+  const hits = findBlocksByText(blocks, find)
   const [menu, setMenu] = useState<Menu | null>(null)
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const [ctx, setCtx] = useState<{ id: string; top: number; left: number } | null>(null)
   const history = useRef<History>(emptyHistory())
   const items = filterMenu(query)
+
+  useEffect(() => {
+    if (hits[0]) setSelectedId(hits[0])
+  }, [find])
 
   useEffect(() => {
     if (!menu && !ctx) return
@@ -133,6 +141,7 @@ export function PageBuilder({
         parentId={null}
         editing={editing}
         selectedId={selectedId}
+        hits={hits}
         onSelect={setSelectedId}
         write={write}
         onMenu={openMenu}
@@ -252,6 +261,7 @@ function BlockList({
   parentId,
   editing,
   selectedId,
+  hits,
   onSelect,
   write,
   onMenu,
@@ -264,6 +274,7 @@ function BlockList({
   parentId: string | null
   editing: boolean
   selectedId: string | null
+  hits: string[]
   onSelect: (id: string) => void
   write: (blocks: BuilderBlock[], record?: boolean) => void
   onMenu: (parentId: string | null, index: number, anchor: DOMRect, replaceId?: string) => void
@@ -272,7 +283,7 @@ function BlockList({
   t: (key: string) => string
 }) {
   const row = (block: BuilderBlock) => (
-    <BlockView root={root} block={block} editing={editing} selected={selectedId === block.id} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
+    <BlockView root={root} block={block} editing={editing} selected={selectedId === block.id} hit={hits.includes(block.id)} selectedId={selectedId} hits={hits} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
   )
   if (!editing) return <div>{blocks.map((block) => <div key={block.id}>{row(block)}</div>)}</div>
   return (
@@ -312,7 +323,9 @@ function BlockView({
   block,
   editing,
   selected,
+  hit,
   selectedId,
+  hits,
   onSelect,
   write,
   onMenu,
@@ -324,7 +337,9 @@ function BlockView({
   block: BuilderBlock
   editing: boolean
   selected: boolean
+  hit: boolean
   selectedId: string | null
+  hits: string[]
   onSelect: (id: string) => void
   write: (blocks: BuilderBlock[], record?: boolean) => void
   onMenu: (parentId: string | null, index: number, anchor: DOMRect, replaceId?: string) => void
@@ -339,7 +354,7 @@ function BlockView({
         {(block.children ?? []).map((column, index) => (
           <div key={column.id} className="relative min-w-0" style={{ flexGrow: column.props.width ?? 50, flexBasis: 0 }}>
             {editing && index > 0 ? <ResizeHandle root={root} columnId={column.id} write={write} /> : null}
-            <BlockList root={root} blocks={column.children ?? []} parentId={column.id} editing={editing} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
+            <BlockList root={root} blocks={column.children ?? []} parentId={column.id} editing={editing} selectedId={selectedId} hits={hits} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
           </div>
         ))}
       </div>
@@ -348,7 +363,7 @@ function BlockView({
   return (
     <div
       data-builder-block={block.id}
-      className={['group relative rounded-md py-1 pr-2 pl-7', selected && editing ? 'bg-[color-mix(in_srgb,var(--accent-color)_8%,transparent)]' : ''].join(' ')}
+      className={['group relative rounded-md py-1 pr-2 pl-7', selected && editing ? 'bg-[color-mix(in_srgb,var(--accent-color)_8%,transparent)]' : hit ? 'bg-hover' : ''].join(' ')}
       onClick={() => onSelect(block.id)}
     >
       {editing ? <span data-tour="drag-handle" className="pointer-events-none absolute top-2 left-0 text-neutral-300 opacity-40 lg:opacity-0 lg:group-hover:opacity-100"><GripVertical className="size-4" strokeWidth={1.5} /></span> : null}
@@ -370,7 +385,7 @@ function BlockView({
       </div>
       {block.type === 'toggle' && open ? (
         <div className="mt-1 pl-4">
-          <BlockList root={root} blocks={block.children ?? []} parentId={block.id} editing={editing} selectedId={selectedId} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
+          <BlockList root={root} blocks={block.children ?? []} parentId={block.id} editing={editing} selectedId={selectedId} hits={hits} onSelect={onSelect} write={write} onMenu={onMenu} onContext={onContext} onSettings={onSettings} t={t} />
         </div>
       ) : null}
     </div>

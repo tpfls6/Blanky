@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { cloneBlocks, coercePage, createBlock } from '../src/features/builder/schema.ts'
+import { cloneBlocks, coercePage, createBlock, findBlocksByText } from '../src/features/builder/schema.ts'
 import { createBlock as createField } from '../src/features/records/registry.ts'
 import { coerceRecordType, requiredError, validateField } from '../src/features/records/schema.ts'
-import { builtinTemplates, remapCollections } from '../src/features/workspace/templates.ts'
+import { builtinTemplates, forkCollections, remapCollections } from '../src/features/workspace/templates.ts'
 
 test('builtin templates cover the starter set', () => {
   const names = builtinTemplates().map((item) => item.name)
@@ -68,6 +68,60 @@ test('required number field fails on empty', () => {
   const key = type.blocks.find((block) => block.type === 'number')?.fieldKey
   assert.ok(key)
   assert.ok(requiredError(type.blocks, { [key]: '' }))
+})
+
+test('fork clones nested collection blocks and schemas', () => {
+  const type = coerceRecordType({
+    id: 'col-1',
+    name: '운동',
+    icon: 'Dumbbell',
+    color: '#3C8664',
+    blocks: [{ id: 'f1', type: 'textField', fieldKey: 'name', props: { label: '운동명' } }],
+  })
+  assert.ok(type)
+  const nested = [
+    createBlock('columns', {}, [
+      createBlock('column', { width: 50 }, [createBlock('collection', { collectionId: 'col-1', view: 'table' })]),
+      createBlock('column', { width: 50 }, [createBlock('text', { text: '스쿼트' })]),
+    ]),
+  ]
+  const once = forkCollections(nested, [type])
+  const twice = forkCollections(nested, [type])
+  const idA = once.blocks[0]?.children?.[0]?.children?.[0]?.props.collectionId
+  const idB = twice.blocks[0]?.children?.[0]?.children?.[0]?.props.collectionId
+  assert.ok(idA)
+  assert.notEqual(idA, 'col-1')
+  assert.notEqual(idA, idB)
+  assert.equal(once.collections[0]?.id, idA)
+  assert.notEqual(once.collections[0]?.blocks[0]?.id, type.blocks[0]?.id)
+  assert.notEqual(once.collections[0]?.blocks.find((block) => block.type === 'textField')?.fieldKey, 'name')
+})
+
+test('movie and link starters fork without sharing collection ids', () => {
+  for (const id of ['tpl-movie', 'tpl-links']) {
+    const starter = builtinTemplates().find((item) => item.id === id)
+    assert.ok(starter, id)
+    const a = forkCollections(starter.blocks, [], starter.collections)
+    const b = forkCollections(starter.blocks, [], starter.collections)
+    const colA = a.blocks.find((block) => block.type === 'collection')?.props.collectionId
+    const colB = b.blocks.find((block) => block.type === 'collection')?.props.collectionId
+    assert.ok(colA)
+    assert.notEqual(colA, colB)
+    assert.equal(a.collections.length, 1)
+    assert.equal(a.collections[0]?.id, colA)
+  }
+})
+
+test('find in page matches nested text', () => {
+  const nested = [
+    createBlock('columns', {}, [
+      createBlock('column', { width: 50 }, [createBlock('text', { text: '스쿼트 기록' })]),
+      createBlock('column', { width: 50 }, [createBlock('text', { text: '다른 내용' })]),
+    ]),
+  ]
+  const hits = findBlocksByText(nested, '스쿼트')
+  assert.equal(hits.length, 1)
+  assert.equal(findBlocksByText(nested, '없는말').length, 0)
 })
 
 test('field rename keeps the field key', () => {
