@@ -1,5 +1,3 @@
-// Runs the real app in local mode with an isolated account and disposable Chromium profile.
-// Set AI_TEST_CHROMIUM if a cached Playwright headless Chromium is unavailable.
 import { mkdir, writeFile, readdir, mkdtemp, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'

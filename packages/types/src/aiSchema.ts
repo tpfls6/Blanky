@@ -6,7 +6,6 @@ const temporal = ['date', 'startTime', 'endTime', 'dueDate', 'endDate'] as const
 const object = (properties: Record<string, unknown>) => ({
   type: 'object', properties, required: Object.keys(properties), additionalProperties: false,
 })
-/** Shared provider JSON Schema checked again at both server and API boundaries. */
 export const SCHEDULE_ANALYSIS_SCHEMA = object({
   version: { type: 'integer', enum: [1] },
   route: { type: 'string', enum: ['parser', 'ai'] },

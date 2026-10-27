@@ -28,12 +28,10 @@ export const SCHEDULE_ANALYSIS_INSTRUCTIONS = [
             'Recommend only supplied category IDs with categoryReason, otherwise categoryId/categoryReason=null. Do not invent categories.',
             'Do not add properties outside the schema, default durations, recurrence, or automatic placements. At most 20 items.',
           ].join('\n')
-/** Server-only; both the analysis and Planner use the same validated transport. */
 export function createOpenAIAnalysisProvider(options: OpenAIOptions): AnalysisProvider {
   return { async analyze(input) {
     const value = await requestStructuredOutput(options, SCHEDULE_ANALYSIS_SCHEMA, SCHEDULE_ANALYSIS_INSTRUCTIONS, input)
     const result = validateScheduleAnalysis(value, { text: input.text, categoryIds: input.categories.map(category => category.id), aiOnly: true })
-    // The model identifies weekday meaning; existing calendar code computes its date.
     for (const item of result.items) {
       const evidence = item.evidence.date
       if (item.draft.date && evidence && /^[월화수목금토일](?:요일)?$/.test(evidence)) {
