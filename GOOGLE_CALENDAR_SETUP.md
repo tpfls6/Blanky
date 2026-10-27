@@ -5,7 +5,7 @@ Settings → Google Calendar의 **Google Calendar 연결**은 로그인과 별�
 브라우저가 Google에 직접 쓰지 않습니다. `createCalendarSyncClient`가 `google-calendar` Edge Function을 호출하고, Google OAuth 코드는 `google-calendar-oauth`로 돌아옵니다. Client ID와 Client Secret은 Edge Function Secret에만 둡니다. 저장소에 값을 넣지 마세요.
 
 1. Google Cloud에서 Calendar용 OAuth 클라이언트를 **Web application**으로 만듭니다. 로그인용 클라이언트와 나눠도 됩니다.
-2. Authorized redirect URIs에 `https://<project-ref>.supabase.co/functions/v1/google-calendar-oauth`를 등록합니다. 로컬 Functions를 쓰면 `http://127.0.0.1:54321/functions/v1/google-calendar-oauth`도 추가합니다.
+2. Authorized redirect URIs에 `https://drqauskbpizxjnfquktz.supabase.co/functions/v1/google-calendar-oauth`를 등록합니다. 로그인용 `https://drqauskbpizxjnfquktz.supabase.co/auth/v1/callback`과 다릅니다. 로컬 Functions를 쓰면 `http://127.0.0.1:54321/functions/v1/google-calendar-oauth`도 추가합니다. 이 URI가 빠지면 Google이 `redirect_uri_mismatch`를 줍니다.
 3. Google Calendar API를 해당 프로젝트에서 사용 설정합니다.
 4. Consent screen의 범위에 `https://www.googleapis.com/auth/calendar.events`와 `https://www.googleapis.com/auth/calendar.calendarlist.readonly`를 넣습니다.
 5. 앱이 Testing이면 Audience의 Test users에 연결할 Google 계정을 추가합니다.
