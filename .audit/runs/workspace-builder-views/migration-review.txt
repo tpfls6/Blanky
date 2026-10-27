@@ -1,0 +1,16 @@
+reviewed: 2026-10-27T04:26:00Z
+commit: 7400a8e
+file: supabase/migrations/20261027140000_user_pages_collections.sql
+sql: alter table public.user_pages add column if not exists collections jsonb not null default '[]'::jsonb;
+
+existing data: ADD COLUMN IF NOT EXISTS with a constant default is metadata-only on current Postgres. Existing rows keep id, user_id, name, blocks, description. New cells are [].
+idempotent: rerunning is a no-op.
+rls: user_pages_owner is unchanged. collections rides the same auth.uid() = user_id check.
+app write: src/services/pages/index.ts upsertUserPage always sends collections. A remote DB without this column rejects every page and template save.
+local read: coercePage treats missing collections as undefined and [] as empty.
+remote apply: not run. needs operator approval. do not db push.
+risks:
+- PostgREST clients on the current app fail page upsert until the column exists.
+- generated types already include collections, so the app cannot omit the field.
+- no backfill of live collection schemas into this column. live types stay on custom_record_types. templates store schema snapshots here.
+- table lock is short. no drop, no rewrite of blocks.

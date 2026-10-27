@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 
 const started = new Date().toISOString()
-const evidenceDir = resolve('c:/Users/serin/Github/Blanky/.audit/runs/workspace-builder')
+const evidenceDir = resolve('c:/Users/serin/Github/Blanky/.audit/runs/workspace-builder-views')
 await mkdir(evidenceDir, { recursive: true })
 const logLines = [`started ${started}`]
 function log(line) {
@@ -13,7 +13,7 @@ function log(line) {
   console.log(line)
 }
 
-const base = process.env.WORKSPACE_TEST_URL ?? 'http://127.0.0.1:5198'
+const base = process.env.WORKSPACE_TEST_URL ?? 'http://127.0.0.1:5199'
 if (new URL(base).hostname !== '127.0.0.1') throw new Error('Test URL must be on loopback')
 const cache = join(homedir(), 'AppData', 'Local', 'ms-playwright')
 const cached = (await readdir(cache).catch(() => [])).filter((name) => name.startsWith('chromium_headless_shell-')).sort().at(-1)
@@ -118,6 +118,16 @@ async function finish(ok, extra) {
   await writeFile(join(evidenceDir, 'log.txt'), logLines.join('\n') + '\n')
 }
 
+function setFieldSrc() {
+  return `const set = (el, value) => { if (!el) return; const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); }`
+}
+
+async function finishOk(extra) {
+  assert.equal(errors.length, 0, errors.join('\n'))
+  await finish(true, extra)
+  log('PASS kanban drop chart bars edit-to-view')
+}
+
 try {
   await send('Page.enable')
   await send('Runtime.enable')
@@ -145,76 +155,107 @@ try {
   await wait('localStorage.getItem("blanky.session.v1")==="' + owner + '"', 'seeded session')
   log('logged in as seeded local user')
   await wait('document.querySelector("h1")?.textContent.includes("커스텀 템플릿")', 'custom hub')
-  log('custom hub')
   await wait('document.querySelector("[data-tour=starters]")', 'starters')
-  await evaluate('[...document.querySelector("[data-tour=starters]").querySelectorAll("button")].find(b => b.textContent.includes("운동 관리"))?.click()')
-  await wait('location.pathname.startsWith("/pages/")', 'workout page')
-  log('opened workout starter ' + await evaluate('location.pathname'))
+
+  await evaluate('[...document.querySelector("[data-tour=starters]").querySelectorAll("button")].find(b => b.textContent.includes("프로젝트 관리"))?.click()')
+  await wait('location.pathname.startsWith("/pages/")', 'project page')
+  const projectId = await evaluate('location.pathname.split("/")[2]')
+  log('opened project starter /pages/' + projectId)
+  await wait('[...document.querySelectorAll("[data-kanban-col]")].length>=3', 'kanban columns')
   await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim()==="추가")', 'collection add')
-  await wait('document.body.innerText.includes("날짜")', 'workout date field')
-  await shot('01-workout-starter')
-
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="추가")?.click()')
-  await wait('document.querySelector("input.text-2xl")', 'title field')
-  await evaluate('(() => { const set = (el, value) => { if (!el) return; const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); }; set(document.querySelector("input.text-2xl"), "스쿼트"); const date = document.querySelector("input[type=date]"); set(date, "2026-10-27"); const numbers = [...document.querySelectorAll("input[type=number]")]; if (numbers[0]) set(numbers[0], "40"); if (numbers[1]) set(numbers[1], "8"); })()')
+  await wait('document.querySelector("input.text-2xl")', 'task title')
+  await evaluate('(() => { ' + setFieldSrc() + '; set(document.querySelector("input.text-2xl"), "칸반카드"); [...document.querySelectorAll("button")].find(b => b.textContent.includes("할 일"))?.click(); })()')
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="저장")?.click()')
-  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title==="스쿼트")', 'record saved')
-  const saved = await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).records.find(r => r.title==="스쿼트")')
-  assert.equal(saved.title, '스쿼트')
-  assert.ok(Object.values(saved.values).includes('2026-10-27') || Object.values(saved.values).some((value) => String(value).startsWith('2026-10-27')))
-  log('saved squat ' + JSON.stringify(saved.values))
-  await shot('02-after-save')
+  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title==="칸반카드")', 'kanban card saved')
+  await wait('document.querySelector("[data-kanban-card]")', 'kanban card in column')
+  await shot('01-kanban-before-drop')
 
-  const pageId = await evaluate('location.pathname.split("/")[2]')
+  const drop = await evaluate(`(() => {
+    const card = document.querySelector("[data-kanban-card]")
+    const from = card?.closest("[data-kanban-col]")
+    const to = [...document.querySelectorAll("[data-kanban-col]")].find((col) => col.querySelector("h3")?.textContent.trim() === "완료")
+    if (!card || !to) return { ok: false }
+    const dt = new DataTransfer()
+    dt.setData("text/plain", card.getAttribute("data-kanban-card"))
+    card.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }))
+    to.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }))
+    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }))
+    return { ok: true, id: card.getAttribute("data-kanban-card"), from: from?.getAttribute("data-kanban-col"), to: to.getAttribute("data-kanban-col") }
+  })()`)
+  assert.equal(drop.ok, true, 'kanban drop targets missing')
+  await wait('(() => { const lib = JSON.parse(localStorage.getItem(' + q(library) + ')); const rec = lib.records.find(r => r.title==="칸반카드"); const type = lib.recordTypes.find(t => t.id===rec.typeId); const field = type.blocks.find(b => b.type==="select"); const done = field.props.options.find(o => o.label==="완료"); return rec.values[field.fieldKey]===done.id; })()', 'select saved as 완료')
+  log('kanban drop wrote 완료 ' + JSON.stringify(drop))
+  await shot('02-kanban-after-drop')
+
   await navigate()
-  await wait('document.querySelector(".builder-canvas")', 'reload builder')
-  await wait('document.body.innerText.includes("스쿼트")', 'squat after reload')
-  log('reload kept squat')
+  await wait('document.querySelector("[data-kanban-card]")', 'kanban after reload')
+  const afterReload = await evaluate(`(() => {
+    const lib = JSON.parse(localStorage.getItem(${q(library)}))
+    const rec = lib.records.find((r) => r.title === "칸반카드")
+    const type = lib.recordTypes.find((t) => t.id === rec.typeId)
+    const field = type.blocks.find((b) => b.type === "select")
+    const done = field.props.options.find((o) => o.label === "완료")
+    const col = document.querySelector("[data-kanban-col=\\"" + done.id + "\\"]")
+    return {
+      value: rec.values[field.fieldKey],
+      doneId: done.id,
+      inDoneColumn: Boolean(col?.querySelector("[data-kanban-card=\\"" + rec.id + "\\"]")),
+    }
+  })()`)
+  assert.equal(afterReload.value, afterReload.doneId)
+  assert.equal(afterReload.inDoneColumn, true)
+  log('kanban kept 완료 after reload')
+  await shot('03-kanban-after-reload')
 
   await navigate(base + '/custom')
-  await wait('document.querySelector("h1")', 'hub reopen')
-  await evaluate('(() => { const heading = [...document.querySelectorAll("h2")].find(h => h.textContent.includes("내가 만든 페이지")); heading?.parentElement?.querySelector("a")?.click(); })()')
-  await wait('location.pathname==="/pages/' + pageId + '"', 'reopened same page')
-  await wait('document.body.innerText.includes("스쿼트")', 'squat on reopen')
-  log('reopened page ' + pageId)
+  await wait('document.querySelector("[data-tour=starters]")', 'hub for workout')
+  await evaluate('[...document.querySelector("[data-tour=starters]").querySelectorAll("button")].find(b => b.textContent.includes("운동 관리"))?.click()')
+  await wait('location.pathname.startsWith("/pages/") && location.pathname.split("/")[2]!=="' + projectId + '"', 'workout page')
+  const workoutId = await evaluate('location.pathname.split("/")[2]')
+  log('opened workout starter /pages/' + workoutId)
+  await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim()==="추가")', 'workout add')
 
-  await evaluate('(() => { const set = (el, value) => { const proto = HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value); el.dispatchEvent(new Event("input", { bubbles: true })); }; const title = document.querySelector("input.text-xl"); set(title, "운동 관리 수정"); })()')
-  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.find(p => p.id==="' + pageId + '").name==="운동 관리 수정"', 'renamed page')
-  await navigate()
-  await wait('document.querySelector("input.text-xl")?.value==="운동 관리 수정"', 'rename persisted')
-  log('rename persisted')
-  await shot('03-renamed')
+  async function addLift(title, date, kg, reps) {
+    await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="추가")?.click()')
+    await wait('document.querySelector("input.text-2xl")', 'lift title ' + title)
+    await evaluate('(() => { ' + setFieldSrc() + '; set(document.querySelector("input.text-2xl"), ' + q(title) + '); set(document.querySelector("input[type=date]"), ' + q(date) + '); const numbers = [...document.querySelectorAll("input[type=number]")]; if (numbers[0]) set(numbers[0], ' + q(String(kg)) + '); if (numbers[1]) set(numbers[1], ' + q(String(reps)) + '); })()')
+    await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="저장")?.click()')
+    await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title===' + q(title) + ')', title + ' saved')
+  }
+  await addLift('스쿼트', '2026-10-27', 40, 8)
+  await addLift('벤치', '2026-10-27', 20, 6)
+  await evaluate('[...document.querySelectorAll("[role=tab]")].find(b => b.textContent.includes("차트"))?.click()')
+  await wait('document.querySelector("[data-chart-bar=\\"2026-10-27\\"]")', 'chart bar')
+  const chart = await evaluate(`(() => {
+    const bar = document.querySelector('[data-chart-bar="2026-10-27"]')
+    const row = bar?.closest("li")
+    return { text: row?.innerText ?? "", width: bar ? getComputedStyle(bar).width : "0px" }
+  })()`)
+  assert.match(chart.text, /2026-10-27/)
+  assert.match(chart.text, /60/)
+  assert.notEqual(chart.width, '0px')
+  log('chart 2026-10-27 summed to 60 width=' + chart.width)
+  await shot('04-chart-bars')
 
-  await evaluate('[...document.querySelectorAll("[role=tab]")].find(b => b.textContent.includes("캘린더"))?.click()')
-  await wait('document.querySelector("[data-date=\\"2026-10-27\\"]")', 'calendar cell')
-  assert.equal(await evaluate('document.querySelector("[data-date=\\"2026-10-27\\"]")?.innerText.includes("스쿼트")'), true)
-  log('calendar shows squat on 2026-10-27')
+  await evaluate('(() => { ' + setFieldSrc() + '; const heading = [...document.querySelectorAll("textarea")].find(el => el.value==="운동 관리"); set(heading, "운동 관리 본문"); })()')
+  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.find(p => p.id==="' + workoutId + '").blocks.some(b => b.props && b.props.text==="운동 관리 본문")', 'heading stored')
+  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="편집")?.click()')
+  await wait('[...document.querySelectorAll("p")].some(p => p.textContent==="운동 관리 본문")', 'view mode heading')
+  assert.equal(await evaluate('[...document.querySelectorAll("button")].some(b => b.textContent.trim()==="읽기")'), true)
+  log('view mode shows edited heading')
+  await shot('05-view-after-edit')
 
-  await evaluate('localStorage.removeItem("blanky.session.v1")')
-  await navigate(base + '/login')
-  await wait('document.querySelector("input[type=email]")', 'login form')
-  await evaluate('(() => { const set = (el, value) => { const proto = HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value); el.dispatchEvent(new Event("input", { bubbles: true })); }; set(document.querySelector("input[type=email]"), "test@example.test"); set(document.querySelector("input[type=password]"), "test-only"); document.querySelector("form")?.requestSubmit(); })()')
-  await wait('location.pathname==="/"', 'home after login')
-  await navigate(base + '/pages/' + pageId)
-  await wait('document.querySelector("input.text-xl")?.value==="운동 관리 수정"', 'name after relogin')
-  await wait('document.body.innerText.includes("스쿼트")', 'squat after relogin')
-  log('relogin kept page and record')
-  await shot('04-after-relogin')
+  await navigate(base + '/custom')
+  await wait('document.querySelector("h1")', 'hub after edit')
+  await evaluate('(() => { const heading = [...document.querySelectorAll("h2")].find(h => h.textContent.includes("내가 만든 페이지")); const link = [...heading.parentElement.querySelectorAll("a")].find(a => a.textContent.includes("운동 관리")); link?.click(); })()')
+  await wait('location.pathname==="/pages/' + workoutId + '"', 'reopened workout')
+  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.find(p => p.id==="' + workoutId + '").blocks.some(b => b.props && b.props.text==="운동 관리 본문")', 'heading after reopen')
+  await wait('[...document.querySelectorAll("textarea,p")].some(el => (el.value || el.textContent)==="운동 관리 본문")', 'heading visible after reopen')
+  log('reopened workout kept heading')
+  await shot('06-reopen-after-edit')
 
-  await navigate(base + '/')
-  await wait('document.querySelector("textarea, [data-theme-slot=composer], h1")', 'home ui')
-  await navigate(base + '/schedule')
-  await wait('document.querySelector("[data-theme-slot], h1, form") && document.body.innerText.includes("일정")', 'schedule ui')
-  await navigate(base + '/diary')
-  await wait('document.querySelector(".diary-calendar, h1") || document.body.innerText.includes("일기")', 'diary ui')
-  await navigate(base + '/reading')
-  await wait('document.body.innerText.includes("독서")', 'reading ui')
-  await navigate(base + '/memo')
-  await wait('document.body.innerText.includes("메모")', 'memo ui')
-  log('core tabs have labeled ui')
-  assert.equal(errors.length, 0, errors.join('\n'))
-  await finish(true, { pageId, record: saved })
-  log('PASS workout starter save reload reopen relogin calendar')
+  await finishOk({ projectId, workoutId, drop, afterReload, chart })
 } catch (error) {
   log('FAIL ' + (error instanceof Error ? error.message : String(error)))
   await finish(false, { error: error instanceof Error ? error.stack : String(error) }).catch(() => undefined)

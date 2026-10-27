@@ -1,0 +1,15 @@
+started 2026-10-27T04:32:24.744Z
+2026-10-27T04:32:29.660Z logged in as seeded local user
+2026-10-27T04:32:30.445Z opened project starter /pages/57057d67-ae85-4558-a344-80922db491e5
+2026-10-27T04:32:30.724Z screenshot 01-kanban-before-drop.png
+2026-10-27T04:32:30.774Z kanban drop wrote 완료 {"ok":true,"id":"54e1c599-466b-437f-a1c3-9c21d177f44a","from":"99fd57c9-e8ed-47bd-926e-425b9e574bb9","to":"cf579ccf-cb12-45c3-b097-d568838bd410"}
+2026-10-27T04:32:30.827Z screenshot 02-kanban-after-drop.png
+2026-10-27T04:32:31.473Z kanban kept 완료 after reload
+2026-10-27T04:32:31.530Z screenshot 03-kanban-after-reload.png
+2026-10-27T04:32:32.119Z opened workout starter /pages/78b83e20-0201-4f0b-87c1-4c0cb3852f28
+2026-10-27T04:32:32.337Z chart 2026-10-27 summed to 60 width=684px
+2026-10-27T04:32:32.411Z screenshot 04-chart-bars.png
+2026-10-27T04:32:32.433Z view mode shows edited heading
+2026-10-27T04:32:32.513Z screenshot 05-view-after-edit.png
+2026-10-27T04:32:33.136Z reopened workout kept heading
+2026-10-27T04:32:33.197Z screenshot 06-reopen-after-edit.png

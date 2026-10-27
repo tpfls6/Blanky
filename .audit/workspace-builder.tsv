@@ -19,3 +19,12 @@ ts	phase	decision	why	evidence	result
 2026-10-27T04:21:00Z	verify	unit 20 pass written to evidence	.audit/runs/workspace-builder/unit.txt	20 pass 0 fail	tests green
 2026-10-27T04:20:39Z	verify	browser workout starter save reload reopen calendar relogin	.audit/runs/workspace-builder/result.json scripts/workspace-builder-test.mjs port 5198	ok true, screenshots 01-04
 2026-10-27T04:21:00Z	verify	supabase test db refused local postgres	.audit/runs/workspace-builder/rls.txt	NOT RUN docker down
+2026-10-27T04:28:37.765Z	start	new run for views verify and migration review	prior rows through 2026-10-27T04:21:00Z belong to 7400a8e	this chat after 7400a8e	open
+2026-10-27T04:26:00Z	frame	review migration only, do not remote push	ADD COLUMN default [] keeps rows. upsertUserPage already sends collections.	supabase/migrations/20261027140000_user_pages_collections.sql .audit/runs/workspace-builder-views/migration-review.txt	safe locally, remote needs approval
+2026-10-27T04:27:00Z	infra	started Docker Desktop then supabase start	daemon was down at npipe. recoverable.	C:/Users/serin/AppData/Local/Programs/DockerDesktop/Docker Desktop.exe terminals/903767.txt	local postgres up, collections migration applied
+2026-10-27T04:32:33Z	verify	browser kanban drop, chart 60, edit heading to view and reopen	new evidence dir so 7400a8e screenshots stay.	scripts/workspace-builder-test.mjs .audit/runs/workspace-builder-views/result.json	ok true
+2026-10-27T05:02:00Z	verify	unit 20 pass written beside the new run	same three files as 7400a8e.	 .audit/runs/workspace-builder-views/unit.txt	20 pass 0 fail
+2026-10-27T05:05:00Z	verify	rls_owner 14/14 after dropping missing tests schema helpers	create_supabase_user was why the file never ran.	supabase/tests/rls_owner.sql .audit/runs/workspace-builder-views/rls-owner-anon.txt	owner isolation PASS. suite still FAIL on gcal/theme
+2026-10-27T04:31:00Z	verify	first views browser timed out on body.innerText after reopen	textarea value is not always in body.innerText. wait checks textarea or p.	scripts/workspace-builder-test.mjs	supersede. later run ok true
+2026-10-27T05:03:00Z	verify	first supabase test db died on tests.create_supabase_user	tests schema is not installed here. rewrite to auth.users like ai_activity.sql.	 .audit/runs/workspace-builder-views/rls.txt	supersede. file never ran before
+2026-10-27T05:04:00Z	verify	anon read still saw categories while jwt sub stayed owner	reset role and leftover sub bypassed the check. clear sub then anon.	 .audit/runs/workspace-builder-views/rls-owner.txt	supersede. later 14/14
