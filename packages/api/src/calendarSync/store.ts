@@ -159,6 +159,8 @@ export async function loadConnectionByStateHash(admin: DbClient, hash: string): 
 }
 
 export async function saveAwaitingConsent(admin: DbClient, input: { userId: UserId; hash: string; origin: string; id?: ConnectionId }): Promise<void> {
+  // Old links would look like missing local rows on the next bind and delete Google events.
+  if (input.id) await wipeLinks(admin, input.id)
   const row = {
     id: input.id,
     user_id: input.userId,
