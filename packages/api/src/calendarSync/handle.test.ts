@@ -5,7 +5,7 @@ import { parseCalendarAction } from './action.ts'
 import { createCalendarSyncClient } from './client.ts'
 import { readCalendarFunctionEnv } from './env.ts'
 import { CalendarSyncError } from './errors.ts'
-import { consentUrl } from './oauth.ts'
+import { consentUrl, GOOGLE_CALENDAR_SETTINGS_PATH } from './oauth.ts'
 
 test('missing Google Calendar secrets are GOOGLE_ENV_MISSING 503', () => {
   const missing = readCalendarFunctionEnv((key) => {
@@ -33,6 +33,10 @@ test('invalid command is INVALID_COMMAND', () => {
     error instanceof CalendarSyncError && error.code === 'INVALID_COMMAND'
   ))
   assert.deepEqual(parseCalendarAction({ type: 'status' }), { type: 'status' })
+})
+
+test('OAuth return path is the Google Calendar settings page', () => {
+  assert.equal(GOOGLE_CALENDAR_SETTINGS_PATH, '/settings/google-calendar')
 })
 
 test('consent URL uses the provided client id and does not invent one', () => {

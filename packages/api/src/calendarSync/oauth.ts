@@ -9,6 +9,7 @@ export const GOOGLE_CALENDAR_SCOPES = [
 ] as const
 
 export const BLANKY_SCHEDULE_EXTENDED_PROPERTY = 'blankyScheduleId' as const
+export const GOOGLE_CALENDAR_SETTINGS_PATH = '/settings/google-calendar'
 
 function hex(bytes: ArrayBuffer): string {
   return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
