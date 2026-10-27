@@ -25,13 +25,6 @@ import {
 } from './schema.ts'
 import { WidgetBlock } from './widgets.tsx'
 import type { WidgetType } from './schema.ts'
-import { CollectionView } from '../workspace/CollectionView.tsx'
-import { createBlock as createField } from '../records/registry.ts'
-import { insertBlock as insertField, moveBlock as moveField, patchBlock as patchField, removeBlock as removeField, type BlockType } from '../records/schema.ts'
-import { ColorDots } from '../records/properties.tsx'
-import { useLibrary } from '../../state/useLibrary.ts'
-import type { CustomRecordType } from '../../types/records.ts'
-import type { DataView } from '../workspace/model.ts'
 
 const CONVERT: { type: BuilderBlockType; level?: 1 | 2 | 3; key: string }[] = [
   { type: 'text', key: 'builder.block.text' },
@@ -57,10 +50,7 @@ export function PageBuilder({
   onChange: (blocks: BuilderBlock[]) => void
 }) {
   const { t } = useI18n()
-  const { recordTypes, addRecordType, updateRecordType } = useLibrary()
-  const [settings, setSettings] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id ?? null)
-  const selected = selectedId ? findBlock(blocks, selectedId)?.block ?? null : null
   const [menu, setMenu] = useState<Menu | null>(null)
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
@@ -85,25 +75,12 @@ export function PageBuilder({
   }
 
   const insert = (item: InsertItem, parentId: string | null, index: number, replaceId?: string) => {
-    const block = item.id === 'collection'
-      ? createBlock('collection', {
-          collectionId: addRecordType({
-            name: t('builder.newCollection'),
-            icon: 'StickyNote',
-            color: '#3A62B0',
-            description: '',
-            blocks: [createField('title', { label: t('builder.titleField') })],
-          }) ?? '',
-          view: 'table',
-          span: 3,
-        })
-      : item.create()
+    const block = item.create()
     const base = replaceId ? removeBlock(blocks, replaceId) : blocks
     write(insertBlock(base, block, parentId, index))
     setSelectedId(block.id)
     setMenu(null)
     setQuery('')
-    if (item.id === 'collection') setSettings(true)
   }
 
   const openMenu = (parentId: string | null, index: number, anchor: DOMRect, replaceId?: string) => {
@@ -183,33 +160,8 @@ export function PageBuilder({
               {t(item.key)}
             </button>
           ))}
-          <button type="button" className="block w-full px-3 py-1.5 text-left text-sm hover:bg-hover" onClick={() => { setSelectedId(ctx.id); setSettings(true); setCtx(null) }}>{t('builder.settings')}</button>
           <button type="button" className="block w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-hover" onClick={() => { write(removeBlock(blocks, ctx.id)); setCtx(null) }}>{t('delete')}</button>
         </div>
-      ) : null}
-      {settings && selected ? (
-        <aside className="mt-4 border-t border-line pt-3 lg:mt-0">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium">{t('builder.settings')}</h2>
-            <button type="button" className="text-xs text-neutral-400" onClick={() => setSettings(false)}>{t('builder.close')}</button>
-          </div>
-          <div className="mt-3 space-y-3">
-            <p className="text-xs text-neutral-400">{t('builder.background')}</p>
-            <ColorDots value={selected.props.background || '#3A62B0'} onChange={(background) => write(patchBlock(blocks, selected.id, { background }), false)} />
-            <label className="flex items-center gap-2 text-xs text-neutral-500">
-              <input type="checkbox" checked={selected.props.border === true} onChange={(event) => write(patchBlock(blocks, selected.id, { border: event.target.checked }), false)} />
-              {t('builder.border')}
-            </label>
-          </div>
-          {selected.type === 'collection' ? (
-            <CollectionFields
-              type={recordTypes.find((item) => item.id === selected.props.collectionId) ?? null}
-              view={selected.props.view ?? 'table'}
-              onView={(view) => write(patchBlock(blocks, selected.id, { view }))}
-              onType={updateRecordType}
-            />
-          ) : null}
-        </aside>
       ) : null}
     </div>
   )
@@ -374,14 +326,8 @@ function BlockView({
           <button type="button" aria-label={t('delete')} onClick={() => write(removeBlock(root, block.id))} className="icon-btn"><Trash2 className="size-3.5" strokeWidth={1.5} /></button>
         </span>
       ) : null}
-      <div
-        className={block.props.border ? 'rounded-md border border-line p-2' : ''}
-        style={{ backgroundColor: block.props.background || undefined, color: block.props.color || undefined }}
-        onContextMenu={(event) => { if (!editing) return; event.preventDefault(); onContext(block.id, event.currentTarget.getBoundingClientRect()) }}
-      >
-        {block.props.hideContent ? <p className="text-xs text-neutral-400">{block.type}</p> : (
-          <BlockBody root={root} block={block} editing={editing} open={open} onToggle={() => setOpen((value) => !value)} write={write} onMenu={onMenu} t={t} />
-        )}
+      <div onContextMenu={(event) => { if (!editing) return; event.preventDefault(); onContext(block.id, event.currentTarget.getBoundingClientRect()) }}>
+        <BlockBody root={root} block={block} editing={editing} open={open} onToggle={() => setOpen((value) => !value)} write={write} onMenu={onMenu} t={t} />
       </div>
       {block.type === 'toggle' && open ? (
         <div className="mt-1 pl-4">
@@ -442,15 +388,6 @@ function BlockBody({
   const prefix = block.type === 'bullet' ? '• ' : block.type === 'numbered' ? '1. ' : ''
   const box = block.type === 'quote' || block.type === 'callout'
 
-  if (block.type === 'collection') return <CollectionBlock root={root} block={block} write={write} />
-  if (block.type === 'bookmark' || block.type === 'button') {
-    return editing ? (
-      <div className="flex gap-2">
-        <input value={text} placeholder={t(`builder.block.${block.type}`)} onChange={(event) => write(patchBlock(root, block.id, { text: event.target.value }), false)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
-        <input value={block.props.url ?? ''} placeholder="https://" onChange={(event) => write(patchBlock(root, block.id, { url: event.target.value }), false)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
-      </div>
-    ) : block.props.url ? <a href={block.props.url} className={block.type === 'button' ? 'btn btn-primary' : 'text-sm underline'} target="_blank" rel="noreferrer">{text || block.props.url}</a> : null
-  }
   if (block.type.startsWith('widget-')) {
     const key = block.type.replace('widget-', '')
     return (
@@ -517,81 +454,6 @@ function BlockBody({
         }}
         className={`w-full resize-none bg-transparent outline-none placeholder:text-neutral-300 ${block.type === 'heading' ? headingClass : box ? 'rounded-md bg-accent-light px-3 py-2 text-sm' : 'text-sm'}`}
       />
-    </div>
-  )
-}
-
-function CollectionBlock({ root, block, write }: { root: BuilderBlock[]; block: BuilderBlock; write: (blocks: BuilderBlock[], record?: boolean) => void }) {
-  const { t } = useI18n()
-  const { recordTypes, records, addRecord, updateRecord, removeRecord } = useLibrary()
-  const type = recordTypes.find((item) => item.id === block.props.collectionId)
-  if (!type) return <p className="text-sm text-neutral-400">{t('builder.missingCollection')}</p>
-  return (
-    <CollectionView
-      type={type}
-      rows={records.filter((item) => item.typeId === type.id)}
-      view={block.props.view ?? 'table'}
-      onView={(view) => write(patchBlock(root, block.id, { view }))}
-      onAdd={(input) => addRecord(type.id, input)}
-      onUpdate={updateRecord}
-      onRemove={removeRecord}
-    />
-  )
-}
-
-const FIELD_TYPES: { type: BlockType; label: string }[] = [
-  { type: 'textField', label: '텍스트' },
-  { type: 'number', label: '숫자' },
-  { type: 'date', label: '날짜' },
-  { type: 'checkbox', label: '체크박스' },
-  { type: 'url', label: 'URL' },
-  { type: 'image', label: '이미지' },
-  { type: 'rating', label: '별점' },
-  { type: 'progress', label: '진행률' },
-  { type: 'tags', label: '태그' },
-  { type: 'longText', label: '긴 텍스트' },
-]
-
-function CollectionFields({
-  type,
-  view,
-  onView,
-  onType,
-}: {
-  type: CustomRecordType | null
-  view: DataView
-  onView: (view: DataView) => void
-  onType: (id: string, patch: Partial<Pick<CustomRecordType, 'name' | 'blocks'>>) => void
-}) {
-  const { t } = useI18n()
-  if (!type) return <p className="mt-4 text-sm text-neutral-400">{t('builder.missingCollection')}</p>
-  const fields = type.blocks.filter((item) => item.type !== 'title')
-  return (
-    <div className="mt-4 space-y-3">
-      <label className="block text-xs text-neutral-500">
-        {t('builder.collectionName')}
-        <input value={type.name} onChange={(event) => onType(type.id, { name: event.target.value })} className="field mt-1 w-full" />
-      </label>
-      <div className="flex flex-wrap gap-1">
-        {(['table', 'card', 'gallery', 'calendar', 'kanban', 'chart'] as DataView[]).map((item) => (
-          <button key={item} type="button" className={view === item ? 'chip chip-on' : 'chip'} onClick={() => onView(item)}>{item}</button>
-        ))}
-      </div>
-      <ul className="space-y-2">
-        {fields.map((field, index) => (
-          <li key={field.id} className="flex items-center gap-1">
-            <input value={field.props.label ?? ''} onChange={(event) => onType(type.id, { blocks: patchField(type.blocks, field.id, { label: event.target.value }) })} className="field min-w-0 flex-1 text-xs" />
-            <button type="button" className="text-xs text-neutral-400" disabled={index === 0} onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index - 1) })}>↑</button>
-            <button type="button" className="text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index + 2) })}>↓</button>
-            <button type="button" className="text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: removeField(type.blocks, field.id) })}>{t('delete')}</button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex flex-wrap gap-1">
-        {FIELD_TYPES.map((item) => (
-          <button key={item.type} type="button" className="chip" onClick={() => onType(type.id, { blocks: insertField(type.blocks, createField(item.type), null, type.blocks.length) })}>+ {item.label}</button>
-        ))}
-      </div>
     </div>
   )
 }
