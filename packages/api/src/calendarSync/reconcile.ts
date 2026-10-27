@@ -7,14 +7,16 @@ import {
   type ReconcileOp,
   type SnapshotRow,
 } from './domain.ts'
+import { googleColorIdFromHex } from './googleColor.ts'
 
-function writeBody(row: SnapshotRow): GoogleEventWrite {
+function writeBody(row: SnapshotRow, keepColorId?: string | null): GoogleEventWrite {
   return {
     summary: row.title,
     description: row.description,
     when: row.when,
     recurrence: row.recurrence,
     blankyScheduleId: row.scheduleId,
+    colorId: googleColorIdFromHex(row.color) ?? keepColorId ?? null,
   }
 }
 
@@ -27,6 +29,8 @@ function inboundDraft(event: Extract<GooglePeerEvent, { status: 'confirmed' }>, 
     description: event.description,
     when: event.when,
     recurrence: event.recurrence,
+    categoryId: null,
+    color: null,
   }
 }
 
@@ -36,7 +40,7 @@ function updateGoogle(row: SnapshotRow, event: Extract<GooglePeerEvent, { status
     scheduleId: row.scheduleId,
     googleEventId: event.id,
     etag: event.etag,
-    body: writeBody(row),
+    body: writeBody(row, event.colorId),
   }
 }
 
@@ -114,7 +118,10 @@ export function reconcile({ snapshot, page }: ReconcileInput): readonly Reconcil
         origin: 'google',
         draft: inboundDraft(event, row.scheduleId, row.updatedAt),
       })
+      continue
     }
+    const wanted = googleColorIdFromHex(row.color)
+    if (wanted && wanted !== event.colorId) ops.push(updateGoogle(row, event))
   }
 
   for (const row of snapshot.rows) {

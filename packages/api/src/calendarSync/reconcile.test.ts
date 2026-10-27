@@ -63,6 +63,8 @@ function row(input: Partial<SnapshotRow> & Pick<SnapshotRow, 'scheduleId'>): Sna
     description: '',
     when,
     recurrence: { freq: 'none' },
+    categoryId: null,
+    color: null,
     ...input,
   }
 }
@@ -88,6 +90,7 @@ function confirmed(input: Partial<Extract<GooglePeerEvent, { status: 'confirmed'
     recurrence: { freq: 'none' },
     updated: asIsoDateTime('2026-10-26T00:00:00Z'),
     blankyScheduleId: null,
+    colorId: null,
     ...input,
   }
 }
@@ -146,6 +149,25 @@ test('unmapped local row becomes outbound create', () => {
   assert.equal(ops[0].scheduleId, local.scheduleId)
   assert.equal(ops[0].body.summary, '로컬 회의')
   assert.equal(ops[0].body.blankyScheduleId, local.scheduleId)
+  assert.equal(ops[0].body.colorId, null)
+})
+
+test('outbound create uses Blanky project color', () => {
+  const local = row({ scheduleId: asScheduleId('s-1'), color: '#3A62B0' })
+  const ops = run([local], [], [])
+  assert.equal(ops[0].kind, 'create_google')
+  if (ops[0].kind !== 'create_google') return
+  assert.equal(ops[0].body.colorId, '9')
+})
+
+test('linked event without other changes still gets Blanky project color', () => {
+  const local = row({ scheduleId: asScheduleId('s-1'), color: '#C25A54' })
+  const mapped = link({ scheduleId: local.scheduleId, googleEventId: asGoogleEventId('g-1') })
+  const ops = run([local], [mapped], [confirmed({ id: mapped.googleEventId, colorId: '1' })])
+  assert.deepEqual(kinds(ops), ['update_google'])
+  assert.equal(ops[0].kind, 'update_google')
+  if (ops[0].kind !== 'update_google') return
+  assert.equal(ops[0].body.colorId, '11')
 })
 
 test('local dirty emits update_google', () => {
