@@ -4,6 +4,8 @@ import type { ParsedSchedule, ScheduleKind } from '../../parse/src/model.ts'
 import type { Database } from './database.generated.ts'
 import { AppError } from './errors.ts'
 import { routeInput, PlannerRequiredError } from '../../parse/src/intentRouter.ts'
+import type { ScheduleAnalysis } from '../../types/src/ai.ts'
+import { AnalysisError, validateScheduleAnalysis } from '../../types/src/aiSchema.ts'
 import { isRecord, readNullableString, readNumber, readString } from './guards.ts'
 
 export const PARSE_SCHEDULE_FUNCTION = 'parse-schedule'
@@ -78,6 +80,16 @@ export async function parseScheduleFromText(
   client: SupabaseClient<Database>,
   request: NaturalLanguageScheduleRequest,
 ): Promise<ParsedSchedule> {
+  const result = await analyzeScheduleFromText(client, request)
+  if (result.items.length !== 1) throw new AppError('MULTIPLE_ITEMS', '여러 항목이 분석되었어요. 항목별 확인 화면을 사용해 주세요.')
+  const item = result.items[0]
+  return { type: item.type, source: item.source, confidence: item.confidence, draft: item.draft }
+}
+
+export async function analyzeScheduleFromText(
+  client: SupabaseClient<Database>,
+  request: NaturalLanguageScheduleRequest,
+): Promise<ScheduleAnalysis> {
   const text = request.text.trim()
   if (text && routeInput(text).route === 'planner') {
     const error = new PlannerRequiredError()
@@ -85,8 +97,14 @@ export async function parseScheduleFromText(
   }
   if (!text) throw new AppError('INVALID_INPUT', '입력 내용을 확인해주세요.')
   const { data, error } = await client.functions.invoke(PARSE_SCHEDULE_FUNCTION, {
-    body: { text, timezone: request.timezone },
+    body: { text, timezone: request.timezone, format: 'analysis-v1' },
   })
   if (error) throw await errorFromInvoke(error)
-  return mapParsedSchedule(data)
+  if (isRecord(data) && data.error) mapParsedSchedule(data)
+  try {
+    return validateScheduleAnalysis(data, { text })
+  } catch (error) {
+    if (error instanceof AnalysisError) throw new AppError(error.code, error.message)
+    throw error
+  }
 }

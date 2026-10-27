@@ -1,3 +1,4 @@
+import { schedulingSettings } from '../../../packages/scheduling/src/settings.ts'
 import { createPreferenceRepository } from '@blanky/api'
 import type { UserPreference } from '@blanky/types'
 import { normalizeAccent, normalizeSaved } from '../../theme/accent.ts'
@@ -74,6 +75,8 @@ export function normalizePreferences(value: unknown): UserPreferences {
   const duration = TASK_DURATIONS.find((minutes) => minutes === Number(durationSource)) ?? 60
   const week = raw.weekStartsOn === 1 ? 1 : 0
   return {
+    timezone:typeof raw.timezone==='string'?raw.timezone:undefined,
+    scheduling: (()=>{try{const value=isRecord(raw.scheduling)?raw.scheduling:{};const normalized=schedulingSettings({...value,dayStartTime:clock(raw.dayStartTime,DEFAULT_SETTINGS.dayStartTime),dayEndTime:clock(raw.dayEndTime,DEFAULT_SETTINGS.dayEndTime)});return Object.fromEntries(Object.entries(normalized).filter(([name])=>!['now','startDate','endDate','timezone','dayStartTime','dayEndTime','defaultDurationMinutes'].includes(name)))}catch{return {}}})(),
     theme: oneOf(raw.theme, THEMES, 'light'),
     accent: normalizeAccent(typeof (raw.accent ?? raw.accentColor) === 'string' ? String(raw.accent ?? raw.accentColor) : undefined),
     savedAccents: normalizeSaved(raw.savedAccents),
@@ -121,7 +124,7 @@ export function savePreferences(userId: string, preferences: UserPreferences): v
 export function toStoredPreference(userId: string, settings: Settings): UserPreference {
   return {
     userId,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
+    timezone: settings.timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul'),
     dayStartTime: settings.dayStartTime,
     dayEndTime: settings.dayEndTime,
     defaultDuration: settings.taskDefaultDuration,
@@ -141,6 +144,7 @@ export function toStoredPreference(userId: string, settings: Settings): UserPref
 export function settingsFromPreference(preference: UserPreference): UserPreferences {
   return normalizePreferences({
     ...preference.settings,
+    timezone:preference.timezone,
     theme: preference.theme,
     accent: preference.accentColor,
     scheduleDefaultView: preference.scheduleDefaultView,

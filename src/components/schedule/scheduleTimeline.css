@@ -1,0 +1,17 @@
+.schedule-timeline-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.schedule-time-grid { position: relative; width: 100%; }
+.schedule-time-row { display: grid; grid-template-columns: 3.25rem minmax(0, 1fr); gap: .5rem; border-top: 1px solid var(--line); }
+.schedule-time-row time { padding-top: 6px; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--faint); }
+.schedule-time-row-over { background: var(--accent-light); }
+.schedule-time-blocks { position: absolute; inset: 0 0 0 3.75rem; pointer-events: none; }
+.schedule-time-blocks > .schedule-time-block { position: absolute; margin: 0; padding: 5px 7px; border: 0; border-left: 3px solid var(--accent-color); border-radius: var(--radius); overflow: hidden; pointer-events: auto; background: transparent; box-shadow: none; container-type: inline-size; }
+.schedule-card-heading { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.schedule-card-heading > :first-child:not(button) { flex-shrink: 0; margin-top: 1px; }
+.schedule-card-open { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; width: 100%; padding: 0; text-align: left; }
+.schedule-card-title { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; max-width: 100%; font-size: 12px; line-height: 15px; font-weight: 500; word-break: keep-all; overflow-wrap: normal; text-overflow: ellipsis; background: var(--surface); }
+.schedule-card-time { max-width: 100%; font-size: 10px; line-height: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); background: var(--surface); }
+.schedule-time-done .schedule-card-title { text-decoration: line-through; opacity: .6; }
+.schedule-time-short .schedule-card-time { display: none; }
+.schedule-card-resize { position: absolute; bottom: 0; left: 0; right: 0; height: 5px; cursor: ns-resize; touch-action: none; }
+.schedule-card-resize:hover, .schedule-card-resize:focus-visible { background: var(--accent-border); }
+@container (max-width: 115px) { .schedule-card-time { font-size: 9px; } }

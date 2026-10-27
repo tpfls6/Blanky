@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { filterIcons, ICONS, iconByName } from '../../constants/icons.ts'
+import { filterIcons, ICONS, IconView } from '../../constants/icons.ts'
 import { SWATCHES } from '../../constants/swatches.ts'
 import { RECENT_ICONS_KEY } from '../../state/storage.ts'
 
@@ -94,7 +94,6 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
-  const Current = iconByName(value)
   const list = filterIcons(query)
   const recentItems = query.trim()
     ? []
@@ -128,7 +127,6 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
 
   useEffect(() => {
     if (!ready) return
-    setRecent(loadRecent())
     searchRef.current?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close()
@@ -236,11 +234,11 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
         aria-label={onColor ? '아이콘과 색' : '아이콘'}
         aria-expanded={open}
         aria-haspopup="dialog"
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => { if(open)close();else {setRecent(loadRecent());setOpen(true)} }}
         className={plain ? 'inline-flex size-7 items-center justify-center rounded-md text-neutral-400 hover:bg-hover' : 'icon-btn border border-line'}
         style={color ? { color } : undefined}
       >
-        <Current className="size-4" strokeWidth={1.5} aria-hidden="true" />
+        <IconView name={value} className="size-4" />
       </button>
       {plain && color ? (
         <span

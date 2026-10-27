@@ -16,6 +16,8 @@ export type ParsedSnapshot = {
 }
 
 export type ScheduleDraft = {
+  repeat?: import('../types/work.ts').RepeatRule
+  repeatDays?: number[]
   id: string | null
   kind: WorkKind
   title: string

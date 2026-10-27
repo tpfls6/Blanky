@@ -24,3 +24,5 @@ export { createAIProvider, readModelFields, readModelSchedule } from './provider
 export type { AIProvider, ProviderEnv, ProviderParseInput } from './provider.ts'
 export { resolveParse } from './resolve.ts'
 export { routeInput, PlannerRequiredError } from './intentRouter.ts'
+export { resolveScheduleAnalysis } from './resolve.ts'
+export { readSpokenTimeRange } from './timeRange.ts'

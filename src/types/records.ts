@@ -91,6 +91,8 @@ export const DEFAULT_NAV: NavPref[] = [
 export const TASK_DURATIONS = [15, 30, 45, 60, 90, 120] as const
 
 export type Settings = {
+  timezone?: string
+  scheduling?: Partial<import('../../packages/types/src/planning.ts').SchedulingSettings>
   theme: ThemeSetting
   accent: string
   savedAccents: string[]

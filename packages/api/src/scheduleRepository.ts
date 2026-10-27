@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './database.generated.ts'
 import { AppError, mapDbError } from './errors.ts'
+import { isCalendarDate } from '../../types/src/aiSchema.ts'
+import { normalizeRepeatDays } from '../../types/src/recurrence.ts'
 import type {
   Priority,
   Schedule,
@@ -65,11 +67,13 @@ export function mapScheduleRow(value: unknown): Schedule {
   if (!isRecord(value)) throw new AppError('REQUEST_FAILED', '일정 응답을 읽지 못했습니다.')
 
   return {
+    plannerApprovalKey: readNullableString(value.planner_approval_key),
     kind: value.kind === 'task' ? 'task' : 'event',
     dueDate: readNullableString(value.due_date),
     endDate: readNullableString(value.end_date),
     allDay: value.all_day === true,
     repeat: value.repeat_rule === 'daily' || value.repeat_rule === 'weekly' || value.repeat_rule === 'monthly' ? value.repeat_rule : 'none',
+    repeatDays: normalizeRepeatDays(value.repeat_days),
     id: requireString(value.id, 'id'),
     userId: requireString(value.user_id, 'user_id'),
     calendarId: requireString(value.calendar_id, 'calendar_id'),
@@ -118,6 +122,7 @@ function scheduleColumns(draft: ScheduleDraft) {
     end_date: draft.endDate ?? null,
     all_day: draft.allDay ?? false,
     repeat_rule: draft.repeat ?? 'none',
+    repeat_days: draft.repeat === 'weekly' ? normalizeRepeatDays(draft.repeatDays) : [],
     change_source: draft.changeSource ?? 'manual',
     title: draft.title,
     description: draft.description ?? '',
@@ -144,6 +149,7 @@ async function readRows(data: unknown): Promise<Schedule[]> {
 export type ScheduleRepository = {
   listByDate: (date: string) => Promise<Schedule[]>
   listRange: (startDate: string, endDate: string) => Promise<Schedule[]>
+  listForPlanning: (startDate: string, endDate: string) => Promise<Schedule[]>
   create: (userId: string, draft: ScheduleDraft) => Promise<Schedule>
   update: (id: string, draft: ScheduleDraft) => Promise<Schedule>
   remove: (id: string) => Promise<void>
@@ -154,6 +160,23 @@ export function createScheduleRepository(
   client: SupabaseClient<Database>,
 ): ScheduleRepository {
   return {
+    async listForPlanning(startDate, endDate) {
+      if (!isCalendarDate(startDate) || !isCalendarDate(endDate) || startDate > endDate) throw new AppError('INVALID_INPUT', '조회 날짜를 확인해 주세요.')
+      const shift = (day: string, amount: number) => new Date(Date.parse(`${day}T00:00:00Z`) + amount * 86400000).toISOString().slice(0, 10)
+      // Include earlier multi-day/recurring anchors, overnight carryover and timezone margins.
+      const lower = shift(startDate, -2), upper = shift(endDate, 2)
+      const rows: Schedule[] = []
+      for (let offset = 0; offset < 10000; offset += 500) {
+        const { data, error } = await client.from('schedules').select('*').lte('date', upper)
+          .or(`date.gte.${lower},end_date.gte.${lower},repeat_rule.neq.none`)
+          .order('date', { ascending: true }).order('id', { ascending: true }).range(offset, offset + 499)
+        if (error) throw mapDbError(error)
+        const page = await readRows(data)
+        rows.push(...page)
+        if (page.length < 500) return rows
+      }
+      throw new AppError('SCHEDULE_LIMIT_EXCEEDED', '일정이 너무 많아 안전한 추천을 만들 수 없어요. 조회 범위를 줄여 주세요.')
+    },
     async listByDate(date) {
       const { data, error } = await client
         .from('schedules')

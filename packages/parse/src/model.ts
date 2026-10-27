@@ -1,24 +1,5 @@
-export type ScheduleKind = 'event' | 'task'
-
-export type ParseSource = 'rule' | 'personal_rule' | 'ai'
-
-export type ScheduleDraftFields = {
-  title: string
-  date: string | null
-  startTime: string | null
-  endTime: string | null
-  dueDate: string | null
-  endDate: string | null
-  categoryId: string | null
-}
-
-export type ParsedSchedule = {
-  type: ScheduleKind
-  confidence: number
-  source: ParseSource
-  draft: ScheduleDraftFields
-  fields?: Record<string, string | number> | null
-}
+import type { ScheduleKind } from '../../types/src/ai.ts'
+export type { ScheduleKind, ParseSource, ScheduleDraftFields, ParsedSchedule } from '../../types/src/ai.ts'
 
 export type CategoryRef = {
   id: string

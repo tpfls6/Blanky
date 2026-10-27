@@ -31,3 +31,4 @@ dist-ssr
 
 # Diary browser test screenshots
 .tmp/diary-tests/
+.tmp/ai-tests/

@@ -49,9 +49,6 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
     if (open) inputRef.current?.focus()
   }, [open])
 
-  useEffect(() => {
-    setActive(0)
-  }, [query, open])
 
   const choose = (id: string | null) => {
     onChange(id || null)
@@ -65,7 +62,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
         type="button"
         aria-expanded={open}
         aria-controls={listId}
-        onClick={() => setOpen((valueNow) => !valueNow)}
+        onClick={() => {setActive(0);setOpen(valueNow=>!valueNow)}}
         className="field flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="truncate">{label}</span>
@@ -80,7 +77,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
             aria-controls={listId}
             aria-activedescendant={options[active] ? `${listId}-${options[active].id}` : undefined}
             placeholder="검색"
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {setQuery(event.target.value);setActive(0)}}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 event.stopPropagation()

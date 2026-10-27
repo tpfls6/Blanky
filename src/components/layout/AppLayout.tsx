@@ -1,4 +1,4 @@
-import { ThemePreviewBar } from '../../pages/Themes/ThemePages.tsx'
+import { ThemePreviewBar } from '../../pages/Themes/ThemePreviewBar.tsx'
 import { Outlet } from 'react-router-dom'
 import { MobileNav } from './MobileNav.tsx'
 import { Sidebar } from './Sidebar.tsx'

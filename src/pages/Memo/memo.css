@@ -1,0 +1,44 @@
+.memo-editor-column { min-width: 0; }
+.memo-folders { margin-top: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.memo-folder { display: flex; flex: 1; width: 100%; min-width: 0; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; text-align: left; color: var(--muted); font-size: 13px; }
+.memo-folder > svg { flex-shrink: 0; }
+.memo-folder > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memo-folder > small { margin-left: auto; font-size: 11px; }
+.memo-folder:hover { background: var(--hover); }
+.memo-folder[aria-current=page] { background: var(--accent-light); color: var(--accent-text); }
+.memo-subfolders { margin-left: 16px; padding-left: 8px; border-left: 1px solid var(--line); }
+.memo-list-label { display: flex; gap: 8px; margin-top: 16px; font-size: 12px; color: var(--muted); }
+.memo-layout > :first-child { max-height: var(--memo-height); overflow-y: auto; }
+.memo-editor { display: flex; flex-direction: column; gap: 16px; width: 100%; min-height: 0; }
+.memo-editor > * { flex-shrink: 0; }
+.memo-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.memo-toolbar > :first-child { min-width: 0; }
+.memo-writing-area { display: flex; flex: 1; flex-shrink: 1; min-height: 0; flex-direction: column; overflow: hidden; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); transition: border-color 180ms, box-shadow 180ms; }
+.memo-writing-area:focus-within { border-color: color-mix(in srgb, var(--accent-color) 45%, var(--line)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 9%, transparent); }
+.memo-editor .memo-title, .memo-editor .memo-body { width: 100%; border: 0; outline: none; box-shadow: none; background: transparent; color: var(--fg); }
+.memo-editor .memo-title { flex-shrink: 0; padding: 0 0 16px; font-size: 20px; font-weight: 500; }
+.memo-editor .memo-body { flex: 1; min-height: 0; resize: none; overflow-y: auto; padding: 16px 0 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.9; }
+.memo-body::placeholder { color: var(--faint); }
+.memo-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.memo-footer > button { margin-left: auto; }
+.memo-toolbar-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.memo-rich-editor { display: flex; flex: 1; min-height: 0; flex-direction: column; border-top: 1px solid var(--line); }
+.memo-format-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.memo-format-toolbar button, .memo-format-toolbar select { padding: 5px 8px; border-radius: 6px; font-size: 12px; color: var(--fg); background: transparent; }
+.memo-format-toolbar button:hover, .memo-format-toolbar button[aria-pressed=true] { background: var(--accent-light); color: var(--accent-text); }
+.memo-rich-scroll { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; cursor: text; }
+.memo-rich-scroll > .memo-rich-content { flex: 1 0 auto; width: 100%; }
+.memo-rich-content { min-height: 100%; padding: 16px 0; overflow-wrap: anywhere; color: var(--fg); font-size: 14px; line-height: 1.9; white-space: pre-wrap; }
+.memo-rich-content:focus-visible { outline: none; }
+.memo-rich-content p { margin: 0 0 8px; }
+.memo-rich-content h1 { font-size: 28px; font-weight: 700; line-height: 1.4; margin: 20px 0 10px; }
+.memo-rich-content h2 { font-size: 23px; font-weight: 600; line-height: 1.5; margin: 18px 0 8px; }
+.memo-rich-content h3 { font-size: 19px; font-weight: 600; line-height: 1.5; margin: 16px 0 8px; }
+.memo-rich-content ul { list-style: disc; padding-left: 24px; }
+.memo-rich-content ol { list-style: decimal; padding-left: 24px; }
+.memo-rich-content blockquote { border-left: 3px solid var(--accent-color); padding-left: 16px; margin: 12px 0; color: var(--muted); }
+.memo-rich-content hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
+.memo-rich-content code { background: var(--hover); border-radius: 4px; padding: 2px 4px; font-family: monospace; }
+.memo-rich-content pre { background: var(--hover); padding: 12px; border-radius: 8px; overflow-x: auto; }
+.memo-rich-content > :first-child { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) { .memo-writing-area { transition: none; } }

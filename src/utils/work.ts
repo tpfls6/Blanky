@@ -1,4 +1,5 @@
 import { formatClock, parseClock } from '@blanky/utils'
+import { normalizeRepeatDays, repeatsOn } from '../../packages/types/src/recurrence.ts'
 import { CATEGORIES } from '../data/mockWorkspace.ts'
 import { parseQuick } from './parseQuick.ts'
 import type { Priority } from '@blanky/types'
@@ -75,7 +76,7 @@ export function placedTimes(
   }
 }
 
-export function createWorkItem(input: WorkInput): WorkItem | null {
+export function createWorkItem(input: WorkInput, options: { inferEndTime?: boolean } = {}): WorkItem | null {
   const title = input.title.trim()
   const startTime = input.startTime || null
   if (!title || !input.date) return null
@@ -83,7 +84,7 @@ export function createWorkItem(input: WorkInput): WorkItem | null {
   let endTime = input.endTime || null
   let duration = input.duration && input.duration > 0 ? input.duration : null
   const allDay = input.allDay ?? (input.kind === 'event' && !startTime)
-  if (startTime && !endTime && !allDay) {
+  if (startTime && !endTime && !allDay && options.inferEndTime !== false) {
     const minutes = duration ?? 60
     endTime = endFromStart(startTime, minutes)
     duration = minutes
@@ -111,6 +112,7 @@ export function createWorkItem(input: WorkInput): WorkItem | null {
     endDate,
     allDay,
     repeat: input.repeat ?? 'none',
+    repeatDays: input.repeat === 'weekly' ? normalizeRepeatDays(input.repeatDays) : [],
   }
 }
 
@@ -171,9 +173,16 @@ export function categoryPath(
 }
 
 export function occursOn(item: WorkItem, date: string): boolean {
-  if (item.kind === 'task') return item.date === date || item.dueDate === date
+  if (item.kind === 'task') return repeatsOn(item, date) || item.dueDate === date
   const end = item.endDate && item.endDate >= item.date ? item.endDate : item.date
-  return item.date <= date && date <= end
+  const span = Math.round((Date.parse(end) - Date.parse(item.date)) / 86400000)
+  if (!item.repeat || item.repeat === 'none') return item.date <= date && date <= end
+  // Include an occurrence's multi-day tail, without generating duplicate DB rows.
+  for (let offset = 0; offset <= Math.min(span, 366); offset++) {
+    const anchor = new Date(Date.parse(date) - offset * 86400000).toISOString().slice(0, 10)
+    if (repeatsOn(item, anchor)) return true
+  }
+  return false
 }
 
 export function spansDays(item: WorkItem): boolean {
@@ -185,7 +194,7 @@ export function scheduleOn(items: WorkItem[], date: string): WorkItem[] {
     .filter((item) => {
       if (!occursOn(item, date)) return false
       if (item.kind === 'event') return Boolean(item.startTime) || item.allDay
-      return Boolean(item.startTime) && item.date === date
+      return Boolean(item.startTime) && repeatsOn(item, date)
     })
     .sort((a, b) => {
       if (a.allDay !== b.allDay) return a.allDay ? -1 : 1
@@ -195,7 +204,7 @@ export function scheduleOn(items: WorkItem[], date: string): WorkItem[] {
 
 export function looseOn(items: WorkItem[], date: string): WorkItem[] {
   return items
-    .filter((item) => item.kind === 'task' && !item.startTime && (item.date === date || item.dueDate === date))
+    .filter((item) => item.kind === 'task' && !item.startTime && occursOn(item, date))
     .sort((a, b) => {
       if (a.status !== b.status) return a.status === 'done' ? 1 : -1
       return a.title.localeCompare(b.title, 'ko')

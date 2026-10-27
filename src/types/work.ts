@@ -38,6 +38,7 @@ export type WorkItem = {
   endDate: string | null
   allDay: boolean
   repeat: RepeatRule
+  repeatDays?: number[]
   changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
   calendarType?: 'personal' | 'shared' | 'external'
 }
@@ -57,6 +58,7 @@ export type WorkInput = {
   priority?: Priority
   status?: WorkStatus
   repeat?: RepeatRule
+  repeatDays?: number[]
 }
 
 export type WorkPatch = Partial<
@@ -76,5 +78,6 @@ export type WorkPatch = Partial<
     | 'endDate'
     | 'allDay'
     | 'repeat'
+    | 'repeatDays'
   >
 >

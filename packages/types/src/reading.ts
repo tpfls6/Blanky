@@ -103,7 +103,7 @@ export function validateBookPatch(p: BookPatch) {
 export function validateShelf(input: ShelfInput) {
     if (!input.name.trim() || input.name.trim().length > 100)
         throw new Error('책장 이름은 1~100자로 입력해 주세요.');
-    if (!['primary', 'accent', 'textSecondary'].includes(input.color))
+    if (!['primary', 'accent', 'textSecondary'].includes(input.color) && !/^#[0-9a-f]{6}$/i.test(input.color))
         throw new Error('테마 색상을 선택해 주세요.');
     if (!Number.isInteger(input.sort_order) || input.sort_order < 0)
         throw new Error('순서는 0 이상의 정수입니다.');

@@ -16,6 +16,7 @@ type Table<
 export type Database = {
   public: {
     Tables: {
+      planner_drafts: Table<{user_id:string;revision:number;payload:Json;updated_at:string},{user_id:string;revision:number;payload?:Json},{payload?:Json;revision?:number}>
       books: Table<ReadingBook, Omit<ReadingBook, 'id' | 'created_at'>, Partial<ReadingBook>>
       user_books: Table<UserBook, Partial<UserBook> & Pick<UserBook, 'user_id' | 'book_id'>, Partial<UserBook>>
       reading_shelves: Table<Shelf, Partial<Shelf> & Pick<Shelf, 'user_id' | 'name'>, Partial<Shelf>>
@@ -75,6 +76,7 @@ export type Database = {
           end_date?: string | null
           all_day?: boolean
           repeat_rule?: string
+          repeat_days?: number[]
           change_source?: string
           title: string
           description: string
@@ -103,6 +105,7 @@ export type Database = {
           end_date?: string | null
           all_day?: boolean
           repeat_rule?: string
+          repeat_days?: number[]
           change_source?: string
           title: string
           description?: string
@@ -127,6 +130,7 @@ export type Database = {
           end_date?: string | null
           all_day?: boolean
           repeat_rule?: string
+          repeat_days?: number[]
           change_source?: string
           title?: string
           description?: string
@@ -361,7 +365,8 @@ export type Database = {
       >
     }
     Views: Record<string, never>
-    Functions: { reorder_reading_shelves: { Args: { p_ids: string[] }; Returns: undefined }; add_reading_book: { Args: { p_book: Json; p_status: string; p_shelves: string[] }; Returns: string }; install_theme: { Args: { p_theme_id: string }; Returns: undefined } }
+    Functions: {
+      write_planner_draft: { Args:{p_user_id:string;p_expected_revision:number;p_payload:Json};Returns:{user_id:string;revision:number;payload:Json;updated_at:string}[] }; planner_snapshot: { Args: Record<string, never>; Returns: Json }; approve_planner: { Args: { p_user_id: string; p_revision: string; p_rows: Json }; Returns: ScheduleRow[] }; reorder_reading_shelves: { Args: { p_ids: string[] }; Returns: undefined }; add_reading_book: { Args: { p_book: Json; p_status: string; p_shelves: string[] }; Returns: string }; install_theme: { Args: { p_theme_id: string }; Returns: undefined } }
   }
 }
 

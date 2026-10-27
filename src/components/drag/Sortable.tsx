@@ -43,7 +43,7 @@ export function Sortable<T extends { id: string }>({
   const beforeRef = useRef<Map<string, DOMRect> | null>(null)
   const pendingRef = useRef<Pending | null>(null)
   const itemsRef = useRef(items)
-  itemsRef.current = items
+  useLayoutEffect(() => { itemsRef.current = items }, [items])
   const [drag, setDrag] = useState<Drag | null>(null)
   const dragId = drag?.id ?? null
 
@@ -93,7 +93,7 @@ export function Sortable<T extends { id: string }>({
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>, id: string) => {
     if (event.button !== 0) return
     const target = event.target as HTMLElement
-    if (target.closest('input, textarea, select, button, a, label, [data-no-drag]')) return
+    if (target.closest('input, textarea, select, button, a, label, [contenteditable="true"], [data-no-drag]')) return
     const rect = event.currentTarget.getBoundingClientRect()
     pendingRef.current = {
       id,

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#ffffff" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Blanky</title>
+    <script>
+      // FullCalendar measures layout inside ResizeObserver. Browsers report that
+      // benign loop as an error event even though the calendar still renders.
+      window.addEventListener(
+        'error',
+        (event) => {
+          if (
+            event.message ===
+            'ResizeObserver loop completed with undelivered notifications.'
+          ) {
+            event.preventDefault()
+            event.stopImmediatePropagation()
+          }
+        },
+        true,
+      )
+    </script>
+    <script type="module" crossorigin src="/assets/index-CuV2mHry.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-hePW80VL.js">
+    <link rel="modulepreload" crossorigin href="/assets/react-vendor-CR5VJ85Q.js">
+    <link rel="modulepreload" crossorigin href="/assets/reading-icons-DsVCHPEl.js">
+    <link rel="modulepreload" crossorigin href="/assets/reading-icons-9cThO7U-.js">
+    <link rel="modulepreload" crossorigin href="/assets/reading-icons-DSFttk70.js">
+    <link rel="modulepreload" crossorigin href="/assets/reading-icons-CF2RjC3P.js">
+    <link rel="modulepreload" crossorigin href="/assets/book-open-CCNexM52.js">
+    <link rel="modulepreload" crossorigin href="/assets/plane-DLUeX9sH.js">
+    <link rel="modulepreload" crossorigin href="/assets/house-Qu9OFC6X.js">
+    <link rel="modulepreload" crossorigin href="/assets/star-CgN69Xo-.js">
+    <link rel="modulepreload" crossorigin href="/assets/icons-Dd8hrvzK.js">
+    <link rel="modulepreload" crossorigin href="/assets/calendar-days-BExOepHC.js">
+    <link rel="modulepreload" crossorigin href="/assets/triangle-alert-D85SDQUj.js">
+    <link rel="modulepreload" crossorigin href="/assets/x-BAVLONWC.js">
+    <link rel="modulepreload" crossorigin href="/assets/supabase-Bl13M3oS.js">
+    <link rel="modulepreload" crossorigin href="/assets/client-DqUqdrXe.js">
+    <link rel="modulepreload" crossorigin href="/assets/src-viuSB5-Q.js">
+    <link rel="modulepreload" crossorigin href="/assets/auth-BJ7I0arl.js">
+    <link rel="modulepreload" crossorigin href="/assets/date-DzNiC8Hd.js">
+    <link rel="modulepreload" crossorigin href="/assets/swatches-CuTLRQKa.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CHN6g4nG.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,0 +1,1 @@
+var e=[{name:`Blue`,hex:`#3A62B0`},{name:`Green`,hex:`#3C8664`},{name:`Orange`,hex:`#C27832`},{name:`Pink`,hex:`#C15E80`},{name:`Purple`,hex:`#6B5BD0`},{name:`Red`,hex:`#C25A54`},{name:`Gray`,hex:`#737373`}],t=e[0].hex;export{e as n,t};

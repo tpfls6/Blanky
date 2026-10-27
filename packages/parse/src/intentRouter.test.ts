@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { routeInput, PlannerRequiredError } from './intentRouter.ts'
-import { resolveParse } from './resolve.ts'
+import { resolveParse, resolveScheduleAnalysis } from './resolve.ts'
 import { parseScheduleText } from './parse.ts'
 import type { AIProvider } from './provider.ts'
 import { conversationIntent } from '../../../src/features/ai/conversation.ts'
@@ -68,7 +68,7 @@ test('API rejects Planner before invoking Edge Function and preserves schedule r
   let calls = 0
   const client = { functions: { async invoke(_name: string, { body }: { body: { text: string } }) {
     calls++
-    return { data: parseScheduleText(body.text, context), error: null }
+    return { data: await resolveScheduleAnalysis(body.text, context), error: null }
   } } } as unknown as SupabaseClient<Database>
   await assert.rejects(parseScheduleFromText(client, { text: '공부 계획 세워줘', timezone: 'Asia/Seoul' }), { code: 'PLANNER_REQUIRED' })
   assert.equal(calls, 0)

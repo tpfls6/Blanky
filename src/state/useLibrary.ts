@@ -10,6 +10,8 @@ export type LibraryValue = LibraryData & {
   diaryLoading: boolean
   commitWork: (before: import('../types/work.ts').WorkItem | null, after: import('../types/work.ts').WorkItem | null, source?: 'manual' | 'ai_chat') => Promise<import('../types/work.ts').WorkItem | null>
   workError: string
+  adoptPlannerSchedules: (rows: import('@blanky/types').Schedule[]) => void
+  refreshWork: () => Promise<void>
   saveCapture: (content: string, type: EntryType) => string | null
   addItem: (input: WorkInput) => void
   updateItem: (id: string, patch: WorkPatch) => void

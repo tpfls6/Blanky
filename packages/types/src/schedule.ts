@@ -20,11 +20,13 @@ export type ScheduleChangeAction = 'created' | 'updated' | 'completed' | 'delete
  * Times are local clock values (HH:mm). Dates are YYYY-MM-DD.
  */
 export type Schedule = {
+  plannerApprovalKey?: string | null
   kind?: 'event' | 'task'
   dueDate?: string | null
   endDate?: string | null
   allDay?: boolean
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
+  repeatDays?: number[]
   changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
 
   id: string
@@ -57,6 +59,7 @@ export type ScheduleDraft = {
   endDate?: string | null
   allDay?: boolean
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
+  repeatDays?: number[]
   changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
 
   calendarId?: string

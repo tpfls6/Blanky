@@ -10,7 +10,13 @@ export type Intent =
 
 /** Route commands; all date/time interpretation stays in the existing parser. */
 export function conversationIntent(text: string, items: WorkItem[], lastId: string | null, today: Date, categories: WorkspaceCategory[]): Intent {
-  if (routeInput(text).route === 'planner') return { type: 'reply', text: new PlannerRequiredError().message }
+  const route = routeInput(text)
+  if(route.route==='reschedule')return {type:'reply',text:'자동 재배치는 준비 중이에요. 기존 일정은 변경하지 않았어요.'}
+  if (route.route === 'planner') return { type: 'reply', text: new PlannerRequiredError().message }
+  if (route.route === 'ai') {
+    if (/(바꿔|변경|미뤄|수정해|완료해|완료 처리|삭제|지워|뭐 있어|보여|알려|조회)/.test(text)) return { type: 'reply', text: '여러 항목의 변경이나 조회는 각각 요청해 주세요. 복합 입력 분석은 새 일정과 할 일 추가를 지원해요.' }
+    return { type: 'create', text: text.replace(/\s*(?:추가해\s*줘|추가해줘|추가|등록해줘)\s*[.!?]?$/, '').trim() }
+  }
   const parsed = parseScheduleText(text, { today, categories })
   if (/(정리해|시간 찾아|추천|재배치)/.test(text)) return { type: 'reply', text: '자동 정리와 빈 시간 추천은 준비 중이에요. 일정 조회, 추가, 시간 변경, 할 일 완료를 도와드릴 수 있어요.' }
   if (/(뭐 있어|보여|알려|조회)/.test(text)) return { type: 'list', date: parsed.draft.date ?? '' }

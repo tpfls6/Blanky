@@ -1,3 +1,4 @@
+import { PlanningPreferences } from './PlanningPreferences.tsx'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router-dom'
@@ -14,6 +15,7 @@ import { NavSection } from './NavSection.tsx'
 import { Choice, ConfirmDialog, Section, SwitchRow } from './bits.tsx'
 
 const SECTIONS = [
+  { id: 'planning', label: 'AI Planner', description: '작업 시간과 개인화 추천을 설정합니다.', icon: Sparkles },
   { id: 'account', label: 'Account', description: '프로필과 로그인 정보를 관리합니다.', icon: User },
   { id: 'appearance', label: 'Appearance', description: '앱의 화면과 포인트 색상을 설정합니다.', icon: Palette },
   { id: 'navigation', label: 'Navigation', description: '사이드바 메뉴 순서와 표시를 바꿉니다.', icon: PanelLeft },
@@ -331,6 +333,8 @@ export function SettingsPage() {
         <CategorySection />
       </Section>
     )
+  } else if (id === 'planning') {
+    body = <Section><PlanningPreferences /></Section>
   } else if (id === 'input') {
     body = (
       <Section>

@@ -98,7 +98,8 @@ html.dark body {
 }
 
 .field:focus-visible,
-.composer textarea:focus-visible {
+.composer textarea:focus-visible,
+.composer-line input:focus-visible {
   outline: none;
 }
 
@@ -457,6 +458,7 @@ html.dark .switch-on {
 .slot-compact {
   min-height: 1.5rem;
 }
+
 
 .slot-default {
   min-height: 2.5rem;

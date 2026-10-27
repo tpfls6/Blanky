@@ -1,0 +1,60 @@
+try {
+  await send('Page.enable'); await send('Runtime.enable');
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: '(' + (() => {
+    if (!location.hostname || localStorage.getItem('timeline-seed')) return;
+    const id = '11111111-1111-4111-8111-111111111111';
+    const now = new Date();
+    const date = [now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+    localStorage.setItem('blanky.accounts.v1', JSON.stringify([{id,name:'Test',nickname:'Test',email:'test@example.test',password:'test-only',avatar:null}]));
+    localStorage.setItem('blanky.session.v1',id);
+    const common = {date,description:'',priority:'medium',status:'todo',dueDate:null,endDate:null,allDay:false,repeat:'none',categoryId:null};
+    const rows = [
+      ['long','event','근로','09:00','18:00'],
+      ['short1','event','수업 제목이 매우 길어지는 경우에도 단어를 읽을 수 있어야 합니다','09:00','10:00'],
+      ['short2','event','Overlapping meeting','09:00','10:00'],
+      ['short3','event','Another meeting','09:00','10:00'],
+      ['later','event','Later event','11:00','12:00'],
+      ['task1','task','First task','13:00','14:00'],
+      ['task2','task','Second task','14:00','15:00'],
+      ['alone','event','Standalone','19:00','20:00'],
+    ];
+    localStorage.setItem('blanky.library.'+id,JSON.stringify({categories:[],items:rows.map(([id,kind,title,startTime,endTime])=>({...common,id,kind,title,startTime,endTime,duration:(Number(endTime.slice(0,2))-Number(startTime.slice(0,2)))*60})),settings:{dayStartTime:'07:00',dayEndTime:'23:00'}}));
+    localStorage.setItem('timeline-seed','1');
+  }).toString()+')()' });
+  await navigate(base+'/schedule');
+  await wait('document.querySelectorAll("[data-timeline-id]").length===8','timeline');
+  const rect = id => evaluate(`(()=>{const r=document.querySelector('[data-timeline-id="${id}"]').getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}})()`);
+  const long = await rect('long'), short = await rect('short1'), later = await rect('later'), alone = await rect('alone');
+  assert.ok(later.width > short.width*2.5,'later event expands into free columns');
+  assert.ok(alone.width > long.width*3,'independent group uses full width');
+  assert.ok(Math.abs(long.height/short.height-9)<.01,'actual duration determines height');
+  assert.ok((await rect('task1')).x >= long.right,'task stays beside long event');
+  assert.equal((await rect('task1')).x,(await rect('task2')).x,'non-overlapping tasks reuse column');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".schedule-card-title")).wordBreak'),'keep-all');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-timeline-id=short1] .schedule-card-title")).webkitLineClamp'),'1');
+  // Increase density to test 2-3 line clamping without changing duration.
+  const checkNoCollisions = async () => assert.equal(await evaluate(`(()=>{const rows=[...document.querySelectorAll('[data-timeline-id]')].map(e=>({id:e.dataset.timelineId,r:e.getBoundingClientRect()}));return rows.every((a,i)=>rows.slice(i+1).every(b=>a.r.bottom<=b.r.top+.5||b.r.bottom<=a.r.top+.5||a.r.right<=b.r.left+.5||b.r.right<=a.r.left+.5))})()`),true);
+  await checkNoCollisions();
+  for (const width of [390,768,1440]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<700});await pause(150);
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=window.innerWidth+1'),true,'no page overflow '+width);
+    assert.ok(await evaluate('Math.min(...[...document.querySelectorAll("[data-timeline-id]")].map(e=>e.getBoundingClientRect().width))>=130'),'readable card width');
+    await checkNoCollisions();
+  }
+  await mkdir(resolve('.tmp/timeline-layout'),{recursive:true});
+  const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});await writeFile(resolve('.tmp/timeline-layout/desktop.png'),Buffer.from(shot.data,'base64'));
+  // Drop onto an existing card, keeping the original drag/drop behavior.
+  await evaluate(`(()=>{const grid=document.querySelector('.schedule-time-grid'),target=document.querySelector('[data-timeline-id=long] .schedule-card-title'),r=grid.getBoundingClientRect(),dt=new DataTransfer();dt.setData('text/plain','task1');target.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,clientY:r.top+5*44+10,dataTransfer:dt}));target.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,clientY:r.top+5*44+10,dataTransfer:dt}));})()`);
+  await wait(`JSON.parse(localStorage.getItem(${q(library)})).items.find(i=>i.id==='task1').startTime==='12:00'`,'drag saved');
+  await checkNoCollisions();
+  await evaluate(`document.querySelector('[data-timeline-id=short1] [role=slider]').focus()`);
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowDown',code:'ArrowDown'});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowDown',code:'ArrowDown'});
+  await wait(`JSON.parse(localStorage.getItem(${q(library)})).items.find(i=>i.id==='short1').endTime==='10:15'`,'resize saved');
+  assert.ok(Math.abs((await rect('short1')).height-55)<1);
+  await checkNoCollisions();
+  await evaluate(`document.querySelector('[data-timeline-id=task1] input')?.click()`);
+  await navigate(base+'/schedule');
+  await wait('document.querySelectorAll("[data-timeline-id]").length===8','reload');
+  assert.equal(errors.length,0,errors.join('\n'));
+  console.log('PASS: overlap groups, width expansion, long titles, checkbox rows, mobile/tablet/desktop bounds, drag and resize recalculate and persist.');

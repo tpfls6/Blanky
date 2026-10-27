@@ -1,8 +1,9 @@
 import { createScheduleRepository, type ScheduleRepository } from '@blanky/api'
-import { buildFeedback, parseScheduleText, routeInput, PlannerRequiredError, type ParsedSchedule } from '@blanky/parse'
+import { buildFeedback, resolveScheduleAnalysis, type ParsedSchedule } from '@blanky/parse'
+import { AnalysisError, type ScheduleAnalysis } from '@blanky/types'
 import type { WorkspaceCategory } from '../../types/work.ts'
 import type { ScheduleDraft } from '../../utils/scheduleDraft.ts'
-import { parseScheduleFromText } from '../ai/index.ts'
+import { analyzeScheduleFromText } from '../ai/index.ts'
 import { saveClassificationFeedback } from '../feedback/index.ts'
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase/client.ts'
 
@@ -62,32 +63,15 @@ export async function classifySchedule(
   categories: WorkspaceCategory[],
   today: Date,
 ): Promise<ScheduleDraft> {
-  if (routeInput(text).route === 'planner') throw new PlannerRequiredError()
-  const local = () => draftFromParsed(
-    parseScheduleText(text, {
-      today,
-      fallbackDate: selected,
-      categories: categories.map((item) => ({
-        id: item.id,
-        name: item.name,
-        parentId: item.parentId,
-      })),
-    }),
-    text,
-    selected,
-    categories,
-  )
-  if (!isSupabaseConfigured) return local()
-  try {
-    const remote = await parseScheduleFromText({
-      text,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul',
-    })
-    return draftFromParsed(remote, text, selected, categories)
-  } catch (error) {
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'PLANNER_REQUIRED') throw error
-    return local()
-  }
+  const result = await analyzeSchedules(text, categories, today)
+  if (result.items.length !== 1) throw new AnalysisError('MULTIPLE_ITEMS', '여러 항목이 분석되었어요. 항목별 확인 화면을 사용해 주세요.')
+  if (!result.items[0].draft.date) throw new AnalysisError('DATE_REQUIRED', '날짜를 확인한 후 저장해 주세요.')
+  return draftFromParsed(result.items[0], text, selected, categories)
+}
+
+export async function analyzeSchedules(text: string, categories: WorkspaceCategory[], today: Date): Promise<ScheduleAnalysis> {
+  if (!isSupabaseConfigured) return resolveScheduleAnalysis(text, { today, categories })
+  return analyzeScheduleFromText({ text, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul' })
 }
 
 export async function recordScheduleFeedback(draft: ScheduleDraft): Promise<void> {

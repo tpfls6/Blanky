@@ -19,7 +19,7 @@ import './reading.css';
 const ReadingErrorContext = createContext('');
 const empty: ReadingLibrary = { books: [], shelves: [], memberships: [] };
 const tags = (value: string) => [...new Set(value.split(/[,，#\s]+/).map(t => t.trim()).filter(Boolean))];
-const shelfColor = (name: string) => 'var(--blanky-colors-' + (name === 'textSecondary' ? 'text-secondary' : name) + ')';
+const shelfColor = (name: string) => /^#[0-9a-f]{6}$/i.test(name) ? name : 'var(--blanky-colors-' + (name === 'textSecondary' ? 'text-secondary' : name) + ')';
 function Cover({ book }: {
     book: BookMetadata;
 }) { const [failed, setFailed] = useState(false); return <div className="reading-book-cover" data-theme-slot="reading-book-cover">{book.cover_url && !failed ? <img draggable={false} src={book.cover_url} alt={book.title + ' 표지'} loading="lazy" onError={() => setFailed(true)}/> : <span>{book.title}</span>}</div>; }
@@ -115,8 +115,6 @@ function ReadingWorkspace({ userId, legacyBooks, legacyLogs }: {
  {data.shelves.map((s, index) => <div className={'reading-shelf' + (drag.target===s.id?' reading-drop-target':'') + (drag.active?.id===s.id?' reading-dragging':'')} data-theme-slot="reading-shelf" data-reading-shelf-id={s.id} key={s.id}>
  <button type="button" className="reading-drag-handle" disabled={busy} aria-label={s.name+' 책장 순서 변경'} title="드래그로 순서 변경 · 방향키로 이동" onPointerDown={e=>drag.start(e,{kind:'shelf',id:s.id,label:s.name})} onClick={drag.click} onKeyDown={e=>{if(e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();const next=index+(e.key==='ArrowUp'?-1:1);if(data.shelves[next])reorder(moveShelf(data.shelves,s.id,data.shelves[next].id).map(s=>s.id))}}}><GripVertical size={14}/></button>
  <button className={filter === s.id ? 'reading-nav selected' : 'reading-nav'} onClick={() => { setFilter(s.id); navigate('/reading'); }}><span style={{color:shelfColor(s.color)}}><ReadingIcon value={s.icon}/></span>{s.name}<span>{data.memberships.filter(m => m.shelf_id === s.id).length}</span></button><button className="reading-edit" aria-label={s.name + ' 책장 편집'} onClick={() => setShelfEditor(s)}>⋯</button></div>)}
- <p className="reading-muted reading-drag-hint">책장을 드래그해 순서를 바꾸세요.<br/>전체 탭의 책을 책장에 끌어다 놓을 수 있어요.</p>
- <button className="btn btn-ghost" onClick={() => setShelfEditor('new')}>+ 새 책장</button>
  {!data.shelves.length ? <p className="reading-muted">좋았던 책, 인생책, 개발…<br />원하는 책장을 만들어 보세요.</p> : null}
  </aside>
  <main className="reading-content">
@@ -145,7 +143,7 @@ function ShelfModal({ shelf, order, busy, close, save, remove }: {
     remove?: () => void;
 }) {
     const [draft, setDraft] = useState<ShelfInput>(shelf ?? { name: '', description: '', icon: '📚', color: 'primary', sort_order: order });
-    return <Modal title={shelf ? '책장 편집' : '새 책장'} close={close}><form className="reading-form" onSubmit={e => { e.preventDefault(); void save({ ...draft, name: draft.name.trim() }); }}><label>책장 이름<input required maxLength={100} className="field" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label><label>설명<textarea className="field" value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })}/></label><div><p className="reading-muted">아이콘</p><ReadingIconPicker value={draft.icon} onChange={icon=>setDraft({...draft,icon})}/></div><label>색상<select className="field" value={draft.color} onChange={e => setDraft({ ...draft, color: e.target.value })}><option value="primary">테마 기본색</option><option value="accent">테마 강조색</option><option value="textSecondary">테마 보조색</option></select></label><div className="reading-actions"><button className="btn btn-primary" disabled={busy || !draft.name.trim()}>{shelf ? '저장' : '만들기'}</button><button type="button" className="btn btn-ghost" onClick={close}>취소</button>{remove ? <button type="button" className="btn btn-ghost" onClick={remove}>책장 삭제</button> : null}</div></form></Modal>;
+    return <Modal title={shelf ? '책장 편집' : '새 책장'} close={close}><form className="reading-form" onSubmit={e => { e.preventDefault(); void save({ ...draft, name: draft.name.trim() }); }}><label>책장 이름<input required maxLength={100} className="field" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}/></label><label>설명<textarea className="field" value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })}/></label><div><p className="reading-muted">아이콘</p><ReadingIconPicker value={draft.icon} onChange={icon=>setDraft(current=>({...current,icon}))} color={draft.color} onColor={color=>setDraft(current=>({...current,color}))}/></div><div className="reading-actions"><button className="btn btn-primary" disabled={busy || !draft.name.trim()}>{shelf ? '저장' : '만들기'}</button><button type="button" className="btn btn-ghost" onClick={close}>취소</button>{remove ? <button type="button" className="btn btn-ghost" onClick={remove}>책장 삭제</button> : null}</div></form></Modal>;
 }
 function SearchModal({ repo, data, defaultShelf, close, add }: {
     repo: ReadingRepository;

@@ -1,6 +1,7 @@
 import { mergeCategories } from '../utils/mergeCategories.ts'
 import { getDiaryRecords, saveDiaryRecord, deleteDiaryRecord, hasSyncedDiary } from '../services/diary/index.ts'
-import { loadWork, saveWork, type Activity } from '../services/schedule/workStore.ts'
+import { loadWork, saveWork, workFromSchedule, type Activity } from '../services/schedule/workStore.ts'
+import type { Schedule } from '@blanky/types'
 import { getScheduleRepository } from '../services/schedule/index.ts'
 import { isSupabaseConfigured } from '../services/supabase/client.ts'
 import type { WorkItem } from '../types/work.ts'
@@ -252,7 +253,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       if (!userId || activeUser.current !== userId) throw new Error('로그인이 필요합니다.')
       let saved = after
       if (after) {
-        const normalized = createWorkItem(after)
+          const normalized = createWorkItem(after, { inferEndTime: source !== 'ai_chat' })
         if (!normalized) throw new Error('제목과 날짜를 확인해 주세요.')
         saved = { ...normalized, id: after.id, calendarId: after.calendarId ?? data.personalCalendar?.id, createdByUserId: after.createdByUserId ?? userId }
       }
@@ -279,6 +280,20 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     workQueue.current = operation
     return operation
   }, [userId, data.categories, data.personalCalendar?.id])
+
+  const adoptPlannerSchedules = useCallback((rows: Schedule[]) => {
+    if(!userId||activeUser.current!==userId||rows.some(row=>row.userId!==userId))throw new Error('로그인 사용자가 변경되었어요.')
+    const items=rows.map(workFromSchedule), ids=new Set(items.map(item=>item.id))
+    ids.forEach(id=>remoteIds.current.add(id))
+    setData(current=>({...current,items:[...current.items.filter(item=>!ids.has(item.id)),...items]}))
+  },[userId])
+  const refreshWork = useCallback(async()=>{
+    if(!userId||!isSupabaseConfigured)return
+    const remote=await loadWork()
+    if(activeUser.current!==userId)throw new Error('로그인 사용자가 변경되었어요.')
+    const ids=new Set(remote.items.map(item=>item.id));remoteIds.current=ids
+    setData(current=>({...current,items:[...current.items.filter(item=>(!item.calendarId||item.calendarId.startsWith('local-personal:'))&&!ids.has(item.id)),...remote.items],activities:remote.activities}))
+  },[userId])
 
   const remoteUser = useRef<string | null>(null)
   const settingsRef = useRef(data.settings)
@@ -681,6 +696,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     diaryError,
     diaryLoading,
     commitWork,
+    adoptPlannerSchedules,
+    refreshWork,
     workError,
     saveCapture,
     addItem,

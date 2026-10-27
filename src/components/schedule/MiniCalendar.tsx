@@ -1,19 +1,22 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { addDays, formatISODate, parseISODate, todayISO } from '../../utils/date.ts'
+import { occursOn } from '../../utils/work.ts'
+import type { WorkItem } from '../../types/work.ts'
 
 type MiniCalendarProps = {
   selected: string
   weekStartsOn: 0 | 1
   events: ReadonlySet<string>
   tasks: ReadonlySet<string>
+  items?: WorkItem[]
   onSelect: (iso: string) => void
 }
 
 const SUNDAY = ['일', '월', '화', '수', '목', '금', '토']
 const MONDAY = ['월', '화', '수', '목', '금', '토', '일']
 
-export function MiniCalendar({ selected, weekStartsOn, events, tasks, onSelect }: MiniCalendarProps) {
+export function MiniCalendar({ selected, weekStartsOn, events, tasks, items = [], onSelect }: MiniCalendarProps) {
   const [cursor, setCursor] = useState(() => selected.slice(0, 7))
   const labels = weekStartsOn === 1 ? MONDAY : SUNDAY
   const today = todayISO()
@@ -65,11 +68,13 @@ export function MiniCalendar({ selected, weekStartsOn, events, tasks, onSelect }
         {cells.map((cell) => {
           const active = cell.iso === selected
           const isToday = cell.iso === today
-          const hasEvent = events.has(cell.iso)
-          const hasTask = tasks.has(cell.iso)
+          const hasEvent = events.has(cell.iso) || items.some(item => item.kind === 'event' && occursOn(item, cell.iso))
+          const hasTask = tasks.has(cell.iso) || items.some(item => item.kind === 'task' && occursOn(item, cell.iso))
           return (
             <button
               key={cell.iso}
+              aria-label={cell.iso}
+              data-has-event={hasEvent}
               data-theme-slot={active ? "calendar-selected" : isToday ? "calendar-today" : "calendar-day"}
               data-selected={active}
               data-weekend={[0,6].includes(parseISODate(cell.iso).getDay())}

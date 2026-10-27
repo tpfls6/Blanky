@@ -6,11 +6,12 @@ import type { ParsedSchedule } from './model.ts'
 export function routeInput(text: string, parsed?: ParsedSchedule, threshold = PARSE_CONFIG.aiConfidenceThreshold): InputRoute {
   const input = text.trim()
   if (!input) throw new Error('입력 내용을 확인해주세요.')
-  if (/(계획\s*(?:을\s*)?(?:세워|짜|만들|수립|해)|플랜|일정\s*(?:을\s*)?짜|시간표\s*(?:를\s*)?(?:짜|만들)|추천|재배치|시간\s*찾아|일정.*정리해)/.test(input)) {
-    return { route: 'planner', reason: 'planning_request' }
+  if(/(재배치|다시\s*배치|일정.*(?:다시\s*짜|옮겨서\s*정리))/.test(input))return {route:'reschedule',intent:'RESCHEDULE',reason:'rescheduling_request'}
+  if (/(계획\s*(?:을\s*)?(?:세워|짜|만들|수립|해)|플랜|일정\s*(?:을\s*)?(?:알아서\s*)?짜|시간표\s*(?:를\s*)?(?:짜|만들)|추천|재배치|시간\s*찾아|일정.*정리해)/.test(input)) {
+    return { route: 'planner', intent: 'PLAN_TASKS', reason: 'planning_request' }
   }
   // A range/duration is one schedule; conjunctions, conditions and separate clauses are not.
-  if (/(그리고|그다음|그 다음|이후에|끝나면|끝나고|하고\s|한\s*후|\s후\s|전에\s|면\s|대신|지만|(?:회의|운동|공부|미팅|수업|병원|약속)(?:하고|랑|와|과)\s|[;\n]|[.!?]\s+\S|[,，].*(?:시|내일|모레|오늘|요일))/.test(input)) {
+  if (/(그리고|그다음|그 다음|이후에|끝나면|끝나고|하고(?=\s|\d|오전|오후)|\s및\s|한\s*후|\s후\s|전에\s|면\s|대신|지만|(?:회의|운동|공부|미팅|수업|병원|약속|작성|제출|조사|준비|하기)(?:하고|랑|와|과)\s|[;\n]|[.!?]\s+\S|[,，].*(?:시|내일|모레|오늘|요일))/.test(input)) {
     return { route: 'ai', reason: 'complex_sentence' }
   }
   return parsed && parsed.confidence < threshold

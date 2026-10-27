@@ -1,0 +1,10 @@
+export { scheduleTasks } from './engine.ts'
+export type { BusySchedule } from './engine.ts'
+export { schedulingSettings, validateSettings } from './settings.ts'
+export { tasksFromPlanningAnalysis } from './analysis.ts'
+export { createPlanningRecommendation } from './planner.ts'
+export type { PlannerDependencies } from './planner.ts'
+
+export { recommendUnits, unitsFromPlan, findPlannerConflicts } from './replanning.ts'
+export type { WorkUnit, ReplanContext } from './replanning.ts'
+export { planningPreferences } from './preferences.ts'

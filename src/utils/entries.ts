@@ -5,10 +5,12 @@ import { DEFAULT_SETTINGS } from '../types/records.ts'
 import { createWorkItem } from './work.ts'
 import { parseQuick } from './parseQuick.ts'
 import { formatISODate } from './date.ts'
+import { captureIntent } from './captureIntent.ts'
 
 export function guessType(content: string): ResolvedType {
   const text = content.trim()
-  if (/페이지|읽었|독서|완독/.test(text)) return 'reading'
+  const intent = captureIntent(text)
+  if (intent.type !== 'conversation') return intent.type
   if (/(?:예약|회의|약속)/.test(text) || /(?:오전|오후|저녁|밤)\s*\d{1,2}\s*시/.test(text)) return 'schedule'
   if (/까지/.test(text) && /(?:하기|제출|해야|과제)/.test(text)) return 'task'
   if (/아이디어|메모/.test(text)) return 'memo'

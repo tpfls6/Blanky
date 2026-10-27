@@ -1,5 +1,8 @@
-import { GoogleOriginBadge } from '../../components/schedule/GoogleOriginBadge.tsx'
+import { Link } from 'react-router-dom'
+import { usePlannerConflicts } from '../../features/ai/usePlannerConflicts.ts'
 import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from 'react'
+import { GoogleOriginBadge } from '../../components/schedule/GoogleOriginBadge.tsx'
+import { ScheduleTimeline } from '../../components/schedule/ScheduleTimeline.tsx'
 import { CategoryPicker } from '../../components/schedule/CategoryPicker.tsx'
 import { MiniCalendar } from '../../components/schedule/MiniCalendar.tsx'
 import { EmptyState } from '../../components/common/EmptyState.tsx'
@@ -7,7 +10,11 @@ import { TaskCheckbox } from '../../components/tasks/TaskCheckbox.tsx'
 import { IconView } from '../../constants/icons.ts'
 import { PageCanvas } from '../../features/pages/PageCanvas.tsx'
 import { resolveLayout, type PageBlock } from '../../features/pages/layout.ts'
-import { classifySchedule, recordScheduleFeedback } from '../../services/schedule/index.ts'
+import { analyzeSchedules, draftFromParsed, recordScheduleFeedback } from '../../services/schedule/index.ts'
+import { reviewedWorkInput } from '../../features/ai/review.ts'
+import { AnalysisReview } from '../../components/schedule/AnalysisReview.tsx'
+import { RepeatPicker } from '../../components/schedule/RepeatPicker.tsx'
+import type { ScheduleAnalysis } from '@blanky/types'
 import { taskNavKey } from '../../state/storage.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
@@ -16,13 +23,14 @@ import type { WorkItem, WorkspaceCategory } from '../../types/work.ts'
 import { koreanLongDate, shiftISO, todayISO } from '../../utils/date.ts'
 import { selfCheckScheduleDraft, type ScheduleDraft } from '../../utils/scheduleDraft.ts'
 import { categoryPath, createWorkItem, hourOf, occursOn, placedTimes } from '../../utils/work.ts'
+import { timelineRange } from '../../utils/scheduleTimeline.ts'
 
 selfCheckScheduleDraft()
 
-const SLOT: Record<TimelineDensity, string> = {
-  compact: 'slot-compact',
-  default: 'slot-default',
-  comfortable: 'slot-comfortable',
+const SLOT: Record<TimelineDensity, number> = {
+  compact: 32,
+  default: 44,
+  comfortable: 60,
 }
 
 function hourRange(start: string, end: string): string[] {
@@ -40,6 +48,7 @@ function eventDates(items: WorkItem[]): Set<string> {
   const dates = new Set<string>()
   for (const item of items) {
     if (item.kind !== 'event') continue
+    if (item.repeat && item.repeat !== 'none') continue // Calendar computes actual recurring occurrences per cell.
     let date = item.date
     const end = item.endDate && item.endDate >= item.date ? item.endDate : item.date
     dates.add(date)
@@ -55,7 +64,7 @@ function taskDates(items: WorkItem[]): Set<string> {
   const dates = new Set<string>()
   for (const item of items) {
     if (item.kind !== 'task') continue
-    dates.add(item.date)
+    if (!item.repeat || item.repeat === 'none') dates.add(item.date)
     if (item.dueDate) dates.add(item.dueDate)
   }
   return dates
@@ -75,6 +84,8 @@ function draftFromItem(item: WorkItem): ScheduleDraft {
     categoryId: item.categoryId,
     description: item.description,
     status: item.status,
+    repeat: item.repeat,
+    repeatDays: item.repeatDays,
   }
 }
 
@@ -101,7 +112,8 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
   const [draft, setDraft] = useState<ScheduleDraft | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [overHour, setOverHour] = useState<string | null>(null)
+  const [analysis, setAnalysis] = useState<{ id: string; result: ScheduleAnalysis; input: string } | null>(null)
+  const [analysisError, setAnalysisError] = useState('')
   const draftOpen = draft !== null
 
   useEffect(() => {
@@ -121,16 +133,24 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
 
   const onDay = library.items.filter((item) => occursOn(item, selected))
   const timed = onDay.filter((item) => item.kind === 'event' || item.startTime).sort(byTime)
+  const timeLines = timed.flatMap(item => {
+    const range = timelineRange(item, selected)
+    return range ? [{ item, ...range }] : []
+  })
   const allTasks = library.items.filter((item) => item.kind === 'task' && (showDone || item.status !== 'done'))
-  const hours = useMemo(() => {
+  const hours = (() => {
     const ranged = hourRange(library.settings.dayStartTime, library.settings.dayEndTime)
-    const extra = timed.flatMap((item) => {
-      const hour = item.startTime ? hourOf(item.startTime) : null
-      return hour ? [hour] : []
-    })
-    return [...new Set([...ranged, ...extra])].sort()
-  }, [library.settings.dayStartTime, library.settings.dayEndTime, timed])
-  const slotClass = SLOT[library.settings.timelineDensity]
+    const extra = [
+      ...timeLines.flatMap(({ start, end }) => Array.from({ length: Math.ceil(end / 60) - Math.floor(start / 60) }, (_, index) => `${String(Math.floor(start / 60) + index).padStart(2, '0')}:00`)),
+      ...timed.flatMap(item => {
+        const hour = item.startTime ? hourOf(item.startTime) : null
+        return hour ? [hour] : []
+      }),
+    ]
+    const sorted = [...new Set([...ranged, ...extra])].sort()
+    return hourRange(sorted[0], sorted[sorted.length - 1])
+  })()
+  const slotHeight = SLOT[library.settings.timelineDensity]
 
   useEffect(() => {
     localStorage.setItem(taskNavKey(userId), JSON.stringify(nav))
@@ -160,20 +180,26 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
     const trimmed = text.trim()
     if (!trimmed || busy) return
     setBusy(true)
-    void classifySchedule(trimmed, selected, library.categories, new Date())
-      .then((next) => {
-        setText('')
-        if (library.settings.autoSaveAfterClassify) {
-          const saved = saveDraft(next)
-          if (saved) library.addItem(saved)
-          void recordScheduleFeedback(next)
+    setAnalysisError('')
+    void analyzeSchedules(trimmed, library.categories, new Date())
+      .then(async (result) => {
+        if (library.settings.autoSaveAfterClassify && result.route === 'parser' && result.items.length === 1 && result.items[0].uncertainties.length === 0 && !result.items[0].id.startsWith('weekly-')) {
+          const entry = result.items[0]
+          const input = reviewedWorkInput(entry, entry.draft, false, library.categories.map(category => category.id))
+          const item = createWorkItem(input, { inferEndTime: false })
+          if (!item || !await library.commitWork(null, item, 'ai_chat')) throw new Error('저장하지 못했어요. 다시 시도해 주세요.')
+          void recordScheduleFeedback(draftFromParsed(entry, trimmed, selected, library.categories))
+          setText('')
           setDraft(null)
-          setReviewOpen(false)
+          setAnalysis(null)
           return
         }
-        setDraft(next)
+        setText('')
+        setDraft(null)
+        setAnalysis({ id: crypto.randomUUID(), result, input: trimmed })
         setReviewOpen(false)
       })
+      .catch(error => setAnalysisError(error instanceof Error ? error.message : '분석하지 못했어요. 저장하지 않았으니 다시 시도해 주세요.'))
       .finally(() => setBusy(false))
   }
 
@@ -195,7 +221,6 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
 
   const takeDrop = (event: DragEvent, hour: string) => {
     event.preventDefault()
-    setOverHour(null)
     const id = event.dataTransfer.getData('text/plain')
     if (id) assignAt(id, hour)
   }
@@ -242,10 +267,16 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-300"
             />
             <span className="shrink-0 text-xs text-neutral-400">자동 분류</span>
+            <button type="button" className="btn btn-ghost shrink-0" onClick={() => { setAnalysis(null); setDraft(draftFromParsed({type:'event',source:'rule',confidence:1,draft:{title:'',date:selected,startTime:null,endTime:null,dueDate:null,endDate:null,categoryId:null}},'',selected,library.categories)); setReviewOpen(true) }}>직접 추가</button>
             <button data-theme-slot="button-primary" type="submit" className="btn btn-primary shrink-0 px-3" disabled={busy || !text.trim()}>
               {busy ? '분류' : '전송'}
             </button>
           </form>
+          {analysisError && <p role="alert" className="mt-2 text-sm text-red-600">{analysisError}</p>}
+          {analysis && <AnalysisReview key={analysis.id} analysis={analysis.result} originalText={analysis.input} categories={library.categories} onClose={() => setAnalysis(null)} onSave={async input => {
+            const item = createWorkItem(input, { inferEndTime: false })
+            return item ? library.commitWork(null, item, 'ai_chat') : null
+          }}/>}
           {draft ? (
             <div className="absolute top-full right-0 z-30 mt-1 w-full max-w-xl rounded-md border border-line bg-surface shadow-lg">
               <div className="flex items-center gap-2 px-3 py-2">
@@ -304,33 +335,13 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
                   <PlanRow item={item} categories={library.categories} draggable={!editing} onOpen={open} onToggle={library.toggleItem} />
                 </li>
               ))}
-            {hours.map((hour) => {
-              const slot = timed.filter((item) => item.startTime && hourOf(item.startTime) === hour)
-              return (
-                <li
-                  key={hour}
-                  onDragOver={(event) => {
-                    if (editing) return
-                    event.preventDefault()
-                    event.dataTransfer.dropEffect = 'move'
-                    setOverHour(hour)
-                  }}
-                  onDragLeave={() => setOverHour((current) => (current === hour ? null : current))}
-                  onDrop={(event) => {
-                    if (!editing) takeDrop(event, hour)
-                  }}
-                  className={['grid grid-cols-[3.25rem_minmax(0,1fr)] gap-2 border-t border-line transition-colors duration-150', overHour === hour ? 'bg-accent-light' : ''].join(' ')}
-                >
-                  <time className="pt-2 text-xs tabular-nums text-neutral-400">{hour}</time>
-                  <div className={`${slotClass} py-1`}>
-                    {slot.map((item) => (
-                      <PlanRow key={item.id} item={item} categories={library.categories} draggable={!editing} onOpen={open} onToggle={library.toggleItem} />
-                    ))}
-                  </div>
-                </li>
-              )
-            })}
           </ul>
+          <ScheduleTimeline items={timed} categories={library.categories} day={selected} hours={hours} hourHeight={slotHeight} editing={editing}
+            onOpen={open} onToggle={library.toggleItem} onDropHour={takeDrop}
+            onResize={(item, end) => {
+              const start = Number(item.startTime!.slice(0, 2)) * 60 + Number(item.startTime!.slice(3, 5))
+              library.updateItem(item.id, { endTime: end === 1440 ? '00:00' : `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`, duration: end - start, endDate: end === 1440 ? shiftISO(selected, 1) : item.endDate })
+            }} />
         </div>
       )
     }
@@ -365,6 +376,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
     if (block.type === 'calendar') {
       return (
         <MiniCalendar
+          items={library.items}
           selected={selected}
           weekStartsOn={library.settings.weekStartsOn}
           events={events}
@@ -404,7 +416,8 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
 }
 
 export function SchedulePage() {
-  return <DailyBoard />
+  const library=useLibrary(),{conflicts,error}=usePlannerConflicts(library.items)
+  return <div className="flex min-h-0 flex-1 flex-col">{(conflicts.length>0||error)&&<div role="status" className="mx-6 mt-4 rounded-md border border-line bg-surface p-3 text-sm text-blue-600">{error||('AI 일정 '+conflicts.length+'개가 다른 일정과 겹쳐요. 직접 만든 일정은 유지됩니다.')}<Link className="ml-2 underline" to="/">Home에서 재배치 확인</Link></div>}<DailyBoard /></div>
 }
 
 function reviewLine(draft: ScheduleDraft, categories: WorkspaceCategory[]): string {
@@ -414,7 +427,7 @@ function reviewLine(draft: ScheduleDraft, categories: WorkspaceCategory[]): stri
   return `${kind} · ${time} · ${project} · ${draft.title || '제목 없음'}`
 }
 
-function saveDraft(draft: ScheduleDraft): Omit<WorkItem, 'id' | 'priority' | 'repeat'> | null {
+function saveDraft(draft: ScheduleDraft): Omit<WorkItem, 'id' | 'priority'> | null {
   const created = createWorkItem({
     kind: draft.kind,
     title: draft.title,
@@ -428,10 +441,11 @@ function saveDraft(draft: ScheduleDraft): Omit<WorkItem, 'id' | 'priority' | 're
     categoryId: draft.categoryId,
     allDay: draft.kind === 'event' && !draft.startTime,
     status: draft.kind === 'task' ? draft.status : 'todo',
+    repeat: draft.repeat ?? 'none',
+    repeatDays: draft.repeatDays,
   })
   if (!created) return null
-  const { id: _id, priority: _priority, repeat: _repeat, ...rest } = created
-  return rest
+  return {kind:created.kind,title:created.title,description:created.description,date:created.date,startTime:created.startTime,endTime:created.endTime,duration:created.duration,categoryId:created.categoryId,status:created.status,dueDate:created.dueDate,endDate:created.endDate,allDay:created.allDay,calendarId:created.calendarId,createdByUserId:created.createdByUserId,repeat:created.repeat,repeatDays:created.repeatDays}
 }
 
 type TaskNav = { filter: string; showDone: boolean; open: Record<string, boolean> }
@@ -576,12 +590,16 @@ function PlanRow({
   draggable,
   onOpen,
   onToggle,
+  timeline = false,
+  rowHeight,
 }: {
   item: WorkItem
   categories: { id: string; name: string; parentId: string | null; color?: string | null }[]
   draggable: boolean
   onOpen: (item: WorkItem) => void
   onToggle: (id: string) => void
+  timeline?: boolean
+  rowHeight?: number
 }) {
   const path = categoryPath(item.categoryId, categories)
   const color = categories.find(category => category.id === item.categoryId)?.color
@@ -601,15 +619,16 @@ function PlanRow({
           <TaskCheckbox checked={done} label={`${item.title} 완료`} onChange={() => onToggle(item.id)} />
         </span>
       ) : null}
-      <button data-theme-slot="button" type="button" draggable={draggable} onClick={() => onOpen(item)} className={draggable ? "min-w-0 flex-1 cursor-grab select-none py-0.5 text-left active:cursor-grabbing" : "min-w-0 flex-1 py-0.5 text-left"}>
+      <button data-theme-slot="button" type="button" style={rowHeight ? { height: `min(100%, ${rowHeight}px)` } : undefined} title={`${item.title} · ${spanLabel(item)}${path ? ` · ${path}` : ''}`} draggable={draggable} onClick={() => onOpen(item)} className={draggable ? "min-w-0 flex-1 cursor-grab select-none py-0.5 text-left active:cursor-grabbing" : "min-w-0 flex-1 py-0.5 text-left"}>
         <span data-theme-slot="schedule-title" className={done ? 'block text-sm text-neutral-400 line-through' : 'block text-sm text-neutral-900'}>
-          {item.title}<GoogleOriginBadge item={item} />
+          {item.title}
+          <GoogleOriginBadge item={item} />
         </span>
         <span data-theme-slot="schedule-time" className="mt-1 block text-xs text-neutral-400">
           {spanLabel(item)}
-          {item.kind === 'event' ? ' · 일정' : ' · 할 일'}
-          {item.endDate ? ` · ${item.date}–${item.endDate}` : ''}
-          {path ? ` · ${path}` : ''}
+          {!timeline && (item.kind === 'event' ? ' · 일정' : ' · 할 일')}
+          {!timeline && item.endDate ? ` · ${item.date}–${item.endDate}` : ''}
+          {!timeline && path ? ` · ${path}` : ''}
         </span>
       </button>
     </div>
@@ -792,7 +811,8 @@ function TaskRow({
       <div className="min-w-0 flex-1">
         <button data-theme-slot="button" type="button" draggable={assignable} onClick={() => onOpen(item)} className={assignable ? "block w-full cursor-grab select-none text-left active:cursor-grabbing" : "block w-full text-left"}>
           <span className={done ? 'block truncate text-sm text-neutral-400 line-through' : 'block truncate text-sm text-neutral-900'}>
-            {item.title}<GoogleOriginBadge item={item} />
+            {item.title}
+            <GoogleOriginBadge item={item} />
           </span>
         </button>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -827,7 +847,7 @@ function DraftEditor({
   onDelete?: () => void
   bare?: boolean
 }) {
-  const set = (patch: Partial<ScheduleDraft>) => onChange({ ...draft, ...patch })
+  const set = (patch: Partial<ScheduleDraft>) => onChange({ ...draft, ...patch, ...('startTime' in patch || 'endTime' in patch ? { duration: '' } : {}) })
   const [error, setError] = useState('')
   const task = draft.kind === 'task'
 
@@ -909,6 +929,7 @@ function DraftEditor({
           설명
           <textarea data-theme-slot="input" value={draft.description} onChange={(event) => set({ description: event.target.value })} className="field mt-1 min-h-16 w-full resize-y" />
         </label>
+        {!task && <RepeatPicker repeat={draft.repeat ?? 'none'} days={draft.repeatDays} date={draft.date} onChange={(repeat, repeatDays) => set({ repeat, repeatDays })}/>}
       </div>
       {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
       {bare ? (

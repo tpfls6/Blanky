@@ -408,6 +408,12 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 [functions.parse-schedule]
 verify_jwt = true
 
+[functions.plan-tasks]
+verify_jwt = true
+
+[functions.approve-plan]
+verify_jwt = true
+
 [experimental.pgdelta]
 enabled = true
 # Directory under `supabase/` where declarative files are written.
@@ -425,3 +431,9 @@ verify_jwt = true
 
 [functions.google-calendar-oauth]
 verify_jwt = false
+
+[functions.replan-tasks]
+verify_jwt = true
+
+[functions.planner-draft]
+verify_jwt = true

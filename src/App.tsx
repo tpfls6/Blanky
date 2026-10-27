@@ -1,19 +1,27 @@
+import { RouteLoadBoundary } from './components/common/RouteLoadBoundary.tsx'
+import { lazy, Suspense } from 'react'
 import { ConfirmProvider } from './state/ConfirmProvider.tsx'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout.tsx'
 import { ROUTES } from './constants/routes.ts'
-import { ForgotPage, LoginPage, SignupPage } from './pages/Auth/AuthPages.tsx'
-import { DiaryPage } from './pages/Diary/DiaryPage.tsx'
-import { ActivityPage } from './pages/Activity/ActivityPage.tsx'
-import { HomePage } from './pages/Home/HomePage.tsx'
-import { MemoPage } from './pages/Memo/MemoPage.tsx'
-import { ReadingPage } from './pages/Reading/ReadingPage.tsx'
-import { RecordPage } from './pages/Records/RecordPage.tsx'
-import { SchedulePage } from './pages/Schedule/SchedulePage.tsx'
-import { CustomPage } from './pages/Custom/CustomPage.tsx'
-import { SettingsPage } from './pages/Settings/SettingsPage.tsx'
+const ForgotPage=lazy(()=>import('./pages/Auth/AuthPages.tsx').then(module=>({default:module.ForgotPage})))
+const LoginPage=lazy(()=>import('./pages/Auth/AuthPages.tsx').then(module=>({default:module.LoginPage})))
+const SignupPage=lazy(()=>import('./pages/Auth/AuthPages.tsx').then(module=>({default:module.SignupPage})))
+const DiaryPage = lazy(()=>import('./pages/Diary/DiaryPage.tsx').then(module=>({default:module.DiaryPage})))
+const ActivityPage = lazy(()=>import('./pages/Activity/ActivityPage.tsx').then(module=>({default:module.ActivityPage})))
+const HomePage = lazy(()=>import('./pages/Home/HomePage.tsx').then(module=>({default:module.HomePage})))
+const MemoPage = lazy(()=>import('./pages/Memo/MemoPage.tsx').then(module=>({default:module.MemoPage})))
+const ReadingPage = lazy(()=>import('./pages/Reading/ReadingPage.tsx').then(module=>({default:module.ReadingPage})))
+const RecordPage = lazy(()=>import('./pages/Records/RecordPage.tsx').then(module=>({default:module.RecordPage})))
+const SchedulePage = lazy(()=>import('./pages/Schedule/SchedulePage.tsx').then(module=>({default:module.SchedulePage})))
+const CustomPage = lazy(()=>import('./pages/Custom/CustomPage.tsx').then(module=>({default:module.CustomPage})))
+const SettingsPage = lazy(()=>import('./pages/Settings/SettingsPage.tsx').then(module=>({default:module.SettingsPage})))
 import { ThemeProvider } from './theme/ThemeProvider.tsx'
-import { StorePage, ThemeDetailPage, MyThemesPage, ThemeEditorPage, CreatorPage } from './pages/Themes/ThemePages.tsx'
+const StorePage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.StorePage})))
+const ThemeDetailPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.ThemeDetailPage})))
+const MyThemesPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.MyThemesPage})))
+const ThemeEditorPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.ThemeEditorPage})))
+const CreatorPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.CreatorPage})))
 import { LibraryProvider } from './state/library.tsx'
 import { SessionProvider } from './state/session.tsx'
 import { useSession } from './state/useSession.ts'
@@ -70,7 +78,7 @@ export default function App() {
     <BrowserRouter>
       <SessionProvider>
         <LibraryProvider>
-          <ThemeProvider><ConfirmProvider><AppRoutes /></ConfirmProvider></ThemeProvider>
+          <ThemeProvider><ConfirmProvider><RouteLoadBoundary><Suspense fallback={<p role="status" className="p-6 text-sm text-neutral-500">화면을 불러오고 있어요…</p>}><AppRoutes /></Suspense></RouteLoadBoundary></ConfirmProvider></ThemeProvider>
         </LibraryProvider>
       </SessionProvider>
     </BrowserRouter>
