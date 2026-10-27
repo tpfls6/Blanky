@@ -890,24 +890,27 @@ function DraftEditor({
             <input data-theme-slot="input" type="date" value={draft.endDate} onChange={(event) => set({ endDate: event.target.value })} className="field mt-1 w-full" />
           </label>
         )}
-        <div className="text-xs text-neutral-500">
-          <span className="flex items-center gap-2">
-            {task ? '시간' : '시작'}
-            {!task ? (
-              <button data-theme-slot="button" type="button" className={!draft.startTime ? 'chip chip-on' : 'chip'} aria-pressed={!draft.startTime} onClick={() => set({ startTime: '', endTime: '' })}>
-                종일
-              </button>
-            ) : null}
-          </span>
-          <label>
-            <span className="sr-only">{task ? '시간' : '시작'}</span>
-            <input data-theme-slot="input" type="time" value={draft.startTime} onChange={(event) => set({ startTime: event.target.value })} className="field mt-1 w-full" />
-          </label>
-        </div>
-        <label className="text-xs text-neutral-500">
-          {task ? '종료 시간' : '종료'}
-          <input data-theme-slot="input" type="time" value={draft.endTime} onChange={(event) => set({ endTime: event.target.value })} className="field mt-1 w-full" />
-        </label>
+        {!task ? (
+          <div className="sm:col-span-2 text-xs text-neutral-500">
+            시간
+            <div className="mt-1 grid grid-cols-2 gap-2" role="radiogroup" aria-label="시간">
+              <button data-theme-slot="button" type="button" role="radio" className={draft.startTime ? 'field choice-on text-center' : 'field text-center text-neutral-400'} aria-checked={Boolean(draft.startTime)} onClick={() => { if (!draft.startTime) set({ startTime: '09:00', endTime: '10:00' }) }}>시각</button>
+              <button data-theme-slot="button" type="button" role="radio" className={!draft.startTime ? 'field choice-on text-center' : 'field text-center text-neutral-400'} aria-checked={!draft.startTime} onClick={() => set({ startTime: '', endTime: '' })}>종일</button>
+            </div>
+          </div>
+        ) : null}
+        {task || draft.startTime ? (
+          <>
+            <label className="text-xs text-neutral-500">
+              {task ? '시간' : '시작'}
+              <input data-theme-slot="input" type="time" value={draft.startTime} onChange={(event) => set({ startTime: event.target.value })} className="field mt-1 w-full" />
+            </label>
+            <label className="text-xs text-neutral-500">
+              {task ? '종료 시간' : '종료'}
+              <input data-theme-slot="input" type="time" value={draft.endTime} onChange={(event) => set({ endTime: event.target.value })} className="field mt-1 w-full" />
+            </label>
+          </>
+        ) : null}
         {task ? (
           <label className="text-xs text-neutral-500">
             예상 소요 (분)
