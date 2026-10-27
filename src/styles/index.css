@@ -971,3 +971,25 @@ html.dark .border-neutral-300 {
     animation: none;
   }
 }
+
+.theme-kind-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 32px; }
+.theme-kind-card { text-align: left; border: 1px solid var(--line); border-radius: 16px; padding: 20px; background: var(--surface); }
+.theme-kind-card:hover { border-color: #c4c4c4; }
+.theme-kind-card strong { display: block; margin-top: 12px; }
+.theme-kind-card p { margin-top: 6px; font-size: 13px; color: #737373; }
+.theme-kind-swatch { display: block; height: 88px; border-radius: 12px; }
+.kind-color { background: linear-gradient(135deg, #f6f6f5, #3a62b0 60%, #c15e80); }
+.kind-pattern { background-color: #f6f6f5; background-image: radial-gradient(#c4c4c4 1.2px, transparent 1.3px); background-size: 14px 14px; }
+.kind-character { background: linear-gradient(#fff8fb, #fce8f0); }
+.theme-wizard-steps { display: flex; gap: 16px; margin-top: 20px; }
+.theme-preset-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.theme-preview.preview-mobile { width: min(100%, 360px); margin-inline: auto; grid-template-columns: 1fr; }
+.theme-preview.preview-mobile .theme-sidebar { display: none; }
+.theme-preview-header { display: flex; justify-content: space-between; align-items: baseline; position: relative; }
+[data-theme-slot="page-header"] > *,
+[data-theme-slot="card"] > *,
+[data-theme-slot="schedule-card"] > *,
+[data-theme-slot="task-card"] > * { position: relative; z-index: 1; }
+@media (max-width: 800px) {
+  .theme-kind-grid { grid-template-columns: 1fr; }
+}

@@ -66,6 +66,10 @@ try {
   const tree=React.createElement(MemoryRouter,{initialEntries:[route]},React.createElement(SessionContext.Provider,{value:{user}},React.createElement(ThemeContext.Provider,{value},React.createElement(Routes,null,React.createElement(Route,{path:pattern,element:React.createElement(Component)})))))
   const html=renderToString(React.createElement(ConfirmContext.Provider,{value:async()=>true},tree))
   assert.ok(html.includes('테마')||html.includes('Blanky Default'),route)
+  if (route === '/customize/theme') {
+    assert.ok(html.includes('Color') && html.includes('Pattern') && html.includes('Character'), 'type cards')
+    assert.ok(!html.includes('사이드바 상단'), 'character slots hidden until type is chosen')
+  }
   console.log('PASS render '+route)
  }
  console.log('PASS local theme save, ownership, install, apply, preview isolation, paid guard, deletion')

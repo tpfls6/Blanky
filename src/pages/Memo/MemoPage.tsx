@@ -61,7 +61,7 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
   const page = (
     <div className="memo-layout grid w-full gap-8 md:grid-cols-[260px_minmax(0,1fr)]">
       <div className={selected ? 'hidden md:block' : 'block'}>
-        <div className="flex items-center justify-between">
+        <div data-theme-slot="page-header" className="flex items-center justify-between">
           <h1 className="text-2xl font-medium tracking-tight">{heading}</h1>
           <button data-theme-slot="button-primary"
             type="button"

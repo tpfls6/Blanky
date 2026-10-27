@@ -1,4 +1,5 @@
 import { normalizeThemeConfig, type ThemeConfig } from '../../../packages/types/src/theme.ts';
+import { THEME_KINDS, type ThemeKind } from '../../../packages/types/src/themeSlots.ts';
 import { THEME_ICON_KEYS, type ThemeManifest, type ThemePackage, type ThemeFile } from '../../../packages/types/src/themePackage.ts';
 import { LIMITS, decoder, encoder, safePath, toBase64, fromBase64, packageError } from './limits.ts';
 import { sanitizeSvg, sanitizeCss } from './ThemeSanitizer.ts';
@@ -41,7 +42,8 @@ export function validateManifest(v: unknown): ThemeManifest {
                 if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > (field === 'size' ? 200 : 100)) packageError('Invalid image setting range');
             }
             if (!['cover', 'contain', 'repeat'].includes(String(settings.fit))) packageError('Invalid image fit');
-            imageSettings[key] = { size: settings.size as number, x: settings.x as number, y: settings.y as number, opacity: settings.opacity as number, fit: settings.fit as 'cover' | 'contain' | 'repeat', ...(settings.fileName ? { fileName: text(settings.fileName, 255) } : {}) };
+            if (settings.visible !== undefined && typeof settings.visible !== 'boolean') packageError('Invalid image visibility');
+            imageSettings[key] = { size: settings.size as number, x: settings.x as number, y: settings.y as number, opacity: settings.opacity as number, fit: settings.fit as 'cover' | 'contain' | 'repeat', ...(settings.fileName ? { fileName: text(settings.fileName, 255) } : {}), ...(settings.visible === false ? { visible: false } : {}) };
         }
     }
     const previews = v.previews ?? [];
@@ -50,7 +52,8 @@ export function validateManifest(v: unknown): ThemeManifest {
     const fonts = mapping(v.fonts);
     if (Object.keys(fonts).some(k => !['body', 'heading'].includes(k)))
         packageError('폰트 mapping이 올바르지 않습니다.');
-    return { formatVersion: 1, id, name, description: text(v.description ?? '', 2000), author: text(v.author, 100), version, entry: { theme, ...(stylesheet ? { stylesheet } : {}) }, assets, ...(Object.keys(imageSettings).length ? { imageSettings } : {}), iconPack: icons, previews: previews.map(p => safePath(text(p, 200))), ...(Object.keys(fonts).length ? { fonts } : {}) };
+    const kind = v.kind === undefined ? undefined : THEME_KINDS.includes(v.kind as ThemeKind) ? v.kind as ThemeKind : packageError('잘못된 테마 유형입니다.');
+    return { formatVersion: 1, id, name, description: text(v.description ?? '', 2000), author: text(v.author, 100), version, entry: { theme, ...(stylesheet ? { stylesheet } : {}) }, assets, ...(kind ? { kind } : {}), ...(Object.keys(imageSettings).length ? { imageSettings } : {}), iconPack: icons, previews: previews.map(p => safePath(text(p, 200))), ...(Object.keys(fonts).length ? { fonts } : {}) };
 }
 export function validateConfig(v: unknown): ThemeConfig {
     if (!record(v) || !record(v.colors))
@@ -58,9 +61,9 @@ export function validateConfig(v: unknown): ThemeConfig {
     const normalized = normalizeThemeConfig(v);
     for (const [group, target] of Object.entries(normalized)) {
         const source = v[group];
-        if (group === 'iconPack') {
+        if (group === 'iconPack' || group === 'mode') {
             if (source !== undefined && source !== target)
-                packageError('잘못된 기본 아이콘 스타일입니다.');
+                packageError(group === 'mode' ? '잘못된 테마 모드입니다.' : '잘못된 기본 아이콘 스타일입니다.');
             continue;
         }
         if (source !== undefined && !record(source))

@@ -77,6 +77,8 @@ export {
 
 export * from './theme.ts'
 
+export * from './themeSlots.ts'
+
 export * from './reading.ts'
 
 export * from './themePackage.ts';

@@ -1,0 +1,9 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T06:51:00Z	start	figure-it-out run for Color/Pattern/Character theme editor	user asked for a Kakao-style slot editor on the existing Blanky theme system	agent 8d528d06-635a-4c68-b5d1-e4af05abf9cb	open
+2026-10-27T07:05:00Z	frame	keep ThemePackage format v1 and add kind plus decoration slots	rewriting storage would break stored themes and the store	packages/types/src/themePackage.ts:L1 packages/types/src/theme.ts:L3	open
+2026-10-27T07:06:00Z	harness	ran existing theme package tests before edits	need a green baseline so later failures are from this change	npm run test:theme-packages	tests green 25/25
+2026-10-27T07:07:00Z	design	skip arena because the package format and the 7 slots are already specified	a second design bakeoff would redraw a settled contract	THEME_PACKAGE_IMPLEMENTATION.md	open
+2026-10-27T07:20:00Z	domain	added ThemeKind, decoration slots, aliases, prune-on-kind-change	keep format v1 and make illegal type/slot mixes harder	packages/types/src/themeSlots.ts src/theme/package/slots.ts	tests green
+2026-10-27T07:25:00Z	runtime	layered wallpaper+pattern and pointer-events-none decorations	old background/character keys still apply, new slots do not steal clicks	src/theme/package/runtimeCss.ts tests/themePackage.test.ts	tests green 31/31
+2026-10-27T07:30:00Z	ui	replaced the tab dump with type cards plus type-gated groups	users should only see the settings their kind needs	src/pages/Themes/ThemeEditor.tsx scripts/theme-smoke.mjs	SSR type cards VERIFIED
+2026-10-27T07:32:00Z	verify	logged-in browser editor blocked at login	no credentials in this run	http://localhost:5174/login	INCONCLUSIVE live apply

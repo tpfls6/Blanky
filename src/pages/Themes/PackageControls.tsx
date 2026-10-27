@@ -8,7 +8,7 @@ import { hydrateThemePackage, readThemeStorage } from '../../services/themes/pac
 import { importInstalledTheme } from '../../services/themes/index.ts';
 import { useSession } from '../../state/useSession.ts';
 import { useTheme } from '../../theme/context.ts';
-import { ThemePreview } from './ThemePages.tsx';
+import { ThemePreview } from './ThemePreview.tsx';
 import { assetLabels } from '../../theme/package/features.ts';
 export function ThemeExportButton({ theme }: {
     theme: BlankyTheme;

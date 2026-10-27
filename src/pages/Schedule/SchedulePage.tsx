@@ -240,7 +240,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
   const renderBlock = (block: PageBlock) => {
     if (block.type === 'date-header') {
       return (
-        <div className="flex min-w-0 items-baseline gap-2">
+        <div data-theme-slot="page-header" className="flex min-w-0 items-baseline gap-2">
           <h1 className="truncate text-base font-medium tracking-tight">{formatDisplayDate(locale, selected)}</h1>
           {selected !== today ? (
             <button data-theme-slot="button" type="button" onClick={() => setSelected(today)} className="shrink-0 text-sm text-accent-text">

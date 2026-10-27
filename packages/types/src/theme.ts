@@ -1,6 +1,8 @@
 import type { ThemePackage } from './themePackage.ts';
+import { THEME_MODES, type ThemeMode } from './themeSlots.ts';
 export const FONT_OPTIONS = ['system-ui', 'sans-serif', 'serif', 'monospace'] as const;
 export interface ThemeConfig {
+    mode: ThemeMode;
     colors: {
         background: string;
         surface: string;
@@ -77,6 +79,7 @@ export interface BlankyTheme {
     updatedAt: string;
 }
 export const DEFAULT_THEME_CONFIG: ThemeConfig = {
+    mode: 'light',
     colors: { background: '#ffffff', surface: '#ffffff', primary: '#3a62b0', accent: '#c15e80', textPrimary: '#171717', textSecondary: '#737373', border: '#ebebeb' },
     calendar: { background: '#ffffff', todayColor: '#3a62b0', selectedColor: '#3a62b0', weekdayColor: '#171717', weekendColor: '#c15e80', hoverColor: '#f6f6f5' },
     schedule: { background: '#f1f4fb', textColor: '#171717', borderColor: '#ebebeb', borderRadius: 6, opacity: 1, shadow: 'none' },
@@ -94,6 +97,11 @@ export function normalizeThemeConfig(value: unknown): ThemeConfig {
         if (group === 'iconPack') {
             if (['default', 'rounded', 'outline', 'filled'].includes(String(source)))
                 result.iconPack = String(source);
+            continue;
+        }
+        if (group === 'mode') {
+            if (THEME_MODES.includes(source as ThemeMode))
+                result.mode = source as ThemeMode;
             continue;
         }
         if (!source || typeof source !== 'object')
@@ -141,6 +149,7 @@ export const BUILTIN_THEMES: BlankyTheme[] = ['Blanky Default', 'Soft Pink', 'Oc
         config.card.background = '#1c1c1c';
         config.card.borderColor = '#2e2e2e';
         Object.assign(config.sidebar, { background: '#1c1c1c', selectedBackground: '#24304a', textColor: '#a3a3a3', iconColor: '#a3a3a3', hoverColor: '#242424' });
+        config.mode = 'dark';
     }
     config.calendar.todayColor = config.colors.primary;
     config.calendar.selectedColor = config.colors.primary;

@@ -3,6 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BUILTIN_THEMES } from '../packages/types/src/theme.ts';
 import { THEME_ICON_KEYS } from '../packages/types/src/themePackage.ts';
+import { inferThemeKind, slotsForKind } from '../packages/types/src/themeSlots.ts';
+import { prunePackageForKind } from '../src/theme/package/slots.ts';
+import { runtimeCss } from '../src/theme/package/runtimeCss.ts';
+import { PATTERN_PRESETS } from '../src/theme/package/patternPresets.ts';
 import { sanitizeCss, sanitizeSvg } from '../src/theme/package/ThemeSanitizer.ts';
 import { validateAsset, validateManifest, validatePackage } from '../src/theme/package/ThemeValidator.ts';
 import { packageFromTheme, exportThemePackage, importThemePackage } from '../src/theme/package/ThemeLoader.ts';
@@ -53,4 +57,69 @@ test('image placement metadata survives ZIP roundtrip and rejects unsafe setting
     for (const patch of [{ x: -1 }, { size: 201 }, { opacity: Infinity }, { fit: 'url(javascript:alert(1))' }]) {
         assert.throws(() => validatePackage({ ...pkg, manifest: { ...pkg.manifest, imageSettings: { character: { ...pkg.manifest.imageSettings.character, ...patch } } } }));
     }
+});
+
+test('legacy themes without mode still normalize and validate as light color themes', () => {
+    const config = structuredClone(BUILTIN_THEMES[0].config);
+    delete (config as { mode?: string }).mode;
+    assert.equal(validatePackage(packageFromTheme({ ...BUILTIN_THEMES[0], config })).config.mode, 'light');
+});
+
+test('kind is inferred from assets and stored kind wins', () => {
+    assert.equal(inferThemeKind({}), 'color');
+    assert.equal(inferThemeKind({ background: 'assets/a.svg' }), 'pattern');
+    assert.equal(inferThemeKind({ wallpaper: 'assets/a.svg', pattern: 'assets/b.svg' }), 'pattern');
+    assert.equal(inferThemeKind({ sidebarTop: 'assets/a.svg' }), 'character');
+    assert.equal(inferThemeKind({ character: 'assets/a.svg' }), 'character');
+    assert.equal(inferThemeKind({ sidebarTop: 'assets/a.svg' }, 'color'), 'color');
+    assert.deepEqual(slotsForKind('color'), []);
+    assert.deepEqual(slotsForKind('pattern'), ['wallpaper', 'pattern']);
+    assert.ok(slotsForKind('character').includes('emptyState'));
+});
+
+test('pruning a character package down to color drops decoration files and keeps icons', () => {
+    const pkg = fixture();
+    pkg.manifest.kind = 'character';
+    pkg.manifest.assets.sidebarTop = 'assets/background.svg';
+    const color = prunePackageForKind(pkg, 'color');
+    assert.equal(color.manifest.kind, 'color');
+    assert.equal(color.manifest.assets.sidebarTop, undefined);
+    assert.equal(color.manifest.assets.background, undefined);
+    assert.equal(color.manifest.iconPack.home, 'assets/home.svg');
+    assert.equal(Object.hasOwn(color.files, 'assets/home.svg'), true);
+});
+
+test('runtime css layers wallpaper plus pattern and skips hidden decorations', () => {
+    const theme = { ...BUILTIN_THEMES[1], package: fixture() };
+    theme.package!.customCss = '';
+    theme.package!.manifest.assets = { wallpaper: 'assets/background.svg', pattern: 'assets/background.svg', sidebarTop: 'assets/background.svg', emptyState: 'assets/background.svg' };
+    theme.package!.manifest.imageSettings = {
+        wallpaper: { size: 100, x: 50, y: 50, opacity: 80, fit: 'cover' },
+        pattern: { size: 24, x: 0, y: 0, opacity: 100, fit: 'repeat' },
+        sidebarTop: { size: 100, x: 50, y: 0, opacity: 100, fit: 'contain', visible: false },
+        emptyState: { size: 100, x: 50, y: 50, opacity: 100, fit: 'contain' },
+    };
+    const css = runtimeCss('s1', theme, { assets: { wallpaper: 'blob:wall', pattern: 'blob:pat', sidebarTop: 'blob:top', emptyState: 'blob:empty' }, icons: {}, previews: [], fonts: {}, dispose() {} });
+    assert.match(css, /blob:wall/);
+    assert.match(css, /blob:pat/);
+    assert.match(css, /empty-state/);
+    assert.doesNotMatch(css, /blob:top/);
+});
+
+test('pattern presets are safe SVG files the validator accepts', () => {
+    for (const preset of PATTERN_PRESETS) {
+        const file = validateAsset('assets/pattern-' + preset.id + '.svg', encoder.encode(preset.svg));
+        assert.equal(file.mime, 'image/svg+xml');
+    }
+});
+
+test('manifest kind and hidden image settings roundtrip', async () => {
+    const pkg = fixture();
+    pkg.manifest.kind = 'pattern';
+    pkg.manifest.assets.pattern = 'assets/background.svg';
+    pkg.manifest.imageSettings = { pattern: { size: 24, x: 0, y: 0, opacity: 60, fit: 'repeat', visible: false } };
+    const imported = await importThemePackage(await exportThemePackage(pkg));
+    assert.equal(imported.manifest.kind, 'pattern');
+    assert.equal(imported.manifest.imageSettings?.pattern?.visible, false);
+    assert.throws(() => validateManifest({ ...pkg.manifest, kind: 'neon' }));
 });

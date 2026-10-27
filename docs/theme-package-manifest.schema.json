@@ -148,6 +148,10 @@
         "$ref": "#/$defs/path"
       }
     },
+    "kind": {
+      "type": "string",
+      "enum": ["color", "pattern", "character"]
+    },
     "fonts": {
       "type": "object",
       "properties": {
@@ -203,6 +207,9 @@
           "fileName": {
             "type": "string",
             "maxLength": 255
+          },
+          "visible": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
