@@ -849,11 +849,6 @@ html.dark .border-neutral-300 {
   }
 }
 
-.builder-canvas input:focus-visible,
-.builder-canvas textarea:focus-visible {
-  outline: none;
-}
-
 .guide-layer {
   position: fixed;
   inset: 0;
