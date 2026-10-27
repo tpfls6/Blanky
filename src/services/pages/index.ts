@@ -8,6 +8,7 @@ type PageRow = {
   user_id: string
   name: string
   icon: string
+  description?: string
   sort: number
   kind: string
   schema_version: number
@@ -21,6 +22,7 @@ function mapRow(row: PageRow): UserPage | null {
     id: row.id,
     name: row.name,
     icon: row.icon,
+    description: row.description ?? '',
     sort: row.sort,
     schemaVersion: row.schema_version,
     blocks: row.blocks,
@@ -53,6 +55,7 @@ export async function upsertUserPage(page: UserPage, kind: 'page' | 'template' =
     user_id: userId,
     name: page.name,
     icon: page.icon,
+    description: page.description,
     sort: page.sort,
     kind,
     schema_version: page.schemaVersion,

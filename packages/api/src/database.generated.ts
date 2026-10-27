@@ -288,6 +288,7 @@ export type Database = {
           user_id: string
           name: string
           icon: string
+          description: string
           sort: number
           kind: string
           schema_version: number
@@ -300,6 +301,7 @@ export type Database = {
           user_id: string
           name: string
           icon?: string
+          description?: string
           sort?: number
           kind?: string
           schema_version?: number
@@ -310,6 +312,7 @@ export type Database = {
         {
           name?: string
           icon?: string
+          description?: string
           sort?: number
           kind?: string
           schema_version?: number

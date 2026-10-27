@@ -3,9 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { IconPicker } from '../../components/common/IconPicker.tsx'
 import { ROUTES } from '../../constants/routes.ts'
 import { BUILTIN_TEMPLATES, blocksFromTemplate } from '../../features/builder/catalog.ts'
-import { cloneBlocks } from '../../features/builder/schema.ts'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
-import { builtinTemplates, remapCollections } from '../../features/workspace/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -15,7 +13,7 @@ export function UserPage() {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const { t } = useI18n()
-  const { customPages, pageTemplates, updateUserPage, duplicateUserPage, removeUserPage, savePageTemplate, addPageFromTemplate, addRecordType, addUserPage } = useLibrary()
+  const { customPages, pageTemplates, updateUserPage, duplicateUserPage, removeUserPage, savePageTemplate, addPageFromTemplate } = useLibrary()
   const [editing, setEditing] = useState(true)
   const page = customPages.find((item) => item.id === pageId)
   const [tpl, setTpl] = useState(() => !page || (page.blocks.length <= 1 && !(page.blocks[0]?.props.text)))
@@ -67,26 +65,7 @@ export function UserPage() {
         <div className="mb-4 rounded-md border border-line p-3">
           <p className="mb-2 text-xs text-neutral-400">{t('builder.templates')}</p>
           <div className="flex flex-wrap gap-2">
-            {builtinTemplates().map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="chip"
-                onClick={() => {
-                  const remap = new Map<string, string>()
-                  for (const collection of item.collections) {
-                    const id = addRecordType({ name: collection.name, icon: collection.icon, color: collection.color, description: collection.description, blocks: collection.blocks })
-                    if (id) remap.set(collection.id, id)
-                  }
-                  const id = addUserPage({ name: item.name, icon: item.icon, blocks: remapCollections(cloneBlocks(item.blocks), remap) })
-                  navigate(ROUTES.page(id))
-                  setTpl(false)
-                }}
-              >
-                {item.name}
-              </button>
-            ))}
-            {BUILTIN_TEMPLATES.filter((item) => !['blank', 'study', 'project'].includes(item.id)).map((item) => (
+            {BUILTIN_TEMPLATES.map((item) => (
               <button key={item.id} type="button" className="chip" onClick={() => { const id = addPageFromTemplate({ name: item.name, icon: item.icon, blocks: blocksFromTemplate(item) }); navigate(ROUTES.page(id)); setTpl(false) }}>
                 {t(`builder.template.${item.id}`)}
               </button>

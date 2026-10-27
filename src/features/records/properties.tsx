@@ -124,7 +124,7 @@ export function BlockProperties({
       ) : null}
       {block.type === 'checklist' ? <ItemsEditor items={props.items ?? []} onChange={(items) => onChange({ items })} /> : null}
       {isInput(block.type) ? text(props, 'label', onChange, '라벨') : null}
-      {block.type === 'textField' || block.type === 'longText' || block.type === 'number' || block.type === 'title'
+      {block.type === 'textField' || block.type === 'longText' || block.type === 'number' || block.type === 'title' || block.type === 'url' || block.type === 'image'
         ? text(props, 'placeholder', onChange, '플레이스홀더')
         : null}
       {isInput(block.type) ? (
@@ -204,7 +204,7 @@ export function BlockProperties({
 }
 
 function isInput(type: Block['type']): boolean {
-  return type === 'title' || type === 'textField' || type === 'longText' || type === 'number' || type === 'date' || type === 'time' || type === 'dateTime' || type === 'checkbox' || type === 'select' || type === 'multiSelect'
+  return type === 'title' || type === 'textField' || type === 'longText' || type === 'number' || type === 'date' || type === 'time' || type === 'dateTime' || type === 'checkbox' || type === 'select' || type === 'multiSelect' || type === 'url' || type === 'image' || type === 'rating' || type === 'progress' || type === 'tags'
 }
 
 function OptionsEditor({ options, onChange }: { options: SelectOption[]; onChange: (options: SelectOption[]) => void }) {

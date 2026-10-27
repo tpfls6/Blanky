@@ -14,6 +14,7 @@ export {
   parseTemplateFile,
   requiredError,
   selfCheckRecords,
+  validateField,
   structureKey,
   titleFrom,
 } from './schema.ts'

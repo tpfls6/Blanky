@@ -63,8 +63,8 @@ export const INSERT_MENU: readonly InsertItem[] = [
   item('bookmark', 'builder.block.bookmark', 'basic', ['bookmark', '북마크'], Link, 'bookmark'),
   item('button', 'builder.block.button', 'basic', ['button', '버튼'], CheckSquare, 'button'),
   item('toggle', 'builder.block.toggle', 'basic', ['toggle', '토글'], ChevronRight, 'toggle'),
-  item('callout', 'builder.block.callout', 'basic', ['callout', '콜아웃'], Lightbulb, 'callout'),
   item('collection', 'builder.block.collection', 'layout', ['collection', '컬렉션', 'table', '데이터베이스'], Table2, 'collection'),
+  item('callout', 'builder.block.callout', 'basic', ['callout', '콜아웃'], Lightbulb, 'callout'),
   item('columns2', 'builder.block.columns2', 'layout', ['columns', '열', '2열'], SquareSplitHorizontal, 'columns', () =>
     createBlock('columns', {}, [createBlock('column', { width: 50 }, [createBlock('text')]), createBlock('column', { width: 50 }, [createBlock('text')])]),
   ),
