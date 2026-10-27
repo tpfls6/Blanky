@@ -25,6 +25,8 @@ import {
 } from './schema.ts'
 import { WidgetBlock } from './widgets.tsx'
 import type { WidgetType } from './schema.ts'
+import { BlockSettings, CollectionBlock, createCollectionType } from '../workspace/CollectionBlock.tsx'
+import { useLibrary } from '../../state/useLibrary.ts'
 
 const CONVERT: { type: BuilderBlockType; level?: 1 | 2 | 3; key: string }[] = [
   { type: 'text', key: 'builder.block.text' },
@@ -50,7 +52,10 @@ export function PageBuilder({
   onChange: (blocks: BuilderBlock[]) => void
 }) {
   const { t } = useI18n()
+  const { addRecordType } = useLibrary()
+  const [settings, setSettings] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id ?? null)
+  const selected = selectedId ? findBlock(blocks, selectedId)?.block ?? null : null
   const [menu, setMenu] = useState<Menu | null>(null)
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
@@ -75,12 +80,15 @@ export function PageBuilder({
   }
 
   const insert = (item: InsertItem, parentId: string | null, index: number, replaceId?: string) => {
-    const block = item.create()
+    const block = item.id === 'collection'
+      ? createBlock('collection', { collectionId: createCollectionType(t('builder.newCollection'), addRecordType), view: 'table', span: 3 })
+      : item.create()
     const base = replaceId ? removeBlock(blocks, replaceId) : blocks
     write(insertBlock(base, block, parentId, index))
     setSelectedId(block.id)
     setMenu(null)
     setQuery('')
+    if (item.id === 'collection') setSettings(true)
   }
 
   const openMenu = (parentId: string | null, index: number, anchor: DOMRect, replaceId?: string) => {
@@ -160,8 +168,16 @@ export function PageBuilder({
               {t(item.key)}
             </button>
           ))}
+          <button type="button" className="block w-full px-3 py-1.5 text-left text-sm hover:bg-hover" onClick={() => { setSelectedId(ctx.id); setSettings(true); setCtx(null) }}>{t('builder.settings')}</button>
           <button type="button" className="block w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-hover" onClick={() => { write(removeBlock(blocks, ctx.id)); setCtx(null) }}>{t('delete')}</button>
         </div>
+      ) : null}
+      {settings && selected ? (
+        <BlockSettings
+          block={selected}
+          onClose={() => setSettings(false)}
+          onPatch={(props) => write(patchBlock(blocks, selected.id, props), false)}
+        />
       ) : null}
     </div>
   )
@@ -326,8 +342,14 @@ function BlockView({
           <button type="button" aria-label={t('delete')} onClick={() => write(removeBlock(root, block.id))} className="icon-btn"><Trash2 className="size-3.5" strokeWidth={1.5} /></button>
         </span>
       ) : null}
-      <div onContextMenu={(event) => { if (!editing) return; event.preventDefault(); onContext(block.id, event.currentTarget.getBoundingClientRect()) }}>
-        <BlockBody root={root} block={block} editing={editing} open={open} onToggle={() => setOpen((value) => !value)} write={write} onMenu={onMenu} t={t} />
+      <div
+        className={block.props.border ? 'rounded-md border border-line p-2' : ''}
+        style={{ backgroundColor: block.props.background || undefined, color: block.props.color || undefined, textAlign: block.props.align }}
+        onContextMenu={(event) => { if (!editing) return; event.preventDefault(); onContext(block.id, event.currentTarget.getBoundingClientRect()) }}
+      >
+        {block.props.hideContent ? <p className="text-xs text-neutral-400">{block.type}</p> : (
+          <BlockBody root={root} block={block} editing={editing} open={open} onToggle={() => setOpen((value) => !value)} write={write} onMenu={onMenu} t={t} />
+        )}
       </div>
       {block.type === 'toggle' && open ? (
         <div className="mt-1 pl-4">
@@ -388,6 +410,15 @@ function BlockBody({
   const prefix = block.type === 'bullet' ? '• ' : block.type === 'numbered' ? '1. ' : ''
   const box = block.type === 'quote' || block.type === 'callout'
 
+  if (block.type === 'collection') return <CollectionBlock root={root} block={block} write={write} />
+  if (block.type === 'bookmark' || block.type === 'button') {
+    return editing ? (
+      <div className="flex gap-2">
+        <input value={text} placeholder={t(`builder.block.${block.type}`)} onChange={(event) => write(patchBlock(root, block.id, { text: event.target.value }), false)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+        <input value={block.props.url ?? ''} placeholder="https://" onChange={(event) => write(patchBlock(root, block.id, { url: event.target.value }), false)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+      </div>
+    ) : block.props.url ? <a href={block.props.url} className={block.type === 'button' ? 'btn btn-primary' : 'text-sm underline'} target="_blank" rel="noreferrer">{text || block.props.url}</a> : null
+  }
   if (block.type.startsWith('widget-')) {
     const key = block.type.replace('widget-', '')
     return (
