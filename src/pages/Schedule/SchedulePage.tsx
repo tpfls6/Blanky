@@ -422,7 +422,7 @@ export function SchedulePage() {
 
 function reviewLine(draft: ScheduleDraft, categories: WorkspaceCategory[]): string {
   const kind = draft.kind === 'event' ? '일정' : '할 일'
-  const time = draft.startTime ? (draft.endTime ? `${draft.startTime}–${draft.endTime}` : draft.startTime) : '시간 없음'
+  const time = draft.startTime ? (draft.endTime ? `${draft.startTime}–${draft.endTime}` : draft.startTime) : draft.kind === 'event' ? '종일' : '시간 없음'
   const project = categories.find((category) => category.id === draft.categoryId)?.name ?? '미분류'
   return `${kind} · ${time} · ${project} · ${draft.title || '제목 없음'}`
 }
@@ -890,10 +890,20 @@ function DraftEditor({
             <input data-theme-slot="input" type="date" value={draft.endDate} onChange={(event) => set({ endDate: event.target.value })} className="field mt-1 w-full" />
           </label>
         )}
-        <label className="text-xs text-neutral-500">
-          {task ? '시간' : '시작'}
-          <input data-theme-slot="input" type="time" value={draft.startTime} onChange={(event) => set({ startTime: event.target.value })} className="field mt-1 w-full" />
-        </label>
+        <div className="text-xs text-neutral-500">
+          <span className="flex items-center gap-2">
+            {task ? '시간' : '시작'}
+            {!task ? (
+              <button data-theme-slot="button" type="button" className={!draft.startTime ? 'chip chip-on' : 'chip'} aria-pressed={!draft.startTime} onClick={() => set({ startTime: '', endTime: '' })}>
+                종일
+              </button>
+            ) : null}
+          </span>
+          <label>
+            <span className="sr-only">{task ? '시간' : '시작'}</span>
+            <input data-theme-slot="input" type="time" value={draft.startTime} onChange={(event) => set({ startTime: event.target.value })} className="field mt-1 w-full" />
+          </label>
+        </div>
         <label className="text-xs text-neutral-500">
           {task ? '종료 시간' : '종료'}
           <input data-theme-slot="input" type="time" value={draft.endTime} onChange={(event) => set({ endTime: event.target.value })} className="field mt-1 w-full" />
