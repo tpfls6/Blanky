@@ -100,7 +100,7 @@ try {
  await button('취소');
  assert.equal(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--bg")'),'#ffffff');
  checks.push('Circular HEX picker, preview screen switching and cancel preserve active theme');
- await button('테마 가져오기');
+ await evaluate('document.querySelector(".theme-editor details").open=true')
  await upload('테마 가져오기',join(outDir,'Flower-Package.blankytheme'));
  await wait('!!document.querySelector(".theme-import-review")','package review');
  await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','JSON right preview');
@@ -109,8 +109,11 @@ try {
  assert.equal(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--bg")'),'#ffffff');
  checks.push('Color-only .blankytheme export and import show isolated right preview and cancel restores draft');
  await fill('input[maxlength="100"]','Flower Package');
- await button('이미지 꾸미기');
- for(const label of ['전체 배경 업로드','사이드바 배경 업로드','캘린더 배경 업로드','일정 카드 배경 업로드','체크박스 SVG 업로드','home 아이콘 업로드']){await upload(label,assetPath);await pause(100)}
+ await evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent.trim()==="Character").click()')
+ await wait('!!document.querySelector("[aria-label=\\"전체 배경 업로드\\"]")','character slots')
+ for(const label of ['전체 배경 업로드','사이드바 상단 업로드']){await upload(label,assetPath);await pause(100)}
+ await evaluate('[...document.querySelectorAll("details")].forEach(d=>d.open=true)')
+ for(const label of ['사이드바 배경 업로드','캘린더 배경 업로드','체크박스 SVG 업로드','home 아이콘 업로드']){await upload(label,assetPath);await pause(100)}
  const png = await evaluate('(()=>{const canvas=document.createElement("canvas");canvas.width=120;canvas.height=120;const context=canvas.getContext("2d");context.fillStyle="#b8c9ef";context.beginPath();context.arc(60,60,40,0,Math.PI*2);context.fill();return canvas.toDataURL("image/png").split(",")[1]})()');
  const characterPath=join(outDir,'character.png');await writeFile(characterPath,Buffer.from(png,'base64'));
  await upload('캐릭터 장식 업로드',characterPath);
@@ -138,7 +141,8 @@ try {
  assert.deepEqual(await evaluate('Object.keys(JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.id==='+q(themeId)+').package.files)'),[])
  assert.equal(await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.id==='+q(themeId)+').package.manifest.imageSettings.character.opacity'),65);
  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
- await button('색상 테마');
+ await button('모바일');
+ assert.ok(await evaluate('document.body.innerText.includes("반응형 시뮬레이션")'),'mobile preview names itself a simulation');
  assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
  await screenshot('mobile-editor');
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
@@ -191,7 +195,7 @@ try {
  await wait('(async()=>(await import("/src/theme/package/ThemeAssetResolver.ts")).themeAssetCacheSize()===0)()','Object URL cleanup')
  checks.push('Deleting imported copy releases Object URLs and preserves original creator package')
  await evaluate('localStorage.setItem("blanky.session.v1",'+q(owner)+')');await navigate(base+'/schedule');await wait('document.querySelector("aside img")?.src.startsWith("blob:")','owner restored')
- await evaluate('(async()=>{const db=await new Promise((r,j)=>{const q=indexedDB.open("blanky-theme-packages",1);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});const tx=db.transaction("packages","readwrite");const store=tx.objectStore("packages");const q=store.get('+q(owner+':')+'+'+q(themeId)+');q.onsuccess=()=>{const p=q.result;delete p.files[p.manifest.assets.background];store.put(p,'+q(owner+':')+'+'+q(themeId)+')};await new Promise((r,j)=>{tx.oncomplete=r;tx.onerror=()=>j(tx.error)});db.close()})()')
+ await evaluate('(async()=>{const db=await new Promise((r,j)=>{const q=indexedDB.open("blanky-theme-packages",1);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});const tx=db.transaction("packages","readwrite");const store=tx.objectStore("packages");const q=store.get('+q(owner+':')+'+'+q(themeId)+');q.onsuccess=()=>{const p=q.result;const key=Object.keys(p.manifest.assets||{})[0];if(key) delete p.files[p.manifest.assets[key]];store.put(p,'+q(owner+':')+'+'+q(themeId)+')};await new Promise((r,j)=>{tx.oncomplete=r;tx.onerror=()=>j(tx.error)});db.close()})()')
  await navigate();await wait('document.body.innerText.includes("기본 테마로 복구했습니다")','damaged package fallback')
  assert.equal(await evaluate('document.querySelector(".blanky-themed").style.getPropertyValue("--bg")'),'#ffffff')
  assert.equal(await evaluate('document.querySelectorAll("aside img").length'),0)
