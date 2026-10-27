@@ -3,16 +3,18 @@ import { IconPicker } from '../../components/common/IconPicker.tsx'
 import {
   DEFAULT_FIELD_LABELS,
   FIELD_KEYS,
-  fieldLabel,
   type PageTemplateKind,
 } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
+import { TemplatePreview } from './TemplatePreview.tsx'
 
 const ICONS: Record<PageTemplateKind, string> = {
   diary: 'BookOpen',
   reading: 'Library',
   memo: 'StickyNote',
 }
+
+const KINDS = ['diary', 'reading', 'memo'] as const
 
 export function CreatePageWizard({
   onCancel,
@@ -24,19 +26,21 @@ export function CreatePageWizard({
   const { t } = useI18n()
   const [step, setStep] = useState(0)
   const [template, setTemplate] = useState<PageTemplateKind | null>(null)
+  const [preview, setPreview] = useState<PageTemplateKind | null>(null)
   const [name, setName] = useState('')
   const [icon, setIcon] = useState('StickyNote')
   const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({})
   const keys = template ? FIELD_KEYS[template] : []
   const previewName = name.trim() || t('custom.unnamed')
   const defaults = useMemo(() => (template ? DEFAULT_FIELD_LABELS[template] : null), [template])
+  const shown = preview ?? template
 
-  const pick = (next: PageTemplateKind) => {
+  const select = (next: PageTemplateKind) => {
     setTemplate(next)
+    setPreview(next)
     setIcon(ICONS[next])
     setName(t(`custom.kind.${next}`))
     setFieldLabels({ ...DEFAULT_FIELD_LABELS[next] })
-    setStep(1)
   }
 
   return (
@@ -46,12 +50,23 @@ export function CreatePageWizard({
         <>
           <h1 className="mt-2 text-lg font-medium">{t('custom.pickTemplate')}</h1>
           <div className="mt-4 grid gap-2">
-            {(['diary', 'reading', 'memo'] as const).map((kind) => (
-              <button key={kind} type="button" className="flex items-start gap-3 rounded-md border border-line p-4 text-left" onClick={() => pick(kind)}>
+            {KINDS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={template === kind}
+                className="template-card flex items-start gap-3 rounded-md border border-line p-4 text-left"
+                onMouseEnter={() => setPreview(kind)}
+                onFocus={() => setPreview(kind)}
+                onClick={() => select(kind)}
+              >
                 <span className="text-sm font-medium">{t(`custom.kind.${kind}`)}</span>
                 <span className="text-sm text-neutral-400">{t(`custom.kindHint.${kind}`)}</span>
               </button>
             ))}
+          </div>
+          <div className="template-preview-slot mt-4" aria-live="polite">
+            {shown ? <TemplatePreview key={shown} kind={shown} /> : <p className="text-sm text-neutral-400">{t('custom.previewHint')}</p>}
           </div>
         </>
       ) : null}
@@ -85,24 +100,20 @@ export function CreatePageWizard({
       {step === 3 && template ? (
         <>
           <h1 className="mt-2 text-lg font-medium">{t('custom.preview')}</h1>
-          <div className="mt-4 rounded-md border border-line p-4">
-            <p className="text-lg font-medium">{previewName}</p>
-            <p className="mt-1 text-xs text-neutral-400">{t(`custom.kind.${template}`)}</p>
-            <dl className="mt-4 grid gap-2 text-sm">
-              {keys.map((key) => (
-                <div key={key} className="flex gap-3">
-                  <dt className="w-28 shrink-0 text-neutral-400">{fieldLabel(template, key, fieldLabels)}</dt>
-                  <dd className="min-w-0 flex-1 rounded-md border border-dashed border-line px-2 py-1 text-neutral-300">{t('custom.previewField')}</dd>
-                </div>
-              ))}
-            </dl>
+          <div className="mt-4">
+            <TemplatePreview kind={template} />
           </div>
         </>
       ) : null}
       <div className="mt-6 flex flex-wrap gap-2">
         <button type="button" className="btn btn-ghost" onClick={() => (step === 0 ? onCancel() : setStep((value) => value - 1))}>
-          {step === 0 ? t('custom.skip') : t('custom.back')}
+          {step === 0 ? t('custom.goBack') : t('custom.back')}
         </button>
+        {step === 0 && template ? (
+          <button type="button" className="btn btn-primary" onClick={() => setStep(1)}>
+            {t('custom.next')}
+          </button>
+        ) : null}
         {step > 0 && step < 3 ? (
           <button type="button" className="btn btn-primary" onClick={() => setStep((value) => value + 1)}>
             {t('custom.next')}

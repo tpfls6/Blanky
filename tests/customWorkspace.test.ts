@@ -6,6 +6,12 @@ import { builtinTemplates, remapCollections } from '../src/features/workspace/te
 import { cloneBlocks } from '../src/features/builder/schema.ts'
 import { visibleNav, isRecordNav } from '../src/constants/navigation.ts'
 import { DEFAULT_NAV, DEFAULT_SETTINGS } from '../src/types/records.ts'
+import {
+  DEFAULT_PAGE_GAP,
+  isRequiredType,
+  normalizePageGaps,
+  resolveGap,
+} from '../src/features/pages/layout.ts'
 
 test('custom workspace routes stay on /custom and /pages', () => {
   assert.equal(ROUTES.templateDetail('abc'), '/store/templates/abc')
@@ -28,6 +34,13 @@ test('nav label follows locale without changing the route', () => {
   assert.equal(translate('en', 'nav.custom'), 'Custom Templates')
   assert.equal(translate('ko', 'custom.title'), '커스텀 템플릿')
   assert.equal(translate('en', 'custom.title'), 'Custom Templates')
+  assert.equal(translate('ko', 'custom.tabTemplates'), '커스텀 템플릿')
+  assert.equal(translate('ko', 'custom.tabLayout'), '앱 레이아웃')
+  assert.equal(translate('ko', 'custom.goBack'), '돌아가기')
+  assert.equal(translate('en', 'custom.goBack'), 'Go back')
+  assert.match(translate('ko', 'custom.deleteTitle', { name: '여행' }), /여행/)
+  assert.match(translate('ko', 'custom.deleteBody', { count: 2 }), /2/)
+  assert.match(translate('ko', 'custom.deleteBody', { count: 2 }), /기본 일기/)
   assert.equal(translate('ko', 'custom.newPage'), '새 기록 만들기')
   assert.equal(translate('en', 'custom.newPage'), 'New record')
   assert.equal(translate('ko', 'custom.kind.diary'), '일기형')
@@ -52,4 +65,13 @@ test('starter collections remap without sharing ids', () => {
   const blocks = remapCollections(cloneBlocks(starter.blocks), new Map([[starter.collections[0]?.id ?? '', first]]))
   assert.equal(blocks.find((block) => block.type === 'collection')?.props.collectionId, first)
   assert.notEqual(first, starter.collections[0]?.id)
+})
+
+test('layout helpers keep required blocks and clamp gaps', () => {
+  assert.equal(isRequiredType('schedule', 'timeline'), true)
+  assert.equal(isRequiredType('schedule', 'spacer'), false)
+  assert.equal(isRequiredType('diary', 'page-body'), true)
+  assert.equal(resolveGap('memo', {}), DEFAULT_PAGE_GAP)
+  assert.equal(resolveGap('diary', { diary: 24 }), 24)
+  assert.deepEqual(normalizePageGaps({ diary: 24, memo: 7, extra: 16 }), { diary: 24 })
 })

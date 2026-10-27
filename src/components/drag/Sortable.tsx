@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 
 type Drag = { id: string; x: number; y: number; ox: number; oy: number; w: number; h: number }
 
@@ -31,12 +31,14 @@ export function Sortable<T extends { id: string }>({
   onReorder,
   className,
   itemClassName,
+  style,
   render,
 }: {
   items: readonly T[]
   onReorder: (items: T[]) => void
   className?: string
   itemClassName?: (item: T) => string
+  style?: CSSProperties
   render: (item: T) => ReactNode
 }) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -137,7 +139,7 @@ export function Sortable<T extends { id: string }>({
   const floating = drag ? items.find((item) => item.id === drag.id) : undefined
 
   return (
-    <div ref={rootRef} className={className}>
+    <div ref={rootRef} className={className} style={style}>
       {items.map((item) => {
         const active = dragId === item.id
         return (

@@ -1,0 +1,8 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T07:20:00Z	start	opened figure-it-out for custom settings tabs	ambitious UI change across wizard, list, and layout	user query	open
+2026-10-27T07:22:00Z	frame	reuse Settings left nav, Sortable, UserPage hosts, removeUserPage	the data model and drag helper already exist	src/pages/Settings/SettingsPage.tsx:410 src/components/drag/Sortable.tsx src/state/library.tsx:1026	skipped a second design arena
+2026-10-27T07:24:00Z	frame	store spacing as pageGaps next to pageLayouts	layout blocks stay the same shape and old saves still load	src/features/pages/layout.ts src/types/records.ts:168	open
+2026-10-27T07:26:00Z	how	four explorers stopped after resume loops	covered the same files in this chat instead of retrying	CustomPage.tsx CreatePageWizard.tsx layout.ts UserPage.tsx library.tsx	INCONCLUSIVE on explorer reports, grounded from source
+2026-10-27T07:24:00Z	implement	two left tabs, Sortable page list, delete confirm, wizard preview, layout without add-block	reuse Settings chrome and existing page APIs	src/pages/Custom/CustomPage.tsx src/pages/Custom/CreatePageWizard.tsx src/features/pages/PageCanvas.tsx	open
+2026-10-27T07:28:00Z	verify	npm run test:pages 28 pass	layout helpers and copy are checkable without login	tests/customWorkspace.test.ts	tests green
+2026-10-27T07:29:00Z	verify	browser /custom redirected to login	live app uses RemoteSessionProvider and this session has no Supabase user	http://localhost:5174/login	INCONCLUSIVE

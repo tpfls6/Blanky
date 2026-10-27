@@ -2,7 +2,7 @@ import type { AppLocale } from '../i18n/locale.ts'
 import type { Calendar } from '@blanky/types'
 import type { CustomRecordType, FieldValue } from '../features/records/schema.ts'
 import type { UserPage } from '../features/builder/schema.ts'
-import type { PageLayouts } from '../features/pages/layout.ts'
+import type { PageGaps, PageLayouts } from '../features/pages/layout.ts'
 import type { TrashItem } from '../utils/trash.ts'
 import type { WorkItem, WorkspaceCategory } from './work.ts'
 
@@ -166,6 +166,7 @@ export type LibraryData = {
   trash: TrashItem[]
   settings: Settings
   pageLayouts: PageLayouts
+  pageGaps: PageGaps
   customPages: UserPage[]
   pageTemplates: UserPage[]
 }
