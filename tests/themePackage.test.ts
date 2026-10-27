@@ -167,7 +167,8 @@ test('runtimeCss for a character decoration includes a 720px media query', () =>
     theme.package!.customCss = '';
     theme.package!.manifest.assets = { character: 'assets/background.svg', sidebarTop: 'assets/background.svg' };
     const css = runtimeCss('s1', theme, { assets: { character: 'blob:char', sidebarTop: 'blob:top' }, icons: {}, previews: [], fonts: {}, dispose() {} });
-    assert.match(css, /@media \(max-width:720px\)/);
+    const mobile = css.match(/@media \(max-width:720px\)\{([^}]*)\}/)?.[1] ?? '';
+    assert.match(mobile, /::before\{transform:scale\(\.7\)/);
+    assert.doesNotMatch(mobile, /width:calc/);
     assert.match(css, /blob:char/);
-    assert.match(css, /scale\(\.7\)/);
 });

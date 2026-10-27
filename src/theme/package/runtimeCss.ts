@@ -100,9 +100,9 @@ export function runtimeCss(scope: string, theme: BlankyTheme, resolved: Resolved
     for (const [key, deco] of Object.entries(DECORATIONS)) {
         if (!resolved.assets[key] || !assetVisible(settingsOf(key)))
             continue;
-        const size = (settingsOf(key)?.size ?? 100) / 100;
+        const origin = deco.pos.replace('left', '0').replace('right', '100%').replace('center', '50%').replace('top', '0').replace('bottom', '100%');
         for (const host of [deco.slot, ...(deco.extra ?? [])])
-            mobile.push(selector(host) + '::' + deco.pseudo + '{width:calc(' + deco.size.split(' ')[0] + ' * .7);height:calc(' + deco.size.split(' ')[1] + ' * ' + size + ' * .7);}');
+            mobile.push(selector(host) + '::' + deco.pseudo + '{transform:scale(.7);transform-origin:' + origin + '}');
     }
     if (resolved.assets.character && assetVisible(settingsOf('character')))
         mobile.push(root + '::after{transform:scale(.7)}');
