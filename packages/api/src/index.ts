@@ -13,6 +13,8 @@ export { createRecordRepository, mapCustomRecordRow, mapCustomRecordTypeRow } fr
 export type { CustomRecordInput, CustomRecordTypeInput, RecordRepository } from './recordRepository.ts'
 export { createScheduleRepository, mapScheduleRow } from './scheduleRepository.ts'
 export type { ScheduleRepository } from './scheduleRepository.ts'
+export { mapBatchError, parseScheduleBatchResult } from './scheduleBatch.ts'
+export type { ScheduleBatchGoogle, ScheduleBatchResult, ScheduleBatchStatus } from './scheduleBatch.ts'
 export {
   createSupabaseClient,
   isSupabaseConfigValid,

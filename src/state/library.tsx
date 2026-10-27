@@ -2,6 +2,8 @@ import { mergeCategories } from '../utils/mergeCategories.ts'
 import { getDiaryRecords, saveDiaryRecord, deleteDiaryRecord, hasSyncedDiary } from '../services/diary/index.ts'
 import { loadWork, saveWork, workFromSchedule, type Activity } from '../services/schedule/workStore.ts'
 import type { Schedule } from '@blanky/types'
+import type { ScheduleBatchResult } from '@blanky/api'
+import { isGoogleOriginWork } from '../services/calendarSync/origin.ts'
 import { getScheduleRepository } from '../services/schedule/index.ts'
 import { isSupabaseConfigured } from '../services/supabase/client.ts'
 import type { WorkItem } from '../types/work.ts'
@@ -149,6 +151,25 @@ function applyAppearance(settings: Settings) {
   document.documentElement.classList.toggle('dark', dark)
   applyAccent(settings.accent, dark)
   applyDocumentLocale(settings.locale)
+}
+
+function dropWorkItems(current: LibraryData, removed: WorkItem[], source: Activity['source']): LibraryData {
+  const ids = new Set(removed.map(item => item.id))
+  const activities = removed.map(before => ({
+    id: crypto.randomUUID(),
+    entityId: before.id,
+    before,
+    after: null,
+    action: 'deleted' as const,
+    source,
+    createdAt: new Date().toISOString(),
+  }))
+  return {
+    ...current,
+    items: current.items.filter(item => !ids.has(item.id)),
+    activities: [...activities, ...(current.activities ?? [])],
+    trash: removed.reduce((trash, item) => withTrash({ trash }, toTrash('item', item, item.title)), current.trash),
+  }
 }
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
@@ -309,6 +330,55 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     workQueue.current = operation
     return operation
   }, [userId, data.categories, data.personalCalendar?.id])
+
+  const applyWorkBatch = useCallback((input: { key: string; deletes: WorkItem[]; source?: Activity['source'] }): Promise<ScheduleBatchResult> => {
+    const operation = workQueue.current.catch(() => undefined).then(async () => {
+      await ready.current
+      if (!workLoaded.current) throw new Error('서버 데이터를 먼저 불러와야 합니다.')
+      if (!userId || activeUser.current !== userId) throw new Error('로그인이 필요합니다.')
+      const unique = [...new Map(input.deletes.map(item => [item.id, item])).values()]
+      const source = input.source ?? 'ai_chat'
+      if (!unique.length) return { status: 'unchanged' as const, deletedIds: [], google: 'idle' as const }
+      if (unique.some(isGoogleOriginWork)) throw new Error('Google에서 가져온 일정은 원본을 지우지 않았어요.')
+      const remote = unique.filter(item => remoteIds.current.has(item.id))
+      if (isSupabaseConfigured && remote.length && remote.length !== unique.length) {
+        throw new Error('로컬과 서버 일정을 한 번에 변경할 수 없습니다.')
+      }
+      let result: ScheduleBatchResult
+      if (isSupabaseConfigured && remote.length === unique.length) {
+        result = await getScheduleRepository().applyBatch(input.key, unique.map(item => item.id))
+        if (activeUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
+        for (const id of result.deletedIds) remoteIds.current.delete(id)
+      } else {
+        result = { status: 'applied', deletedIds: unique.map(item => item.id), google: 'idle' }
+      }
+      let rejected = false
+      setData(current => {
+        const gone = unique.filter(item => result.deletedIds.includes(item.id))
+        if (gone.some(item => !current.items.some(row => row.id === item.id))) {
+          if (!isSupabaseConfigured) {
+            rejected = true
+            return current
+          }
+        }
+        const live = gone.filter(item => current.items.some(row => row.id === item.id))
+        return live.length ? dropWorkItems(current, live, source) : current
+      })
+      if (rejected) throw new Error('일정 변경에 실패하여 기존 일정이 유지되었습니다.')
+      setWorkError('')
+      if (typeof window !== 'undefined') {
+        ;(window as Window & { __blankyLastBatch?: ScheduleBatchResult }).__blankyLastBatch = result
+      }
+      return result
+    })
+    workQueue.current = operation
+    return operation
+  }, [userId])
+  useEffect(() => {
+    const host = window as Window & { __blankyApplyWorkBatch?: typeof applyWorkBatch }
+    host.__blankyApplyWorkBatch = applyWorkBatch
+    return () => { delete host.__blankyApplyWorkBatch }
+  }, [applyWorkBatch])
 
   const adoptPlannerSchedules = useCallback((rows: Schedule[]) => {
     if(!userId||activeUser.current!==userId||rows.some(row=>row.userId!==userId))throw new Error('로그인 사용자가 변경되었어요.')
@@ -965,6 +1035,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     diaryError,
     diaryLoading,
     commitWork,
+    applyWorkBatch,
     adoptPlannerSchedules,
     refreshWork,
     workError,

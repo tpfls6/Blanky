@@ -8,6 +8,7 @@ import type { WorkItem } from '../../types/work.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { conversationIntent } from '../../features/ai/conversation.ts'
 import { describePlan, failedActionIds, liveActions, planConflicts, planDedupe, planMoveIncomplete, planSummarize, type AgentPlan } from '../../features/ai/agent.ts'
+import { batchKeyFor, describeBatchApply } from '../../features/ai/batch.ts'
 import { analyzeSchedules } from '../../services/schedule/index.ts'
 import { AnalysisReview } from '../../components/schedule/AnalysisReview.tsx'
 import { validatePlanningRecommendation, type PlanningRecommendation, type PlannerDraft, type ScheduleAnalysis } from '@blanky/types'
@@ -33,7 +34,7 @@ export function HomePage() {
     setMessages(current=>[...current,{id:crypto.randomUUID(),role:'assistant',text:t('home.savedAs', { type: t(`type.${recordType}`) })}])
   }
   const {conflicts,setConflicts,error:conflictError,setError:setConflictError}=usePlannerConflicts(library.items)
-  const locked=useRef(false),lastId=useRef<string|null>(null)
+  const locked=useRef(false),lastId=useRef<string|null>(null),batchKeys=useRef(new Map<string,string>())
   const [analysis, setAnalysis] = useState<{ id: string; result: ScheduleAnalysis; input: string } | null>(null)
   const [planner,setPlanner]=useState<{input:string;plan:PlanningRecommendation;existing:BusySchedule[];initialDraft?:Pick<PlannerDraft,'edits'|'saved'>;resumeId?:string}|null>(()=>{
     try{const value=JSON.parse(sessionStorage.getItem(plannerKey)??'null');if(!value||typeof value.input!=='string')return null;validatePlanningRecommendation(value.plan);return value}catch{return null}
@@ -64,24 +65,36 @@ export function HomePage() {
     autoRestore.current=false;setPlanner({input,plan,existing});setAnalysis(null)
   }
   const applyAgentPlan=async(plan:AgentPlan)=>{
+    const actions=liveActions(plan,library.items)
+    const deletes=actions.filter(action=>action.op==='delete')
+    const updates=actions.filter(action=>action.op==='update')
+    if(!actions.length){
+      return {text:describeBatchApply({kind:plan.title.includes('중복')?'dedupe':'other',status:'empty',deletedCount:0,google:'idle'}),items:plan.kept,undoIds:[]}
+    }
+    if(deletes.length && !updates.length){
+      try{
+        const result=await library.applyWorkBatch({key:batchKeyFor(deletes.map(action=>action.item.id),batchKeys.current),deletes:deletes.map(action=>action.item),source:'ai_chat'})
+        return {
+          text:describeBatchApply({kind:plan.title.includes('중복')?'dedupe':'other',status:result.status,deletedCount:result.deletedIds.length,google:result.google}),
+          items:[...plan.kept,...deletes.map(action=>action.item)],
+          undoIds:result.deletedIds,
+        }
+      }catch{
+        return {text:describeBatchApply({kind:'dedupe',status:'failed',deletedCount:0,google:'idle'}),items:plan.kept,undoIds:[]}
+      }
+    }
     const executed:WorkItem[]=[]
     const undoIds:string[]=[]
     const failed:string[]=[]
-    for(const action of liveActions(plan,library.items)){
+    for(const action of updates){
       try{
-        if(action.op==='delete'){
-          await library.commitWork(action.item,null,'ai_chat')
-          undoIds.push(action.item.id)
-          executed.push(action.item)
-        }else{
-          const saved=await library.commitWork(action.item,{...action.item,...action.patch},'ai_chat')
-          if(!saved) throw new Error('저장 실패')
-          executed.push(saved)
-        }
+        const saved=await library.commitWork(action.item,{...action.item,...action.patch},'ai_chat')
+        if(!saved) throw new Error('저장 실패')
+        executed.push(saved)
       }catch{failed.push(action.item.id)}
     }
     const lines=[describePlan({...plan,mode:'auto',actions:failedActionIds(failed,plan.actions)})]
-    if(failed.length)lines.push('실패: '+plan.actions.filter(action=>failed.includes(action.item.id)).map(action=>action.item.title).join(', '))
+    if(failed.length)lines.push('일정 변경에 실패하여 기존 일정이 유지되었습니다.')
     return {text:lines.join('\n'),items:[...plan.kept,...executed],undoIds}
   }
   const send=async()=>{
@@ -180,6 +193,6 @@ export function HomePage() {
       }
       return saved
     }}/>}
-    <div className="mt-8 space-y-6" aria-live="polite" aria-busy={busy}>{messages.map(message=><div key={message.id}><p className="mb-2 text-xs text-neutral-400">{message.role==='user'?t('me'):'Blanky'}</p><p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p><div className="mt-3 space-y-2">{message.items?.map(item=><WorkCard key={item.id} snapshot={item} before={message.before}/>)}</div>{message.preview&&<div className="mt-2 flex gap-2"><button type="button" className="btn btn-ghost text-blue-600" disabled={busy} onClick={()=>void applyAgentPlan(message.preview!).then(result=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:result.text,items:result.items,undoIds:result.undoIds,preview:undefined}:row)))}>실행</button><button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:'실행하지 않았어요.',preview:undefined,items:undefined}:row))}>취소</button></div>}{message.undoIds?.length?<button type="button" className="btn btn-ghost mt-2 text-blue-600" disabled={busy} onClick={()=>void Promise.all(message.undoIds!.map(id=>library.restoreTrash(id))).then(()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:row.text+'\n되돌렸습니다.',undoIds:undefined}:row)))}>되돌리기</button>:null}</div>)}{busy && <p role="status" className="text-sm text-neutral-400">{t('home.working')}</p>}</div>
+    <div className="mt-8 space-y-6" aria-live="polite" aria-busy={busy}>{messages.map(message=><div key={message.id}><p className="mb-2 text-xs text-neutral-400">{message.role==='user'?t('me'):'Blanky'}</p><p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p><div className="mt-3 space-y-2">{message.items?.map(item=><WorkCard key={item.id} snapshot={item} before={message.before}/>)}</div>{message.preview&&<div className="mt-2 flex gap-2"><button type="button" className="btn btn-ghost text-blue-600" disabled={busy} onClick={()=>{if(locked.current)return;locked.current=true;setBusy(true);void applyAgentPlan(message.preview!).then(result=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:result.text,items:result.items,undoIds:result.undoIds,preview:undefined}:row))).finally(()=>{locked.current=false;setBusy(false)})}}>실행</button><button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:'실행하지 않았어요.',preview:undefined,items:undefined}:row))}>취소</button></div>}{message.undoIds?.length?<button type="button" className="btn btn-ghost mt-2 text-blue-600" disabled={busy} onClick={()=>void Promise.all(message.undoIds!.map(id=>library.restoreTrash(id))).then(()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:row.text+'\n되돌렸습니다.',undoIds:undefined}:row)))}>되돌리기</button>:null}</div>)}{busy && <p role="status" className="text-sm text-neutral-400">{t('home.working')}</p>}</div>
   </div>
 }

@@ -45,26 +45,22 @@ export function planDedupe(items: readonly WorkItem[]): AgentPlan {
   const actions: AgentAction[] = []
   const skipped: AgentSkip[] = []
   const kept: WorkItem[] = []
-  let confirm = false
   for (const group of groups) {
     const keep = index.get(group.keepId)
     if (keep) kept.push(keep)
-    if (group.confidence === 'confirm') confirm = true
     for (const id of group.dropIds) {
       const item = index.get(id)
       if (!item) continue
       if (isGoogleOriginWork(item)) {
         skipped.push({ title: item.title, reason: 'Google에서 가져온 일정은 원본을 지우지 않았어요.' })
-        confirm = true
         continue
       }
       actions.push({ op: 'delete', item, reason: `${group.title} 중복` })
     }
   }
-  if (actions.length >= CONFIRM_DROPS) confirm = true
   return {
     title: groups.length ? `중복 일정 ${groups.reduce((sum, group) => sum + group.dropIds.length + 1, 0)}건을 확인했습니다.` : '중복 일정이 없어요.',
-    mode: confirm || !actions.length ? (actions.length ? 'preview' : 'auto') : 'auto',
+    mode: actions.length ? 'preview' : 'auto',
     actions,
     skipped,
     kept,

@@ -15,9 +15,9 @@ test('dedupe keeps one work and one class and is idle on a second pass', () => {
   const items = [item('w1', '근로'), item('w2', '근로'), item('c1', '수업'), item('c2', '수업')]
   const plan = planDedupe(items)
   assert.equal(plan.actions.length, 2)
-  assert.equal(plan.mode, 'auto')
+  assert.equal(plan.mode, 'preview')
   assert.deepEqual(new Set(plan.kept.map(row => row.title)), new Set(['근로', '수업']))
-  assert.match(describePlan(plan), /총 2건/)
+  assert.match(describePlan(plan), /삭제 후보 2건/)
   const leftover = items.filter(row => !plan.actions.some(action => action.op === 'delete' && action.item.id === row.id))
   assert.deepEqual(planDedupe(leftover).actions, [])
   assert.deepEqual(planConflicts(items, '2026-10-28', '2026-10-28').actions, [])
