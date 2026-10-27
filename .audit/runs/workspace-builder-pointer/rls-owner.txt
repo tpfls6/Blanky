@@ -1,0 +1,5 @@
+command: npx supabase test db
+local: DB_URL postgresql://postgres:postgres@127.0.0.1:54322/postgres
+rls_owner.sql: ok
+verdict: owner page and collection isolation PASS this run
+suite: FAIL on google_calendar_peer, personal_calendars, theme_packages. see failure-analysis.txt

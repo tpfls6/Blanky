@@ -1,0 +1,53 @@
+{
+  "started": "2026-10-27T05:33:15.579Z",
+  "ended": "2026-10-27T05:33:34.285Z",
+  "ok": true,
+  "log": [
+    "started 2026-10-27T05:33:15.579Z",
+    "2026-10-27T05:33:17.775Z vite http://127.0.0.1:5200",
+    "2026-10-27T05:33:29.906Z landed http://127.0.0.1:5200/custom h1=커스텀 템플릿",
+    "2026-10-27T05:33:30.100Z screenshot 00-landed.png",
+    "2026-10-27T05:33:31.364Z screenshot 00b-form.png",
+    "2026-10-27T05:33:31.676Z after save {\"titles\":[\"칸반카드\"],\"values\":{\"b40e8e94-c77c-443c-9d89-68052c97ae9d\":\"칸반카드\",\"69b7c9eb-a693-4b93-a8ca-ea1b178e2eed\":\"b08d20a7-9223-4084-a30b-1d000056da72\",\"4c0c9324-e458-497c-9d4c-451aea417bd9\":\"\",\"642240b1-06b0-45be-9e38-a973b9754e82\":\"\"},\"types\":[\"프로젝트\"]}",
+    "2026-10-27T05:33:31.711Z opened project 03b9a4cc-6b96-4dc9-a8de-f155aadf706e",
+    "2026-10-27T05:33:32.136Z screenshot 01-before-pointer.png",
+    "2026-10-27T05:33:32.572Z playwright.dragTo moved=true Playwright mouse dragTo onto 완료",
+    "2026-10-27T05:33:32.674Z screenshot 02-after-dragTo.png",
+    "2026-10-27T05:33:34.185Z reload inDone=true via playwright.dragTo",
+    "2026-10-27T05:33:34.285Z screenshot 07-after-reload.png"
+  ],
+  "errors": [],
+  "extra": {
+    "projectId": "03b9a4cc-6b96-4dc9-a8de-f155aadf706e",
+    "methods": [
+      {
+        "name": "playwright.dragTo",
+        "kind": "pointer",
+        "moved": true,
+        "note": "Playwright mouse dragTo onto 완료",
+        "state": {
+          "present": true,
+          "value": "888fdd95-c92f-426c-ba4d-feabc183c3f1",
+          "doneId": "888fdd95-c92f-426c-ba4d-feabc183c3f1",
+          "todoId": "b08d20a7-9223-4084-a30b-1d000056da72",
+          "inDoneColumn": true,
+          "inTodoColumn": false
+        }
+      }
+    ],
+    "afterReload": {
+      "present": true,
+      "value": "888fdd95-c92f-426c-ba4d-feabc183c3f1",
+      "doneId": "888fdd95-c92f-426c-ba4d-feabc183c3f1",
+      "todoId": "b08d20a7-9223-4084-a30b-1d000056da72",
+      "inDoneColumn": true,
+      "inTodoColumn": false
+    },
+    "verdict": {
+      "pointerMoved": true,
+      "syntheticMoved": false,
+      "reloadKept": true,
+      "cause": "pointer path works"
+    }
+  }
+}
