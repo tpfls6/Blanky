@@ -14,6 +14,8 @@ type PageRow = {
   schema_version: number
   blocks: unknown
   collections?: unknown
+  template?: string | null
+  field_labels?: unknown
   created_at: string
   updated_at: string
 }
@@ -28,6 +30,8 @@ function mapRow(row: PageRow): UserPage | null {
     schemaVersion: row.schema_version,
     blocks: row.blocks,
     collections: row.collections,
+    template: row.template,
+    fieldLabels: row.field_labels,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   })
@@ -63,6 +67,8 @@ export async function upsertUserPage(page: UserPage, kind: 'page' | 'template' =
     schema_version: page.schemaVersion,
     blocks: JSON.parse(JSON.stringify(page.blocks)) as Database['public']['Tables']['user_pages']['Insert']['blocks'],
     collections: JSON.parse(JSON.stringify(page.collections ?? [])) as Database['public']['Tables']['user_pages']['Insert']['collections'],
+    template: page.template,
+    field_labels: JSON.parse(JSON.stringify(page.fieldLabels ?? {})) as Database['public']['Tables']['user_pages']['Insert']['field_labels'],
     created_at: page.createdAt,
     updated_at: page.updatedAt,
   }

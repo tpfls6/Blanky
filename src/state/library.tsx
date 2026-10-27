@@ -12,7 +12,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 import { freshLibrary } from '../data/freshLibrary.ts'
 import { cloneBlock, coerceRecordType, selfCheckRecords, structureKey, type CustomRecordType } from '../features/records/schema.ts'
 import { forkCollections, snapshotCollections } from '../features/workspace/templates.ts'
+import { DEFAULT_SWATCH } from '../constants/swatches.ts'
 import { cloneBlocks, createPage, normalizePages, touchPage, type BuilderBlock, type UserPage } from '../features/builder/schema.ts'
+import { pageTypeMarker, type PageTemplateKind } from '../features/pages/templates.ts'
 import { listUserPages } from '../services/pages/index.ts'
 import { getAllCustomRecords, getCustomRecordTypes } from '../services/records/index.ts'
 import { normalizeLayouts, type PageBlock, type PageId } from '../features/pages/layout.ts'
@@ -737,8 +739,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     mirrorRecordTypeDelete(id)
   }, [])
 
-  const addRecord = useCallback((typeId: string, input: { title: string; values: Record<string, FieldValue> }) => {
-    const id = crypto.randomUUID()
+  const addRecord = useCallback((typeId: string, input: { id?: string; title: string; values: Record<string, FieldValue> }) => {
+    const id = input.id ?? crypto.randomUUID()
     const createdAt = new Date().toISOString()
     const templateVersion = data.recordTypes.find((item) => item.id === typeId)?.version ?? 1
     const title = input.title.trim() || '제목 없음'
@@ -920,14 +922,36 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
   }, [userId])
 
-  const addUserPage = useCallback((input: { name?: string; icon?: string; blocks?: BuilderBlock[] }) => {
+  const addUserPage = useCallback((input: { name?: string; icon?: string; blocks?: BuilderBlock[]; template?: PageTemplateKind; fieldLabels?: Record<string, string> }) => {
     const page = createPage(input.name ?? '새 페이지', input.icon ?? 'StickyNote', input.blocks ?? [], data.customPages.length)
-    setData((current) => ({ ...current, customPages: [...current.customPages, { ...page, sort: current.customPages.length }] }))
+    page.template = input.template ?? null
+    page.fieldLabels = input.fieldLabels ?? {}
+    if (input.template) page.blocks = []
+    const recordType: CustomRecordType | null = input.template
+      ? {
+          id: page.id,
+          name: page.name,
+          icon: page.icon,
+          color: DEFAULT_SWATCH,
+          description: pageTypeMarker(input.template),
+          schemaVersion: 1,
+          version: 1,
+          blocks: [],
+          createdAt: page.createdAt,
+          updatedAt: page.updatedAt,
+        }
+      : null
+    setData((current) => ({
+      ...current,
+      customPages: [...current.customPages, { ...page, sort: current.customPages.length }],
+      recordTypes: recordType ? [...current.recordTypes, recordType] : current.recordTypes,
+    }))
+    if (recordType) mirrorRecordTypeSave(recordType)
     mirrorPageSave({ ...page, sort: data.customPages.length })
     return page.id
   }, [data.customPages.length])
 
-  const updateUserPage = useCallback((id: string, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks'>>) => {
+  const updateUserPage = useCallback((id: string, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks' | 'template' | 'fieldLabels'>>) => {
     const saved: { value: UserPage | null } = { value: null }
     setData((current) => ({
       ...current,
@@ -938,28 +962,76 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         return next
       }),
     }))
-    if (saved.value) mirrorPageSave(saved.value)
-  }, [])
+    if (saved.value) {
+      mirrorPageSave(saved.value)
+      if (saved.value.template) {
+        const type = data.recordTypes.find((item) => item.id === id)
+        if (!type) {
+          const recordType: CustomRecordType = {
+            id,
+            name: saved.value.name,
+            icon: saved.value.icon,
+            color: DEFAULT_SWATCH,
+            description: pageTypeMarker(saved.value.template),
+            schemaVersion: 1,
+            version: 1,
+            blocks: [],
+            createdAt: saved.value.createdAt,
+            updatedAt: saved.value.updatedAt,
+          }
+          setData((current) => ({ ...current, recordTypes: [...current.recordTypes, recordType] }))
+          mirrorRecordTypeSave(recordType)
+        } else if (patch.name !== undefined || patch.icon !== undefined) {
+          updateRecordType(id, { name: saved.value.name, icon: saved.value.icon })
+        }
+      }
+    }
+  }, [data.recordTypes, updateRecordType])
 
   const duplicateUserPage = useCallback((id: string) => {
     const source = data.customPages.find((item) => item.id === id)
     if (!source) return null
-    const forked = forkCollections(source.blocks, data.recordTypes)
-    const copy = { ...createPage(`${source.name} 복사본`, source.icon, forked.blocks, data.customPages.length), description: source.description }
+    const forked = source.template ? { blocks: [] as BuilderBlock[], collections: [] as CustomRecordType[] } : forkCollections(source.blocks, data.recordTypes)
+    const copy = createPage(`${source.name} 복사본`, source.icon, forked.blocks, data.customPages.length)
+    copy.description = source.description
+    copy.template = source.template
+    copy.fieldLabels = { ...source.fieldLabels }
+    if (source.template) copy.blocks = []
+    const pageType: CustomRecordType | null = source.template
+      ? {
+          id: copy.id,
+          name: copy.name,
+          icon: copy.icon,
+          color: DEFAULT_SWATCH,
+          description: pageTypeMarker(source.template),
+          schemaVersion: 1,
+          version: 1,
+          blocks: [],
+          createdAt: copy.createdAt,
+          updatedAt: copy.updatedAt,
+        }
+      : null
     setData((current) => ({
       ...current,
-      recordTypes: [...current.recordTypes, ...forked.collections],
+      recordTypes: [...current.recordTypes, ...forked.collections, ...(pageType ? [pageType] : [])],
       customPages: [...current.customPages, copy],
       settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...forked.collections.map((item) => item.id)]) },
     }))
     for (const item of forked.collections) mirrorRecordTypeSave(item)
+    if (pageType) mirrorRecordTypeSave(pageType)
     mirrorPageSave(copy)
     return copy.id
   }, [data.customPages, data.recordTypes])
 
   const removeUserPage = useCallback((id: string) => {
-    setData((current) => ({ ...current, customPages: current.customPages.filter((item) => item.id !== id) }))
+    setData((current) => ({
+      ...current,
+      customPages: current.customPages.filter((item) => item.id !== id),
+      recordTypes: current.recordTypes.filter((item) => item.id !== id),
+      records: current.records.filter((item) => item.typeId !== id),
+    }))
     mirrorPageDelete(id)
+    mirrorRecordTypeDelete(id)
   }, [])
 
   const moveUserPage = useCallback((id: string, delta: -1 | 1) => {

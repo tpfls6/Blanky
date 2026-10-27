@@ -1,0 +1,5 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T06:40:00Z	start	opened figure-it-out for the custom page rewrite	cross-cutting change, not a single-file feature	playbooks/figure-it-out, user brief	open
+2026-10-27T06:45:00Z	frame	reuse custom_records per page, do not put custom entries on built-in diary/reading/memo stores	diary already uses custom_records with blanky:system:diary:v1; mixing would leak into /diary	packages/api/src/diaryRepository.ts:11, supabase/migrations/20261001120000_custom_records.sql	open
+2026-10-27T06:46:00Z	frame	add template and field_labels on user_pages, keep blocks column	additive only, old builder JSON stays, no deletes	supabase/migrations/20261027120000_user_pages.sql	open
+2026-10-27T06:47:00Z	frame	parameterize Diary/Reading/Memo instead of cloning pages	user asked to reuse those screens, labels are display-only	src/pages/Diary/DiaryPage.tsx, src/pages/Reading/ReadingPage.tsx, src/pages/Memo/MemoPage.tsx	open

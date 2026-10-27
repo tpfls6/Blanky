@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Book, CustomRecord, CustomRecordType, DiaryEntry, EntryType, FieldValue, LibraryData, Memo, Settings } from '../types/records.ts'
 import type { BuilderBlock, UserPage } from '../features/builder/schema.ts'
+import type { PageTemplateKind } from '../features/pages/templates.ts'
 import type { PageBlock, PageId } from '../features/pages/layout.ts'
 import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
 
@@ -39,7 +40,7 @@ export type LibraryValue = LibraryData & {
   updateRecordType: (id: string, patch: Partial<Pick<CustomRecordType, 'name' | 'icon' | 'color' | 'description' | 'blocks'>>) => void
   duplicateRecordType: (id: string) => string | null
   removeRecordType: (id: string) => void
-  addRecord: (typeId: string, input: { title: string; values: Record<string, FieldValue> }) => string
+  addRecord: (typeId: string, input: { id?: string; title: string; values: Record<string, FieldValue> }) => string
   updateRecord: (id: string, patch: { title: string; values: Record<string, FieldValue> }) => void
   removeRecord: (id: string) => void
   restoreTrash: (id: string) => Promise<void>
@@ -47,8 +48,8 @@ export type LibraryValue = LibraryData & {
   emptyTrash: () => void
   setPageLayout: (pageId: PageId, blocks: PageBlock[]) => void
   resetPageLayout: (pageId: PageId) => void
-  addUserPage: (input: { name?: string; icon?: string; blocks?: BuilderBlock[] }) => string
-  updateUserPage: (id: string, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks'>>) => void
+  addUserPage: (input: { name?: string; icon?: string; blocks?: BuilderBlock[]; template?: PageTemplateKind; fieldLabels?: Record<string, string> }) => string
+  updateUserPage: (id: string, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks' | 'template' | 'fieldLabels'>>) => void
   duplicateUserPage: (id: string) => string | null
   removeUserPage: (id: string) => void
   moveUserPage: (id: string, delta: -1 | 1) => void
