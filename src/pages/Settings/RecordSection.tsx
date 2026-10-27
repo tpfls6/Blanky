@@ -8,6 +8,7 @@ import { RecordBuilder } from '../../features/records/Builder.tsx'
 import { createBlock } from '../../features/records/registry.ts'
 import { countBlocks, exportTemplate, parseTemplateFile } from '../../features/records/schema.ts'
 import { STARTERS } from '../../features/records/templates.ts'
+import { isSystemRecordType } from '../../features/pages/templates.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
 function swatchName(hex: string): string {
@@ -17,7 +18,8 @@ function swatchName(hex: string): string {
 export function RecordSection() {
   const confirm = useConfirm()
 
-  const { recordTypes, addRecordType, updateRecordType, duplicateRecordType, removeRecordType } = useLibrary()
+  const { recordTypes: allRecordTypes, addRecordType, updateRecordType, duplicateRecordType, removeRecordType } = useLibrary()
+  const recordTypes = allRecordTypes.filter((item) => !isSystemRecordType(item.description))
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)

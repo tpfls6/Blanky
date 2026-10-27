@@ -316,6 +316,8 @@ export type Database = {
           schema_version: number
           blocks: Json
           collections: Json
+          template: string | null
+          field_labels: Json
           created_at: string
           updated_at: string
         },
@@ -330,6 +332,8 @@ export type Database = {
           schema_version?: number
           blocks?: Json
           collections?: Json
+          template?: string | null
+          field_labels?: Json
           created_at?: string
           updated_at?: string
         },
@@ -342,6 +346,8 @@ export type Database = {
           schema_version?: number
           blocks?: Json
           collections?: Json
+          template?: string | null
+          field_labels?: Json
           updated_at?: string
         }
       >

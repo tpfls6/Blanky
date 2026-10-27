@@ -1,3 +1,4 @@
+import { coerceFieldLabels, coerceTemplate, type PageTemplateKind } from '../pages/templates.ts'
 import { coerceRecordType, type CustomRecordType } from '../records/schema.ts'
 
 export const SCHEMA_VERSION = 1
@@ -74,6 +75,8 @@ export type UserPage = {
   schemaVersion: number
   blocks: BuilderBlock[]
   collections?: CustomRecordType[]
+  template: PageTemplateKind | null
+  fieldLabels: Record<string, string>
   createdAt: string
   updatedAt: string
 }
@@ -185,6 +188,8 @@ export function coercePage(value: unknown): UserPage | null {
           return next ? [next] : []
         })
       : undefined,
+    template: coerceTemplate(row.template),
+    fieldLabels: coerceFieldLabels(row.fieldLabels ?? row.field_labels, coerceTemplate(row.template)),
     createdAt: typeof row.createdAt === 'string' ? row.createdAt : new Date().toISOString(),
     updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : new Date().toISOString(),
   }
@@ -380,12 +385,14 @@ export function createPage(name: string, icon = 'StickyNote', blocks: BuilderBlo
     sort,
     schemaVersion: SCHEMA_VERSION,
     blocks: blocks.length > 0 ? blocks : [createBlock('text')],
+    template: null,
+    fieldLabels: {},
     createdAt: now,
     updatedAt: now,
   }
 }
 
-export function touchPage(page: UserPage, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks'>>): UserPage {
+export function touchPage(page: UserPage, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks' | 'template' | 'fieldLabels'>>): UserPage {
   const name = patch.name === undefined ? page.name : patch.name.trim() || page.name
   return { ...page, ...patch, name, updatedAt: new Date().toISOString() }
 }

@@ -40,10 +40,10 @@ const server = spawn(process.execPath, ['--input-type=module', '-e', 'import { c
 let serverOutput = ''
 server.stdout.on('data', (data) => { serverOutput += data })
 server.stderr.on('data', (data) => { serverOutput += data })
-for (let i = 0; i < 80; i++) {
+for (let i = 0; i < 150; i++) {
   try { if ((await fetch(base)).ok) break } catch {}
-  await new Promise((r) => setTimeout(r, 100))
-  if (i === 79) throw new Error(serverOutput)
+  await new Promise((r) => setTimeout(r, 200))
+  if (i === 149) throw new Error(serverOutput || 'vite did not start on ' + base)
 }
 let targets
 for (let i = 0; i < 50; i++) {
@@ -122,10 +122,60 @@ function setFieldSrc() {
   return `const set = (el, value) => { if (!el) return; const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); }`
 }
 
+async function clickText(text) {
+  const ok = await evaluate(`(() => {
+    const node = [...document.querySelectorAll("button,a")].find((el) => el.textContent.replace(/\\s+/g, " ").includes(${q(text)}))
+    node?.click()
+    return Boolean(node)
+  })()`)
+  assert.equal(ok, true, 'missing click target ' + text)
+}
+
+async function setInput(selector, value) {
+  await evaluate(`(() => { ${setFieldSrc()}; set(document.querySelector(${q(selector)}), ${q(value)}); })()`)
+}
+
+async function setLabeled(label, value) {
+  await evaluate(`(() => {
+    ${setFieldSrc()}
+    const lab = [...document.querySelectorAll("label")].find((el) => (el.querySelector("span")?.textContent || el.textContent).trim().startsWith(${q(label)}))
+    set(lab?.querySelector("input,textarea"), ${q(value)})
+  })()`)
+}
+
+async function createPage(kind, name, labels) {
+  await navigate(base + '/custom')
+  await wait('document.querySelector("h1")?.textContent.includes("커스텀 템플릿")', 'custom hub')
+  await evaluate('document.querySelector("[data-tour=new-page]")?.click()')
+  await wait('[...document.querySelectorAll("button")].some(b => b.textContent.includes("일기형"))', 'wizard kinds')
+  await clickText(kind)
+  await wait('document.querySelector(\'input[aria-label="페이지 이름"]\')', 'name field')
+  await setInput('input[aria-label="페이지 이름"]', name)
+  await clickText('다음')
+  await wait('document.querySelector("label input")', 'field labels')
+  for (const [from, to] of labels) await setLabeled(from, to)
+  await clickText('다음')
+  await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim()==="페이지 만들기")', 'preview')
+  await clickText('페이지 만들기')
+  await wait('location.pathname.startsWith("/pages/")', name + ' route')
+  await wait('document.querySelector("h1")?.textContent.trim()===' + q(name), name + ' heading')
+  const id = await evaluate('location.pathname.split("/")[2]')
+  log('created ' + kind + ' ' + name + ' ' + id)
+  return id
+}
+
+function titlesOf(name) {
+  return `(() => {
+    const lib = JSON.parse(localStorage.getItem(${q(library)}))
+    const page = lib.customPages.find((item) => item.name === ${q(name)})
+    return lib.records.filter((item) => item.typeId === page.id).map((item) => item.title)
+  })()`
+}
+
 async function finishOk(extra) {
   assert.equal(errors.length, 0, errors.join('\n'))
   await finish(true, extra)
-  log('PASS kanban drop chart bars edit-to-view')
+  log('PASS template pages crud isolation builtins')
 }
 
 try {
@@ -155,107 +205,97 @@ try {
   await wait('localStorage.getItem("blanky.session.v1")==="' + owner + '"', 'seeded session')
   log('logged in as seeded local user')
   await wait('document.querySelector("h1")?.textContent.includes("커스텀 템플릿")', 'custom hub')
-  await wait('document.querySelector("[data-tour=starters]")', 'starters')
+  await wait('document.querySelector("[data-tour=new-page]")', 'new record')
+  await shot('01-custom-hub')
 
-  await evaluate('[...document.querySelector("[data-tour=starters]").querySelectorAll("button")].find(b => b.textContent.includes("프로젝트 관리"))?.click()')
-  await wait('location.pathname.startsWith("/pages/")', 'project page')
-  const projectId = await evaluate('location.pathname.split("/")[2]')
-  log('opened project starter /pages/' + projectId)
-  await wait('[...document.querySelectorAll("[data-kanban-col]")].length>=3', 'kanban columns')
-  await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim()==="추가")', 'collection add')
-  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="추가")?.click()')
-  await wait('document.querySelector("input.text-2xl")', 'task title')
-  await evaluate('(() => { ' + setFieldSrc() + '; set(document.querySelector("input.text-2xl"), "칸반카드"); [...document.querySelectorAll("button")].find(b => b.textContent.includes("할 일"))?.click(); })()')
-  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="저장")?.click()')
-  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title==="칸반카드")', 'kanban card saved')
-  await wait('document.querySelector("[data-kanban-card]")', 'kanban card in column')
-  await shot('01-kanban-before-drop')
+  const workoutId = await createPage('일기형', '운동', [['오늘의 기분', '운동 컨디션']])
+  await wait('[...document.querySelectorAll("nav a")].some(a => a.textContent.includes("운동"))', 'sidebar workout')
+  await clickText('새 기록')
+  await wait('document.querySelector(".diary-title-input")', 'diary editor')
+  await wait('[...document.querySelectorAll("legend")].some(el => el.textContent.trim()==="운동 컨디션")', 'renamed mood')
+  await setInput('.diary-title-input', '스쿼트')
+  await setInput('.diary-body-input', '하체')
+  await wait(titlesOf('운동') + '.includes("스쿼트")', 'workout record')
+  await evaluate('[...document.querySelectorAll("summary")].find(el => el.textContent.includes("페이지 설정"))?.click()')
+  await setLabeled('제목', '운동 이름')
+  await wait('document.querySelector(".diary-title-input")?.getAttribute("aria-label")==="운동 이름"', 'title label updated')
+  await wait(titlesOf('운동') + '.includes("스쿼트")', 'record kept after rename')
+  await shot('02-diary-custom')
 
-  const drop = await evaluate(`(() => {
-    const card = document.querySelector("[data-kanban-card]")
-    const from = card?.closest("[data-kanban-col]")
-    const to = [...document.querySelectorAll("[data-kanban-col]")].find((col) => col.querySelector("h3")?.textContent.trim() === "완료")
-    if (!card || !to) return { ok: false }
-    const dt = new DataTransfer()
-    dt.setData("text/plain", card.getAttribute("data-kanban-card"))
-    card.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }))
-    to.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }))
-    to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }))
-    return { ok: true, id: card.getAttribute("data-kanban-card"), from: from?.getAttribute("data-kanban-col"), to: to.getAttribute("data-kanban-col") }
-  })()`)
-  assert.equal(drop.ok, true, 'kanban drop targets missing')
-  await wait('(() => { const lib = JSON.parse(localStorage.getItem(' + q(library) + ')); const rec = lib.records.find(r => r.title==="칸반카드"); const type = lib.recordTypes.find(t => t.id===rec.typeId); const field = type.blocks.find(b => b.type==="select"); const done = field.props.options.find(o => o.label==="완료"); return rec.values[field.fieldKey]===done.id; })()', 'select saved as 완료')
-  log('kanban DragEvent drop to 완료 ' + JSON.stringify(drop))
-  await shot('02-kanban-after-drop')
+  const tripId = await createPage('일기형', '여행', [])
+  await clickText('새 기록')
+  await wait('document.querySelector(".diary-title-input")', 'trip editor')
+  await setInput('.diary-title-input', '제주')
+  await setInput('.diary-body-input', '바다')
+  await wait(titlesOf('여행') + '.includes("제주")', 'trip record')
 
-  await navigate()
-  await wait('document.querySelector("[data-kanban-card]")', 'kanban after reload')
-  const afterReload = await evaluate(`(() => {
+  const movieId = await createPage('독서형', '영화', [['책 제목', '영화 제목'], ['저자', '감독'], ['독서 감상', '영화 감상']])
+  await clickText('기록 추가')
+  await wait('[...document.querySelectorAll("label")].some(el => el.textContent.includes("영화 제목"))', 'reading labels')
+  await setLabeled('영화 제목', '기생충')
+  await setLabeled('감독', '봉준호')
+  await evaluate('document.querySelector("form.reading-form button.btn-primary")?.click()')
+  await wait(titlesOf('영화') + '.includes("기생충")', 'movie record')
+  await shot('03-reading-custom')
+
+  const ideaId = await createPage('메모형', '아이디어', [])
+  await clickText('메모 작성')
+  await wait('document.querySelector(".memo-title")', 'memo editor')
+  await setInput('.memo-title', '새 프로젝트')
+  await evaluate('document.querySelector(".memo-editor button[type=submit]")?.click()')
+  await wait(titlesOf('아이디어') + '.includes("새 프로젝트")', 'memo record')
+  await shot('04-memo-custom')
+
+  const isolation = await evaluate(`(() => {
     const lib = JSON.parse(localStorage.getItem(${q(library)}))
-    const rec = lib.records.find((r) => r.title === "칸반카드")
-    const type = lib.recordTypes.find((t) => t.id === rec.typeId)
-    const field = type.blocks.find((b) => b.type === "select")
-    const done = field.props.options.find((o) => o.label === "완료")
-    const col = document.querySelector("[data-kanban-col=\\"" + done.id + "\\"]")
+    const titles = (name) => {
+      const page = lib.customPages.find((item) => item.name === name)
+      return lib.records.filter((item) => item.typeId === page.id).map((item) => item.title)
+    }
     return {
-      value: rec.values[field.fieldKey],
-      doneId: done.id,
-      inDoneColumn: Boolean(col?.querySelector("[data-kanban-card=\\"" + rec.id + "\\"]")),
+      pages: lib.customPages.map((page) => [page.name, page.template]),
+      workout: titles('운동'),
+      trip: titles('여행'),
+      movie: titles('영화'),
+      idea: titles('아이디어'),
+      mood: lib.customPages.find((page) => page.name === '운동').fieldLabels.mood,
     }
   })()`)
-  assert.equal(afterReload.value, afterReload.doneId)
-  assert.equal(afterReload.inDoneColumn, true)
-  log('kanban kept 완료 after reload')
-  await shot('03-kanban-after-reload')
+  assert.deepEqual(isolation.pages, [['운동', 'diary'], ['여행', 'diary'], ['영화', 'reading'], ['아이디어', 'memo']])
+  assert.deepEqual(isolation.workout, ['스쿼트'])
+  assert.deepEqual(isolation.trip, ['제주'])
+  assert.deepEqual(isolation.movie, ['기생충'])
+  assert.deepEqual(isolation.idea, ['새 프로젝트'])
+  assert.equal(isolation.mood, '운동 컨디션')
+  log('isolation ' + JSON.stringify(isolation))
 
+  await navigate()
+  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.length===4', 'pages after reload')
+  await wait(titlesOf('운동') + '.includes("스쿼트") && ' + titlesOf('영화') + '.includes("기생충")', 'records after reload')
+  await wait('document.querySelector("h1")?.textContent.trim()==="아이디어"', 'reopened memo')
+  log('reload kept pages and records')
+  await shot('05-after-reload')
+
+  await navigate(base + '/diary')
+  await wait('document.querySelector(".diary-page")', 'builtin diary')
+  await wait('!JSON.parse(localStorage.getItem(' + q(library) + ')).diaries?.some(d => d.title==="스쿼트")', 'builtin diary isolated')
+  await navigate(base + '/reading')
+  await wait('document.querySelector(".reading-page")', 'builtin reading')
+  await navigate(base + '/memo')
+  await wait('[...document.querySelectorAll("button")].some(b => b.textContent.includes("메모 작성"))', 'builtin memo')
+  await navigate(base + '/schedule')
+  await wait('document.querySelector(\'input[aria-label="일정 또는 할 일"]\')', 'schedule')
+  log('builtin diary reading memo schedule ok')
+  await shot('06-schedule')
+
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true })
   await navigate(base + '/custom')
-  await wait('document.querySelector("[data-tour=starters]")', 'hub for workout')
-  await evaluate('[...document.querySelector("[data-tour=starters]").querySelectorAll("button")].find(b => b.textContent.includes("운동 관리"))?.click()')
-  await wait('location.pathname.startsWith("/pages/") && location.pathname.split("/")[2]!=="' + projectId + '"', 'workout page')
-  const workoutId = await evaluate('location.pathname.split("/")[2]')
-  log('opened workout starter /pages/' + workoutId)
-  await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim()==="추가")', 'workout add')
+  await wait('document.querySelector("[data-tour=new-page]")', 'mobile hub')
+  await evaluate('document.querySelector("[data-tour=new-page]")?.click()')
+  await wait('[...document.querySelectorAll("button")].some(b => b.textContent.includes("메모형"))', 'mobile wizard')
+  await shot('07-mobile-wizard')
 
-  async function addLift(title, date, kg, reps) {
-    await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="추가")?.click()')
-    await wait('document.querySelector("input.text-2xl")', 'lift title ' + title)
-    await evaluate('(() => { ' + setFieldSrc() + '; set(document.querySelector("input.text-2xl"), ' + q(title) + '); set(document.querySelector("input[type=date]"), ' + q(date) + '); const numbers = [...document.querySelectorAll("input[type=number]")]; if (numbers[0]) set(numbers[0], ' + q(String(kg)) + '); if (numbers[1]) set(numbers[1], ' + q(String(reps)) + '); })()')
-    await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="저장")?.click()')
-    await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title===' + q(title) + ')', title + ' saved')
-  }
-  await addLift('스쿼트', '2026-10-27', 40, 8)
-  await addLift('벤치', '2026-10-27', 20, 6)
-  await evaluate('[...document.querySelectorAll("[role=tab]")].find(b => b.textContent.includes("차트"))?.click()')
-  await wait('document.querySelector("[data-chart-bar=\\"2026-10-27\\"]")', 'chart bar')
-  const chart = await evaluate(`(() => {
-    const bar = document.querySelector('[data-chart-bar="2026-10-27"]')
-    const row = bar?.closest("li")
-    return { text: row?.innerText ?? "", width: bar ? getComputedStyle(bar).width : "0px" }
-  })()`)
-  assert.match(chart.text, /2026-10-27/)
-  assert.match(chart.text, /60/)
-  assert.notEqual(chart.width, '0px')
-  log('chart 2026-10-27 summed to 60 width=' + chart.width)
-  await shot('04-chart-bars')
-
-  await evaluate('(() => { ' + setFieldSrc() + '; const heading = [...document.querySelectorAll("textarea")].find(el => el.value==="운동 관리"); set(heading, "운동 관리 본문"); })()')
-  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.find(p => p.id==="' + workoutId + '").blocks.some(b => b.props && b.props.text==="운동 관리 본문")', 'heading stored')
-  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="편집")?.click()')
-  await wait('[...document.querySelectorAll("p")].some(p => p.textContent==="운동 관리 본문")', 'view mode heading')
-  assert.equal(await evaluate('[...document.querySelectorAll("button")].some(b => b.textContent.trim()==="읽기")'), true)
-  log('view mode shows edited heading')
-  await shot('05-view-after-edit')
-
-  await navigate(base + '/custom')
-  await wait('document.querySelector("h1")', 'hub after edit')
-  await evaluate('(() => { const heading = [...document.querySelectorAll("h2")].find(h => h.textContent.includes("내가 만든 페이지")); const link = [...heading.parentElement.querySelectorAll("a")].find(a => a.textContent.includes("운동 관리")); link?.click(); })()')
-  await wait('location.pathname==="/pages/' + workoutId + '"', 'reopened workout')
-  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.find(p => p.id==="' + workoutId + '").blocks.some(b => b.props && b.props.text==="운동 관리 본문")', 'heading after reopen')
-  await wait('[...document.querySelectorAll("textarea,p")].some(el => (el.value || el.textContent)==="운동 관리 본문")', 'heading visible after reopen')
-  log('reopened workout kept heading')
-  await shot('06-reopen-after-edit')
-
-  await finishOk({ projectId, workoutId, drop, afterReload, chart })
+  await finishOk({ workoutId, tripId, movieId, ideaId, isolation })
 } catch (error) {
   log('FAIL ' + (error instanceof Error ? error.message : String(error)))
   await finish(false, { error: error instanceof Error ? error.stack : String(error) }).catch(() => undefined)
