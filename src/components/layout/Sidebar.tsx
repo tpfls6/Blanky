@@ -1,90 +1,108 @@
-import { Plus } from 'lucide-react'
+import { PanelLeft } from 'lucide-react'
 import { BrandLogo } from '../common/BrandLogo.tsx'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
-import { Fragment } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { IconView } from '../../constants/icons.ts'
 import { ROUTES } from '../../constants/routes.ts'
 import { chromeNavLabel, isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
+function NavRow({
+  id,
+  to,
+  end,
+  icon: Icon,
+  label,
+  color,
+}: {
+  id: string
+  to: string
+  end?: boolean
+  icon: typeof STORE_NAV.icon
+  label: string
+  color?: string
+}) {
+  return (
+    <NavLink data-theme-slot="sidebar-item" to={to} end={end} className="nav-link min-w-0">
+      {color ? <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} /> : null}
+      <ThemeIcon name={id} fallback={Icon} strokeWidth={1.5} aria-hidden="true" />
+      <span className="min-w-0 truncate">{label}</span>
+    </NavLink>
+  )
+}
+
 export function Sidebar({
   overlay = false,
   open = true,
+  pinned = false,
+  onToggle,
 }: {
   overlay?: boolean
   open?: boolean
+  pinned?: boolean
+  onToggle?: () => void
 }) {
   const { pathname } = useLocation()
-  const { settings, recordTypes, customPages, addUserPage, moveUserPage } = useLibrary()
+  const { settings, customPages } = useLibrary()
   const { t } = useI18n()
-  const navigate = useNavigate()
-  const items = visibleNav(settings.nav, recordTypes)
+  const items = visibleNav(settings.nav)
+  const core = items.filter((item) => !isRecordNav(item.id))
+  const records = items.filter((item) => isRecordNav(item.id))
 
   return (
-    <aside
-      id="app-sidebar"
-      data-theme-slot="sidebar"
-      data-open={overlay ? String(open) : undefined}
-      className={overlay ? 'theme-sidebar peek-sidebar md:flex' : 'theme-sidebar sticky top-0 hidden h-screen w-52 shrink-0 flex-col border-r border-line px-3 py-5 md:flex'}
-    >
-      <BrandLogo className="px-2 text-neutral-900" />
-      <nav className="mt-6 flex min-w-0 flex-1 flex-col gap-0.5" aria-label={t('nav.main')}>
-        {items.map((item, index) => {
-          const Icon = item.icon
-          const showRecords = isRecordNav(item.id) && !items.slice(0, index).some((entry) => isRecordNav(entry.id))
-          return (
-            <Fragment key={item.id}>
-              {showRecords ? <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.records')}</p> : null}
-              <NavLink data-theme-slot="sidebar-item" to={item.to} end={item.end} className="nav-link min-w-0">
-                {item.color ? <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} /> : null}
-                <ThemeIcon name={item.id} fallback={Icon} strokeWidth={1.5} aria-hidden="true" />
-                <span className="min-w-0 truncate">{chromeNavLabel(item.id, t, item.label)}</span>
-              </NavLink>
-            </Fragment>
-          )
-        })}
-        <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.pages')}</p>
-        {customPages.map((page, index) => (
-          <div key={page.id} className="flex items-center gap-0.5">
-            <NavLink data-theme-slot="sidebar-item" to={ROUTES.page(page.id)} className="nav-link min-w-0 flex-1">
+    <>
+      {overlay && onToggle ? (
+        <button
+          id="app-sidebar-toggle"
+          type="button"
+          className="peek-toggle"
+          aria-expanded={open}
+          aria-pressed={pinned}
+          aria-controls="app-sidebar"
+          onClick={onToggle}
+        >
+          <PanelLeft className="size-4" strokeWidth={1.5} />
+          <span className="sr-only">{open ? t('custom.closeMenu') : t('custom.openMenu')}</span>
+        </button>
+      ) : null}
+      <aside
+        id="app-sidebar"
+        data-theme-slot="sidebar"
+        data-open={overlay ? String(open) : undefined}
+        className={overlay ? 'theme-sidebar peek-sidebar md:flex' : 'theme-sidebar sticky top-0 hidden h-screen w-52 shrink-0 flex-col border-r border-line px-3 py-5 md:flex'}
+      >
+        <div className="sidebar-brand">
+          {overlay ? <span className="sidebar-brand-gap" aria-hidden="true" /> : null}
+          <BrandLogo className="px-2 text-neutral-900" />
+        </div>
+        <nav className="mt-6 flex min-w-0 flex-1 flex-col gap-0.5" aria-label={t('nav.main')}>
+          {core.map((item) => (
+            <NavRow key={item.id} id={item.id} to={item.to} end={item.end} icon={item.icon} label={chromeNavLabel(item.id, t, item.label)} color={item.color} />
+          ))}
+          {records.length > 0 ? <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.records')}</p> : null}
+          {records.map((item) => (
+            <NavRow key={item.id} id={item.id} to={item.to} end={item.end} icon={item.icon} label={chromeNavLabel(item.id, t, item.label)} color={item.color} />
+          ))}
+          <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.pages')}</p>
+          {customPages.map((page) => (
+            <NavLink key={page.id} data-theme-slot="sidebar-item" to={ROUTES.page(page.id)} className="nav-link min-w-0">
               <IconView name={page.icon} className="size-4 shrink-0" />
               <span className="min-w-0 truncate">{page.name}</span>
             </NavLink>
-            <button type="button" aria-label={t('builder.moveUp')} className="icon-btn" disabled={index === 0} onClick={() => moveUserPage(page.id, -1)}>↑</button>
-            <button type="button" aria-label={t('builder.moveDown')} className="icon-btn" disabled={index === customPages.length - 1} onClick={() => moveUserPage(page.id, 1)}>↓</button>
-          </div>
-        ))}
-        <button
-          type="button"
-          className="nav-link min-w-0"
-          data-tour="new-page"
-          onClick={() => {
-            const id = addUserPage({ name: t('builder.newPage') })
-            navigate(ROUTES.page(id))
-          }}
-        >
-          <Plus className="size-4" strokeWidth={1.5} />
-          <span className="min-w-0 truncate">{t('builder.newPage')}</span>
-        </button>
-      </nav>
-      <div className="mt-auto border-t border-line pt-3">
-        <NavLink data-theme-slot="sidebar-item" to={STORE_NAV.to} className="nav-link min-w-0"><ThemeIcon name="store" fallback={STORE_NAV.icon} strokeWidth={1.5} /><span className="min-w-0 truncate">{t('nav.store')}</span></NavLink>
-        <NavLink data-theme-slot="sidebar-item" to={THEMES_NAV.to} className="nav-link min-w-0"><ThemeIcon name="custom" fallback={THEMES_NAV.icon} strokeWidth={1.5} /><span className="min-w-0 truncate">{t('nav.themes')}</span></NavLink>
-        <NavLink data-theme-slot="sidebar-item" to={CUSTOM_NAV.to} className="nav-link min-w-0">
-          <ThemeIcon name="custom" fallback={CUSTOM_NAV.icon} strokeWidth={1.5} aria-hidden="true" />
-          <span className="min-w-0 truncate">{t('nav.custom')}</span>
-        </NavLink>
-        <NavLink data-theme-slot="sidebar-item" to={TRASH_NAV.to} className="nav-link min-w-0">
-          <ThemeIcon name="delete" fallback={TRASH_NAV.icon} strokeWidth={1.5} aria-hidden="true" />
-          <span className="min-w-0 truncate">{t('nav.trash')}</span>
-        </NavLink>
-        <NavLink data-theme-slot="sidebar-item" to={SETTINGS_NAV.to} aria-current={pathname === THEMES_NAV.to ? false : 'page'} className={() => 'nav-link min-w-0'}>
-          <ThemeIcon name="settings" fallback={SETTINGS_NAV.icon} strokeWidth={1.5} aria-hidden="true" />
-          <span className="min-w-0 truncate">{t('nav.settings')}</span>
-        </NavLink>
-      </div>
-    </aside>
+          ))}
+        </nav>
+        <div className="mt-auto border-t border-line pt-3">
+          <NavRow id="store" to={STORE_NAV.to} icon={STORE_NAV.icon} label={t('nav.store')} />
+          <NavRow id="custom" to={THEMES_NAV.to} icon={THEMES_NAV.icon} label={t('nav.themes')} />
+          <NavRow id="custom" to={CUSTOM_NAV.to} icon={CUSTOM_NAV.icon} label={t('nav.custom')} />
+          <NavRow id="delete" to={TRASH_NAV.to} icon={TRASH_NAV.icon} label={t('nav.trash')} />
+          <NavLink data-theme-slot="sidebar-item" to={SETTINGS_NAV.to} aria-current={pathname === THEMES_NAV.to ? false : 'page'} className={() => 'nav-link min-w-0'}>
+            <ThemeIcon name="settings" fallback={SETTINGS_NAV.icon} strokeWidth={1.5} aria-hidden="true" />
+            <span className="min-w-0 truncate">{t('nav.settings')}</span>
+          </NavLink>
+        </div>
+      </aside>
+    </>
   )
 }

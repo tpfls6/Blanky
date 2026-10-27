@@ -1,6 +1,5 @@
 import { Store, Palette, History, BookOpen, CalendarDays, House, Library, Settings, SlidersHorizontal, StickyNote, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { iconByName } from './icons.ts'
 import { ROUTES } from './routes.ts'
 import type { CustomRecordType, NavPref } from '../types/records.ts'
 
@@ -54,27 +53,16 @@ export function navLabel(id: string, recordTypes: readonly CustomRecordType[], t
   return translate ? chromeNavLabel(id, translate, fallback) : fallback
 }
 
-export function visibleNav(nav: readonly NavPref[], recordTypes: readonly CustomRecordType[]): NavItem[] {
+export function visibleNav(nav: readonly NavPref[]): NavItem[] {
   return nav.flatMap((pref) => {
     if (!pref.visible) return []
     const builtin = BUILTIN.find((item) => item.id === pref.id)
-    if (builtin) return [builtin]
-    const record = recordTypes.find((item) => item.id === pref.id)
-    if (!record) return []
-    return [
-      {
-        id: record.id,
-        label: record.name,
-        to: ROUTES.record(record.id),
-        icon: iconByName(record.icon),
-        color: record.color,
-      },
-    ]
+    return builtin ? [builtin] : []
   })
 }
 
 export function isRecordNav(id: string): boolean {
-  return id !== 'home' && id !== 'schedule' && id !== 'diary' && id !== 'reading' && id !== 'memo' && id !== 'settings' && id !== 'custom'
+  return id === 'activity'
 }
 
 export const STORE_NAV: NavItem = {id:'store',label:'Store',to:'/store',icon:Store}

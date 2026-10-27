@@ -12,7 +12,6 @@ import { DailyBoard } from '../Schedule/SchedulePage.tsx'
 import { DiaryPage } from '../Diary/DiaryPage.tsx'
 import { MemoPage } from '../Memo/MemoPage.tsx'
 import { ReadingPage } from '../Reading/ReadingPage.tsx'
-import { RecordSection } from '../Settings/RecordSection.tsx'
 import type { UserPage } from '../../features/builder/schema.ts'
 
 function matches(query: string, page: { name: string; description?: string }) {
@@ -21,19 +20,45 @@ function matches(query: string, page: { name: string; description?: string }) {
   return page.name.toLowerCase().includes(text) || (page.description ?? '').toLowerCase().includes(text)
 }
 
-function PageRow({ page, to }: { page: UserPage; to: string }) {
+function PageRow({
+  page,
+  to,
+  onUp,
+  onDown,
+  canUp,
+  canDown,
+  upLabel,
+  downLabel,
+}: {
+  page: UserPage
+  to: string
+  onUp?: () => void
+  onDown?: () => void
+  canUp?: boolean
+  canDown?: boolean
+  upLabel?: string
+  downLabel?: string
+}) {
   return (
-    <Link to={to} className="flex items-center gap-3 border-b border-line py-3 text-sm last:border-b-0">
-      <IconView name={page.icon} className="size-4 shrink-0 text-neutral-400" />
-      <span className="min-w-0 flex-1 truncate">{page.name}</span>
-    </Link>
+    <div className="flex items-center gap-1 border-b border-line last:border-b-0">
+      <Link to={to} className="flex min-w-0 flex-1 items-center gap-3 py-3 text-sm">
+        <IconView name={page.icon} className="size-4 shrink-0 text-neutral-400" />
+        <span className="min-w-0 flex-1 truncate">{page.name}</span>
+      </Link>
+      {onUp && onDown ? (
+        <>
+          <button type="button" aria-label={upLabel} className="icon-btn" disabled={!canUp} onClick={onUp}>↑</button>
+          <button type="button" aria-label={downLabel} className="icon-btn" disabled={!canDown} onClick={onDown}>↓</button>
+        </>
+      ) : null}
+    </div>
   )
 }
 
 export function CustomPage() {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { customPages, pageTemplates, addUserPage, addPageFromTemplate, pageLayouts, resetPageLayout, settings, updateSettings } = useLibrary()
+  const { customPages, pageTemplates, addUserPage, addPageFromTemplate, moveUserPage, pageLayouts, resetPageLayout, settings, updateSettings } = useLibrary()
   const [query, setQuery] = useState('')
   const [layoutPage, setLayoutPage] = useState<PageId>('schedule')
   const [notice, setNotice] = useState('')
@@ -42,7 +67,6 @@ export function CustomPage() {
   const starters = useMemo(() => builtinTemplates(), [])
   const pages = customPages.filter((page) => matches(query, page))
   const templates = pageTemplates.filter((page) => matches(query, page))
-  const recent = [...customPages].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 6)
   const custom = isUserLayout(pageLayouts[layoutPage])
   const pageLabel = (id: PageId) => t(`nav.${id}`)
 
@@ -89,12 +113,24 @@ export function CustomPage() {
       </label>
 
       <section className="mt-8">
-        <h2 className="text-sm font-medium">{t('custom.recent')}</h2>
-        {recent.length === 0 ? <p className="mt-3 text-sm text-neutral-400">{t('custom.emptyPages')}</p> : recent.map((page) => <PageRow key={page.id} page={page} to={ROUTES.page(page.id)} />)}
-      </section>
-      <section className="mt-8">
         <h2 className="text-sm font-medium">{t('custom.myPages')}</h2>
-        {pages.length === 0 ? <p className="mt-3 text-sm text-neutral-400">{t('custom.emptyPages')}</p> : pages.map((page) => <PageRow key={page.id} page={page} to={ROUTES.page(page.id)} />)}
+        {pages.length === 0 ? (
+          <p className="mt-3 text-sm text-neutral-400">{t('custom.emptyPages')}</p>
+        ) : (
+          pages.map((page) => (
+            <PageRow
+              key={page.id}
+              page={page}
+              to={ROUTES.page(page.id)}
+              upLabel={t('builder.moveUp')}
+              downLabel={t('builder.moveDown')}
+              canUp={customPages[0]?.id !== page.id}
+              canDown={customPages[customPages.length - 1]?.id !== page.id}
+              onUp={() => moveUserPage(page.id, -1)}
+              onDown={() => moveUserPage(page.id, 1)}
+            />
+          ))
+        )}
       </section>
       <section className="mt-8">
         <h2 className="text-sm font-medium">{t('custom.myTemplates')}</h2>
@@ -161,14 +197,6 @@ export function CustomPage() {
         {layoutPage === 'reading' ? <ReadingPage editing /> : null}
         {layoutPage === 'memo' ? <MemoPage editing /> : null}
       </details>
-
-      <section className="mt-10">
-        <h2 className="text-sm font-medium">{t('custom.recordsTitle')}</h2>
-        <p className="mt-1 text-sm text-neutral-500">{t('custom.recordsHint')}</p>
-        <div className="mt-4">
-          <RecordSection />
-        </div>
-      </section>
 
       {guide ? (
         <TemplateGuide

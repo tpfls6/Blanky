@@ -8,10 +8,10 @@ import { useLibrary } from '../../state/useLibrary.ts'
 
 export function MobileNav() {
   const { pathname } = useLocation()
-  const { settings, recordTypes, customPages } = useLibrary()
+  const { settings, customPages } = useLibrary()
   const { t } = useI18n()
   const pages: NavItem[] = customPages.map((page) => ({ id: page.id, label: page.name, to: ROUTES.page(page.id), icon: iconByName(page.icon) }))
-  const items = [...visibleNav(settings.nav, recordTypes), ...pages, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV]
+  const items = [...visibleNav(settings.nav), ...pages, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV]
 
   return (
     <nav

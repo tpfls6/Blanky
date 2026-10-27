@@ -27,15 +27,17 @@ export function usePeekNav(enabled: boolean) {
       window.clearTimeout(hideRef.current)
       hideRef.current = window.setTimeout(() => setOpen(false), HIDE_MS)
     }
+    const hit = (id: string, event: MouseEvent) => {
+      const box = document.getElementById(id)?.getBoundingClientRect()
+      return !!box && event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom
+    }
     const onMove = (event: MouseEvent) => {
       if (!fine.matches) return
       if (event.buttons !== 0) {
         if (!pinnedRef.current) setOpen(false)
         return
       }
-      const side = document.getElementById('app-sidebar')?.getBoundingClientRect()
-      const overSide = !!side && event.clientX >= side.left && event.clientX <= side.right && event.clientY >= side.top && event.clientY <= side.bottom
-      if (event.clientX <= EDGE || overSide) show()
+      if (event.clientX <= EDGE || hit('app-sidebar', event) || hit('app-sidebar-toggle', event)) show()
       else hide()
     }
     window.addEventListener('mousemove', onMove)
@@ -48,11 +50,13 @@ export function usePeekNav(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !pinned) setOpen(false)
+      if (event.key !== 'Escape') return
+      setPinned(false)
+      setOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [enabled, pinned])
+  }, [enabled])
 
   const toggle = () => {
     setPinned((value) => {

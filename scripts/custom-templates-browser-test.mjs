@@ -75,11 +75,12 @@ async function navigate(url) {
 }
 const pause = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms))
 async function wait(expression, label) {
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 150; i++) {
     if (await evaluate('Boolean(' + expression + ')')) return
     await pause(100)
   }
-  throw new Error('Timed out: ' + label + '\n' + serverOutput.slice(-1200))
+  const page = await evaluate('location.href + "\\n" + document.body.innerText.slice(0, 400)')
+  throw new Error('Timed out: ' + label + '\n' + page + '\n' + serverOutput.slice(-1200))
 }
 const q = (value) => JSON.stringify(value)
 const owner = '11111111-1111-4111-8111-111111111111'
@@ -98,7 +99,8 @@ try {
       localStorage.setItem('blanky.library.' + owner, JSON.stringify({
         categories: [],
         items: [],
-        settings: { locale: 'ko', customTemplatesGuideSeen: false },
+        settings: { locale: 'ko', customTemplatesGuideSeen: false, nav: [{ id: 'home', visible: true }, { id: 'schedule', visible: true }, { id: 'activity', visible: true }, { id: 'diary', visible: true }, { id: 'reading', visible: true }, { id: 'memo', visible: true }, { id: 'workout-record', visible: true }] },
+        recordTypes: [{ id: 'workout-record', name: '운동 기록', icon: 'Dumbbell', color: '#3C8664', description: '', schemaVersion: 1, version: 1, blocks: [], createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-01T00:00:00Z' }],
         customPages: [{ id: 'page-1', name: '기존 페이지', icon: 'StickyNote', description: '', sort: 0, schemaVersion: 1, blocks: [{ id: 'b1', type: 'text', props: { text: '안녕' } }], createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-01T00:00:00Z' }],
         pageTemplates: [],
       }))
@@ -111,14 +113,28 @@ try {
   assert.match(await evaluate('getComputedStyle(document.getElementById("app-sidebar")).transform'), /matrix\(|translate/)
   const closedX = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
   assert.ok(closedX < 8, 'sidebar starts off canvas, right=' + closedX)
+  assert.match(await evaluate('getComputedStyle(document.getElementById("app-sidebar-toggle")).borderTopColor'), /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/)
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 8, y: 200 })
-  await pause(80)
+  await pause(360)
   const openX = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
   assert.ok(openX > 100, 'hover opens sidebar, right=' + openX)
+  const sideText = await evaluate('document.getElementById("app-sidebar").innerText')
+  assert.match(sideText, /기존 페이지/)
+  assert.equal(sideText.includes('운동 기록'), false)
+  assert.equal(sideText.includes('새 페이지'), false)
+  assert.equal(await evaluate('document.querySelectorAll("#app-sidebar button").length'), 0)
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 500, y: 200 })
-  await pause(520)
+  await pause(900)
   const hiddenX = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
   assert.ok(hiddenX < 8, 'leave closes sidebar, right=' + hiddenX)
+  await evaluate('document.getElementById("app-sidebar-toggle").click()')
+  await pause(360)
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 500, y: 200 })
+  await pause(900)
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin keeps sidebar open')
+  await evaluate('document.getElementById("app-sidebar-toggle").click()')
+  await pause(360)
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) < 8, 'unpin closes sidebar')
   const before = await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.length')
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("건너뛰기"))?.click()')
   await wait('!document.querySelector("[role=dialog]")', 'guide skipped')

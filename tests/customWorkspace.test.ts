@@ -4,7 +4,8 @@ import { isCustomWorkspace, ROUTES } from '../src/constants/routes.ts'
 import { translate } from '../src/i18n/translate.ts'
 import { builtinTemplates, remapCollections } from '../src/features/workspace/templates.ts'
 import { cloneBlocks } from '../src/features/builder/schema.ts'
-import { DEFAULT_SETTINGS } from '../src/types/records.ts'
+import { visibleNav, isRecordNav } from '../src/constants/navigation.ts'
+import { DEFAULT_NAV, DEFAULT_SETTINGS } from '../src/types/records.ts'
 
 test('custom workspace routes stay on /custom and /pages', () => {
   assert.equal(ROUTES.templateDetail('abc'), '/store/templates/abc')
@@ -31,6 +32,14 @@ test('nav label follows locale without changing the route', () => {
   assert.equal(translate('en', 'builder.pickCollection'), 'Link an existing collection')
   assert.equal(translate('ko', 'builder.saved'), '저장됨')
   assert.equal(translate('en', 'builder.find'), 'Find in page')
+})
+
+test('sidebar nav keeps builtins and drops custom record pages', () => {
+  const items = visibleNav([...DEFAULT_NAV, { id: 'workout-record', visible: true }])
+  assert.deepEqual(items.map((item) => item.id), ['home', 'schedule', 'activity', 'diary', 'reading', 'memo'])
+  assert.equal(isRecordNav('activity'), true)
+  assert.equal(isRecordNav('workout-record'), false)
+  assert.equal(visibleNav([{ id: 'memo', visible: false }, { id: 'home', visible: true }]).map((item) => item.id).join(','), 'home')
 })
 
 test('starter collections remap without sharing ids', () => {
