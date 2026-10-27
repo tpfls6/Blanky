@@ -1,0 +1,7 @@
+reviewer: gpt-5.5-medium 283914a6-e454-4384-810b-bb0a83abaca0
+action: append-only corrections. no product change.
+
+DragEvent compare: this run only proved playwright.dragTo. the synthetic path was a different run at .audit/runs/workspace-builder-views/result.json. not a same-run dual fire.
+git history: stored in git-evidence.txt. 645d060..b9101d7 is empty for the three failing sql files.
+theme dollar quote: git blame line 28 is 2b91e30a.
+HEAD skim: the reviewer ran git show HEAD while HEAD was a calendar-type fix from another chat. pointer work is b9101d7. HEAD is now b9101d7.

@@ -1,0 +1,11 @@
+commands run 2026-10-27T05:36:00Z
+
+git log --oneline 645d060..b9101d7 -- supabase/tests/google_calendar_peer.sql supabase/tests/personal_calendars.sql supabase/tests/theme_packages.sql
+result: empty. workspace commits 7400a8e c7f5dba b3460f7 b9101d7 did not change those files.
+
+git blame -L 28,28 -- supabase/tests/theme_packages.sql
+2b91e30a (serin 2026-10-08 15:36:43 +0900 28) select is_empty($select id from storage.objects where bucket_id='theme-packages'$,'paid archives require ownership');
+
+git log --diff-filter=A --format="%h %s %ci"
+3b21b2d feat(calendar): add peer mapping tables 2026-10-26 10:55:57 +0900   google_calendar_peer.sql
+2b91e30 feat: add theme package support 2026-10-08 15:36:43 +0900           theme_packages.sql
