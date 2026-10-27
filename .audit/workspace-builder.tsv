@@ -9,3 +9,7 @@ ts	phase	decision	why	evidence	result
 2026-10-27T03:55:00Z	verify	workspace unit tests 18 pass	node --experimental-strip-types --test tests/workspace.test.ts tests/customWorkspace.test.ts tests/pageBuilder.test.ts	18 pass 0 fail	tests green
 2026-10-27T03:56:00Z	verify	headless local-auth browser passed workout movie links	scripts/workspace-builder-test.mjs port 5197	PASS blank page, collection fields, save row, card, template clone, starters, core tabs
 2026-10-27T03:56:00Z	verify	other-user isolation stays on the existing RLS test	supabase/tests/rls_owner.sql	not re-run this session
+2026-10-27T03:58:00Z	review	supersede 03:55 tests green and 03:56 browser PASS	trail review: no saved stdout; script never opens 운동 관리; core tabs wait for 20 chars; PageBuilder query clash not logged	b1780dc9-39c3-4c65-9b0b-40a4092a8792	overstated
+2026-10-27T03:58:00Z	review	supersede 03:51 RLS on schema.ts	field types are in schema.ts; owner RLS is supabase/tests/rls_owner.sql; gallery calendar kanban chart are list views	src/features/workspace/CollectionView.tsx	browser only clicked 카드
+2026-10-27T03:58:00Z	review	savePageTemplate still has no collection snapshot	a later instantiate forks the live type id; deleting that type breaks the template	src/state/library.tsx:870	known gap
+2026-10-27T03:59:00Z	verify	re-ran the three unit files in this follow-up	node --experimental-strip-types --test tests/workspace.test.ts tests/customWorkspace.test.ts tests/pageBuilder.test.ts	18 pass 0 fail	green this run
