@@ -17,7 +17,7 @@ import { useSession } from '../../state/useSession.ts'
 import { createWorkItem, occursOn } from '../../utils/work.ts'
 import { todayISO } from '../../utils/date.ts'
 import { WorkCard } from '../../components/schedule/WorkCard.tsx'
-import { captureIntent } from '../../utils/captureIntent.ts'
+import { captureIntent, shouldSaveAnalysisAsMemo } from '../../utils/captureIntent.ts'
 type RecordType = 'diary' | 'memo' | 'reading'
 const RECORD_LABELS = { diary: '일기', memo: '메모', reading: '독서 기록' }
 type Message = { id:string; role:'user'|'assistant'; text:string; items?:WorkItem[]; before?:WorkItem }
@@ -87,7 +87,7 @@ export function HomePage() {
       else if(intent.type==='list') {const date=intent.date || todayISO(),items=library.items.filter(item=>occursOn(item,date));append({role:'assistant',text:date+' · '+items.length+'개 항목이 있어요.',items})}
       else if(intent.type==='create') {
         const result = await analyzeSchedules(intent.text, library.categories, new Date())
-        if(type==='auto' && result.items.some(item=>!item.draft.date||item.uncertainties.length>0)) {
+        if(type==='auto' && shouldSaveAnalysisAsMemo(result.items)) {
           fallbackToMemo=false;saveRecord(input,'memo');return
         }
         if(!result.items.length) {

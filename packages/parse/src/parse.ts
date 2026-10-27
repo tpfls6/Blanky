@@ -19,7 +19,7 @@ const WEEKDAY: Record<string, number> = {
   토: 6,
 }
 
-const DATE_PHRASE = String.raw`(?:오늘|내일|모레|(?:이번\s*주|다음\s*주)\s*[일월화수목금토]요일|(?:이번\s*주|다음\s*주)(?!\s*[일월화수목금토])|[일월화수목금토]요일|\d{1,2}\s*월\s*\d{1,2}\s*일)`
+const DATE_PHRASE = String.raw`(?:오늘|내일|모레|주말|(?:이번\s*주|다음\s*주)\s*[일월화수목금토]요일|(?:이번\s*주|다음\s*주)(?!\s*[일월화수목금토])|[일월화수목금토]요일|\d{1,2}\s*월\s*\d{1,2}\s*일)`
 const MERIDIEM = String.raw`오전|오후|저녁|밤`
 const MINUTE = String.raw`(?:\s*(?:반|(\d{1,2})\s*분))?`
 const KO_TIME = String.raw`(${MERIDIEM})?\s*(\d{1,2})\s*시(?!간)${MINUTE}`
@@ -102,6 +102,11 @@ function parseDatePhrase(phrase: string, today: Date, anchor: Date | null): Date
   if (text === '오늘') return today
   if (text === '내일') return addDays(today, 1)
   if (text === '모레') return addDays(today, 2)
+  if (text === '주말') {
+    const day = today.getDay()
+    if (day === 0 || day === 6) return today
+    return addDays(today, 6 - day)
+  }
   if (text === '이번 주') return mondayOf(today)
   if (text === '다음 주') return addDays(mondayOf(today), 7)
 
@@ -294,10 +299,12 @@ export function extractRecordFields(text: string, schema: RecordSchema): Record<
   return Object.keys(values).length > 0 ? values : null
 }
 
-function chooseKind(eventScore: number, taskScore: number, hasTime: boolean): ScheduleKind {
+function chooseKind(eventScore: number, taskScore: number, hasTime: boolean, hasDue: boolean, hasParsedDate: boolean): ScheduleKind {
+  if (hasDue || taskScore > eventScore) return 'task'
   if (eventScore > taskScore) return 'event'
-  if (taskScore > eventScore) return 'task'
-  return hasTime ? 'event' : 'task'
+  if (hasTime) return 'event'
+  if (hasParsedDate && taskScore === 0) return 'event'
+  return 'task'
 }
 
 export function parseScheduleText(text: string, context: ParseContext): ParsedSchedule {
@@ -371,15 +378,17 @@ export function parseScheduleText(text: string, context: ParseContext): ParsedSc
   const eventScore = hintedEvent + learned.eventScore
   const taskScore = hintedTask + learned.taskScore
   const hasTime = Boolean(startTime)
-  const type = chooseKind(eventScore, taskScore, hasTime)
+  const type = chooseKind(eventScore, taskScore, hasTime, Boolean(dueDate), Boolean(date))
   const hasDate = Boolean(date || dueDate || endDate)
   const categoryId = learned.categoryId ?? matchCategory(original, context.categories ?? [])
   const resolvedDate = date ?? (dueDate && type === 'task' ? dueDate : null) ?? context.fallbackDate ?? formatISODate(today)
+  let confidence = confidenceFor(eventScore, taskScore, hasDate, hasTime, Boolean(endTime && startTime), learned.personal)
+  if (title && (date || dueDate || taskScore >= 1 || eventScore >= 1)) confidence = Math.max(confidence, 0.8)
 
   const fields = context.recordSchema ? extractRecordFields(original, context.recordSchema) : null
   return {
     type,
-    confidence: confidenceFor(eventScore, taskScore, hasDate, hasTime, Boolean(endTime && startTime), learned.personal),
+    confidence,
     source: learned.personal ? 'personal_rule' : 'rule',
     draft: {
       title: title || (type === 'task' ? '할 일' : '일정'),

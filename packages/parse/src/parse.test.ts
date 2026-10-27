@@ -215,3 +215,12 @@ test('bad model json is ignored', () => {
   assert.equal(readModelSchedule('not json'), null)
   assert.equal(readModelSchedule({ type: 'event' }), null)
 })
+
+test('dated events without task actions stay events, deadlines stay tasks', () => {
+  assert.equal(parsed('토요일에 데이트').type, 'event')
+  assert.equal(parsed('내일 친구 만나기').type, 'event')
+  assert.equal(parsed('주말에 영화 보기').type, 'event')
+  assert.equal(parsed('오늘 운동하기').type, 'task')
+  assert.equal(parsed('이번 주 수요일까지 논문 읽기').type, 'task')
+  assert.equal(parsed('React 공부하기').type, 'task')
+})

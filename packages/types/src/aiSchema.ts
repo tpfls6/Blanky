@@ -85,7 +85,7 @@ export function validateScheduleAnalysis(value: unknown, options: { text?: strin
       if (!field && evidence) invalid()
       if (evidence && options.text && !options.text.includes(evidence)) invalid()
       if (field && evidence) {
-        const cue = key.endsWith('Time') ? /\d{1,2}\s*(?:시|:)|정오|자정|오전|오후|저녁|밤|\d+\s*(?:시간|분)/ : /오늘|내일|모레|요일|이번\s*주|다음\s*주|\d+\s*(?:월|일)|\d{4}-\d{2}-\d{2}/
+        const cue = key.endsWith('Time') ? /\d{1,2}\s*(?:시|:)|정오|자정|오전|오후|저녁|밤|\d+\s*(?:시간|분)/ : /오늘|내일|모레|주말|요일|이번\s*주|다음\s*주|\d+\s*(?:월|일)|\d{4}-\d{2}-\d{2}/
         const abbreviatedWeekday = !key.endsWith('Time') && /^[월화수목금토일]$/.test(evidence) && !!options.text && new RegExp(`(?:^|[\\s,，/])${evidence}(?=[/\\s,，]|$)`).test(options.text)
         if (!cue.test(evidence) && !abbreviatedWeekday) invalid()
       }

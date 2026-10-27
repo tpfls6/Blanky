@@ -138,7 +138,9 @@ try {
   await wait('document.querySelector("#home-entry")', 'home reloaded');
   await fill('#home-entry', '오후 3시 날짜없는회의');
   await click('button[aria-label="보내기"]');
-  await wait('JSON.parse(localStorage.getItem('+q(library)+')).memos.some(row=>row.body==="오후 3시 날짜없는회의")', 'uncertain date saved as memo');
+  await wait('document.querySelector("[data-analysis-item]")', 'event without a date opens review');
+  assert.equal(await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).memos.some(row=>row.body==="오후 3시 날짜없는회의")'), false, 'undated event is not a memo');
+  await button('닫기');
   const before = await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items');
   await fill('#home-entry', '이번 주 공부 계획 세워줘');
   await click('button[aria-label="보내기"]');
