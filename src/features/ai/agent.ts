@@ -119,6 +119,19 @@ export function planMoveIncomplete(items: readonly WorkItem[], from: string, to:
   }
 }
 
+export function liveActions(plan: AgentPlan, items: readonly WorkItem[]): AgentAction[] {
+  const live = new Map(items.map(item => [item.id, item]))
+  return plan.actions.flatMap(action => {
+    const item = live.get(action.item.id)
+    return item ? [{ ...action, item }] : []
+  })
+}
+
+export function failedActionIds(failed: readonly string[], actions: readonly AgentAction[]): AgentAction[] {
+  const ids = new Set(failed)
+  return actions.filter(action => !ids.has(action.item.id))
+}
+
 export function describePlan(plan: AgentPlan): string {
   const lines = [plan.title]
   const deletes = plan.actions.filter(action => action.op === 'delete')

@@ -9,3 +9,7 @@ ts	phase	decision	why	evidence	result
 2026-10-27T05:43:00Z	google	never auto-delete calendar_sync or external rows	sync would recreate or delete the Google original	src/features/ai/agent.ts	unit only
 2026-10-27T05:50:00Z	verify	243 unit tests pass, browser login blocked	predicate needs a logged-in Home session for live CRUD	npm test	VERIFIED units, NOT VERIFIED browser/google/RLS live
 2026-10-27T05:51:00Z	skip	no manage-schedule Edge Function	parse-schedule and RLS already bound writes	packages/api/src/ai.ts	open
+2026-10-27T05:55:00Z	start	trail review of 9c93089	independent pass after the first commit	106938ae-07d2-4db5-8dab-32d27c38f467	open
+2026-10-27T05:56:00Z	verify	earlier execute/tests-green row overclaimed Home writes	units cover plans, not commitWork or reload	src/features/ai/agent.test.ts	supersedes execute 05:42
+2026-10-27T05:57:00Z	fix	cluster duplicates by connected title match so one id is never in two groups	substring titles are not transitive	packages/scheduling/src/duplicates.ts	tests green
+2026-10-27T05:58:00Z	fix	apply only live ids and record failures by id	preview can be stale and two 근로 share a title	src/features/ai/agent.ts	tests green

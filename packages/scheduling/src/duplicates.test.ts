@@ -42,6 +42,18 @@ test('google-synced copies stay, the local clone is the drop candidate', () => {
   assert.equal(kept.confidence, 'safe')
 })
 
+test('substring titles form one group and never list the same id twice', () => {
+  const rows = [
+    event('a', '근로'),
+    event('b', '오전 근로'),
+    event('c', '근로 일정'),
+    event('d', '수업'),
+  ]
+  const groups = findDuplicates(rows)
+  assert.equal(groups.length, 1)
+  assert.deepEqual(new Set([groups[0].keepId, ...groups[0].dropIds]), new Set(['a', 'b', 'c']))
+  assert.equal(new Set(groups.flatMap(group => [group.keepId, ...group.dropIds])).size, 3)
+})
 test('two synced copies and recurring series need confirmation', () => {
   const synced = findDuplicates([
     event('a', '근로', { changeSource: 'calendar_sync' }),

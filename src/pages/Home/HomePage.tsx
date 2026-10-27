@@ -7,7 +7,7 @@ import { ENTRY_OPTIONS, type EntryType } from '../../types/records.ts'
 import type { WorkItem } from '../../types/work.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { conversationIntent } from '../../features/ai/conversation.ts'
-import { describePlan, planConflicts, planDedupe, planMoveIncomplete, planSummarize, type AgentPlan } from '../../features/ai/agent.ts'
+import { describePlan, failedActionIds, liveActions, planConflicts, planDedupe, planMoveIncomplete, planSummarize, type AgentPlan } from '../../features/ai/agent.ts'
 import { analyzeSchedules } from '../../services/schedule/index.ts'
 import { AnalysisReview } from '../../components/schedule/AnalysisReview.tsx'
 import { validatePlanningRecommendation, type PlanningRecommendation, type PlannerDraft, type ScheduleAnalysis } from '@blanky/types'
@@ -67,7 +67,7 @@ export function HomePage() {
     const executed:WorkItem[]=[]
     const undoIds:string[]=[]
     const failed:string[]=[]
-    for(const action of plan.actions){
+    for(const action of liveActions(plan,library.items)){
       try{
         if(action.op==='delete'){
           await library.commitWork(action.item,null,'ai_chat')
@@ -78,10 +78,10 @@ export function HomePage() {
           if(!saved) throw new Error('저장 실패')
           executed.push(saved)
         }
-      }catch{failed.push(action.item.title)}
+      }catch{failed.push(action.item.id)}
     }
-    const lines=[describePlan({...plan,mode:'auto',actions:plan.actions.filter(action=>!failed.includes(action.item.title))})]
-    if(failed.length)lines.push('실패: '+failed.join(', '))
+    const lines=[describePlan({...plan,mode:'auto',actions:failedActionIds(failed,plan.actions)})]
+    if(failed.length)lines.push('실패: '+plan.actions.filter(action=>failed.includes(action.item.id)).map(action=>action.item.title).join(', '))
     return {text:lines.join('\n'),items:[...plan.kept,...executed],undoIds}
   }
   const send=async()=>{

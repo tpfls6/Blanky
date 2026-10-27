@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { WorkItem } from '../../types/work.ts'
-import { describePlan, planConflicts, planDedupe, planMoveIncomplete } from './agent.ts'
+import { describePlan, failedActionIds, liveActions, planConflicts, planDedupe, planMoveIncomplete } from './agent.ts'
 
 function item(id: string, title: string, extra: Partial<WorkItem> = {}): WorkItem {
   return {
@@ -36,4 +36,7 @@ test('google copies and large batches stay in preview, unfinished tasks can move
   const moved = planMoveIncomplete([item('t1', '과제', { kind: 'task', date: '2026-10-27', status: 'todo' })], '2026-10-27', '2026-10-29')
   assert.equal(moved.actions[0].op, 'update')
   if (moved.actions[0].op === 'update') assert.equal(moved.actions[0].patch.date, '2026-10-29')
+  const copies = planDedupe([item('w1', '근로'), item('w2', '근로')])
+  assert.deepEqual(liveActions(copies, [item('w1', '근로')]), [])
+  assert.deepEqual(failedActionIds(copies.actions.map(action => action.item.id), copies.actions), [])
 })

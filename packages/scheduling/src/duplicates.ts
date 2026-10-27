@@ -81,18 +81,26 @@ function preferKeep(items: Sighting[]): Sighting {
   })[0]
 }
 
+function related(a: Sighting, b: Sighting): boolean {
+  return titlesMatch(a.title, b.title) && (sameSlot(a, b) || sameSeries(a, b))
+}
+
 export function findDuplicates(items: readonly Sighting[]): DuplicateGroup[] {
   const groups: Sighting[][] = []
   const seen = new Set<string>()
   for (const item of items) {
     if (seen.has(item.id)) continue
-    const cluster = items.filter(other =>
-      other.id === item.id
-      || (titlesMatch(item.title, other.title) && (sameSlot(item, other) || sameSeries(item, other))),
-    )
+    const cluster = [item]
+    seen.add(item.id)
+    for (let index = 0; index < cluster.length; index++) {
+      for (const other of items) {
+        if (seen.has(other.id) || !related(cluster[index], other)) continue
+        cluster.push(other)
+        seen.add(other.id)
+      }
+    }
     if (cluster.length < 2) continue
-    for (const row of cluster) seen.add(row.id)
-    groups.push([...cluster])
+    groups.push(cluster)
   }
   return groups.map(cluster => {
     const series = cluster.every(row => row.repeat !== 'none' && sameSeries(row, cluster[0]))
