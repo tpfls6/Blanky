@@ -258,8 +258,8 @@ export function SettingsPage() {
   } else if (id === 'schedule') {
     body = (
       <Section>
-        <p className="text-sm">
-          <Link to="/settings/google-calendar">Google Calendar 연동</Link>
+        <p className="text-sm text-neutral-500">
+          Google Calendar 연결은 <Link className="text-accent-text" to="/settings/google-calendar">Settings → Google Calendar</Link>에서 합니다.
         </p>
         <div>
           <p className="text-sm">Schedule 기본 탭</p>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   ConnectionView,
   DisconnectDisposition,
@@ -24,13 +24,12 @@ function CalendarPick({
   const [choice, setChoice] = useState<GoogleCalendarId | ''>(calendars[0]?.id ?? '')
   const [direction, setDirection] = useState<FirstImport['direction']>('from_google')
   return (
-    <div className="mt-3 space-y-3">
+    <fieldset className="mt-3 space-y-3" disabled={busy}>
       <label className="block text-sm">
         동기화할 Google 캘린더
         <select
           className="field select mt-1 block"
           value={choice}
-          disabled={busy}
           onChange={(event) => setChoice(event.target.value as GoogleCalendarId)}
         >
           {calendars.map((calendar) => (
@@ -57,7 +56,7 @@ function CalendarPick({
       >
         이 캘린더 사용
       </button>
-    </div>
+    </fieldset>
   )
 }
 
@@ -67,6 +66,7 @@ export function GoogleCalendarSection() {
   const [calendars, setCalendars] = useState<readonly GoogleCalendarChoice[]>([])
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const inFlight = useRef(false)
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -83,22 +83,28 @@ export function GoogleCalendarSection() {
   }, [])
 
   useEffect(() => {
-    if (!isSupabaseConfigured || view?.status !== 'ready' || !view.autoSync || busy) return
+    if (!isSupabaseConfigured || view?.status !== 'ready' || !view.autoSync || inFlight.current) return
     const staleMs = Date.now() - Date.parse(view.lastSync.at)
     if (Number.isFinite(staleMs) && staleMs < 5 * 60 * 1000) return
     const sync = getCalendarSyncClient()
+    inFlight.current = true
     setBusy(true)
     void sync.sync().then((report) => {
       setMessage(`동기화 ${report.imported} 가져옴, ${report.exported} 보냄`)
       return sync.status()
-    }).then(setView).catch((error) => setMessage(errorLine(error))).finally(() => setBusy(false))
-  }, [busy, view?.status, view?.status === 'ready' ? view.autoSync : false, view?.status === 'ready' ? view.lastSync.at : ''])
+    }).then(setView).catch((error) => setMessage(errorLine(error))).finally(() => {
+      inFlight.current = false
+      setBusy(false)
+    })
+  }, [view?.status, view?.status === 'ready' ? view.autoSync : false, view?.status === 'ready' ? view.lastSync.at : ''])
 
   if (!view) return <p className="text-sm text-neutral-500" role="status">Google Calendar 상태를 읽는 중…</p>
 
   const panel = calendarPanel(view)
 
   const run = async (work: () => Promise<void>) => {
+    if (inFlight.current) return
+    inFlight.current = true
     setBusy(true)
     setMessage('')
     try {
@@ -106,22 +112,19 @@ export function GoogleCalendarSection() {
     } catch (error) {
       setMessage(errorLine(error))
     } finally {
+      inFlight.current = false
       setBusy(false)
     }
   }
 
   return (
     <div>
-      <p className="text-sm">Google Calendar</p>
-      {panel.showIntro ? (
-        <p className="mt-1 text-sm text-neutral-500">
-          Google Calendar 일정과 Blanky 일정을 맞춥니다. 로그인과 별개이며, 캘린더 권한은 이 화면에서만 받습니다. 브라우저가 Google에 직접 쓰지 않습니다.
-        </p>
-      ) : null}
-      <p className="mt-2 text-sm" role="status">{panel.statusLabel}</p>
+      {panel.intro ? <p className="text-sm text-neutral-500">{panel.intro}</p> : null}
+      <p className="mt-1 text-sm" role="status">{panel.statusLabel}</p>
       {panel.accountEmail ? <p className="mt-1 text-sm text-neutral-500">계정 {panel.accountEmail}</p> : null}
       {panel.calendarSummary ? <p className="mt-1 text-sm text-neutral-500">캘린더 {panel.calendarSummary}</p> : null}
       {panel.lastSync ? <p className="mt-1 text-sm text-neutral-500">{lastSyncLine(panel.lastSync)}</p> : null}
+      {panel.errorText ? <p className="mt-1 text-sm text-neutral-500">{panel.errorText}</p> : null}
       {panel.hint ? <p className="mt-1 text-sm text-neutral-500">{panel.hint}</p> : null}
       {message ? <p className="mt-1 text-sm text-neutral-500" role="status">{message}</p> : null}
 
@@ -135,11 +138,11 @@ export function GoogleCalendarSection() {
             window.location.assign(authUrl)
           })}
         >
-          Google Calendar 연결
+          {panel.connectLabel}
         </button>
       ) : null}
 
-      {panel.showPick ? (
+      {view.status === 'connected' ? (
         <CalendarPick
           calendars={calendars}
           busy={busy}
@@ -151,16 +154,19 @@ export function GoogleCalendarSection() {
         />
       ) : null}
 
-      {panel.showReady && view.status === 'ready' ? (
+      {view.status === 'ready' ? (
         <>
           <div className="mt-3">
             <SwitchRow
               label="자동 동기화"
               hint="이 화면을 열면 5분이 지난 연결을 다시 맞춥니다. 일정 저장은 Google에 바로 쓰지 않습니다."
               checked={view.autoSync}
-              onChange={() => void run(async () => {
-                setView(await getCalendarSyncClient().setAutoSync(!view.autoSync))
-              })}
+              onChange={() => {
+                if (busy) return
+                void run(async () => {
+                  setView(await getCalendarSyncClient().setAutoSync(!view.autoSync))
+                })
+              }}
             />
           </div>
           <button
