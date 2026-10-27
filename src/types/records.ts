@@ -1,6 +1,8 @@
+import type { AppLocale } from '../i18n/locale.ts'
 import type { Calendar } from '@blanky/types'
 import type { CustomRecordType, FieldValue } from '../features/records/schema.ts'
 import type { PageLayouts } from '../features/pages/layout.ts'
+import type { TrashItem } from '../utils/trash.ts'
 import type { WorkItem, WorkspaceCategory } from './work.ts'
 
 export type { Block, BlockProps, BlockType, CheckItem, CustomRecordType, FieldValue, RenderMode, SelectOption } from '../features/records/schema.ts'
@@ -93,6 +95,7 @@ export const TASK_DURATIONS = [15, 30, 45, 60, 90, 120] as const
 export type Settings = {
   timezone?: string
   scheduling?: Partial<import('../../packages/types/src/planning.ts').SchedulingSettings>
+  locale: AppLocale
   theme: ThemeSetting
   accent: string
   savedAccents: string[]
@@ -114,6 +117,7 @@ export type Settings = {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  locale: 'ko',
   theme: 'light',
   accent: 'blue',
   savedAccents: [],
@@ -156,6 +160,7 @@ export type LibraryData = {
   logs: ReadingLog[]
   recordTypes: CustomRecordType[]
   records: CustomRecord[]
+  trash: TrashItem[]
   settings: Settings
   pageLayouts: PageLayouts
 }

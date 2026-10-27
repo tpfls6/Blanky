@@ -2,7 +2,7 @@ import { BrandLogo } from '../common/BrandLogo.tsx'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { Fragment } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
+import { isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
 export function Sidebar() {
@@ -35,6 +35,10 @@ export function Sidebar() {
         <NavLink data-theme-slot="sidebar-item" to={CUSTOM_NAV.to} className="nav-link">
           <ThemeIcon name="custom" fallback={CUSTOM_NAV.icon} strokeWidth={1.5} aria-hidden="true" />
           {CUSTOM_NAV.label}
+        </NavLink>
+        <NavLink data-theme-slot="sidebar-item" to={TRASH_NAV.to} className="nav-link">
+          <ThemeIcon name="delete" fallback={TRASH_NAV.icon} strokeWidth={1.5} aria-hidden="true" />
+          {TRASH_NAV.label}
         </NavLink>
         <NavLink data-theme-slot="sidebar-item" to={SETTINGS_NAV.to} aria-current={pathname === THEMES_NAV.to ? false : 'page'} className={() => 'nav-link'}>
           <ThemeIcon name="settings" fallback={SETTINGS_NAV.icon} strokeWidth={1.5} aria-hidden="true" />

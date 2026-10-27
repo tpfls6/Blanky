@@ -8,10 +8,12 @@ import { CategoryPicker } from '../../components/schedule/CategoryPicker.tsx'
 import { PageCanvas } from '../../features/pages/PageCanvas.tsx'
 import { resolveLayout } from '../../features/pages/layout.ts'
 import { EmptyState } from '../../components/common/EmptyState.tsx'
+import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { categoryPath } from '../../utils/work.ts'
 
 export function MemoPage({ editing = false }: { editing?: boolean }) {
+  const confirm = useConfirm()
   const library = useLibrary()
   const [query, setQuery] = useState('')
   const [folder, setFolder] = useState('all')
@@ -107,7 +109,8 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
                   className="icon-btn"
                   data-tip="삭제"
                   aria-label="삭제"
-                  onClick={() => {
+                  onClick={async () => {
+                    if (!await confirm(`${memo.title} 메모를 삭제할까요? 휴지통에서 복구할 수 있습니다.`)) return
                     library.removeMemo(memo.id)
                     if (selectedId === memo.id) setSelectedId(null)
                   }}
@@ -125,7 +128,8 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
             key={selected.id}
             id={selected.id}
             onBack={() => setSelectedId(null)}
-            onDelete={() => {
+            onDelete={async () => {
+              if (!await confirm(`${selected.title} 메모를 삭제할까요? 휴지통에서 복구할 수 있습니다.`)) return
               library.removeMemo(selected.id)
               setSelectedId(null)
             }}

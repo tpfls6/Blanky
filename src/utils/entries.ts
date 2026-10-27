@@ -221,6 +221,7 @@ export function selfCheckEntries(): void {
     logs: [],
     recordTypes: [],
     records: [],
+    trash: [],
     settings: DEFAULT_SETTINGS,
     pageLayouts: {},
   }

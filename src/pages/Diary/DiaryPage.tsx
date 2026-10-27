@@ -213,7 +213,7 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
           {error && <p className="diary-error" role="alert">{error} 입력한 내용은 임시 보관되어 있습니다.</p>}
         </section>
       </div>
-      <dialog data-theme-slot="modal" ref={dialog} className="diary-delete-dialog" onClose={() => setDialogOpen(false)} onCancel={event => { if (busy) event.preventDefault() }}><h2>이 기록을 삭제하시겠습니까?</h2><p>삭제된 기록은 복구할 수 없습니다.</p><div><button data-theme-slot="button-secondary" type="button" autoFocus className="btn btn-line" disabled={busy} onClick={() => dialog.current?.close()}>취소</button><button data-theme-slot="button-primary" type="button" className="btn btn-primary" disabled={busy} onClick={() => void remove()}>{busy ? '삭제 중…' : '삭제'}</button></div>{error && <p role="alert">{error}</p>}</dialog>
+      <dialog data-theme-slot="modal" ref={dialog} className="diary-delete-dialog" onClose={() => setDialogOpen(false)} onCancel={event => { if (busy) event.preventDefault() }}><h2>이 기록을 삭제하시겠습니까?</h2><p>휴지통으로 이동하며, 거기서 복구할 수 있습니다.</p><div><button data-theme-slot="button-secondary" type="button" autoFocus className="btn btn-line" disabled={busy} onClick={() => dialog.current?.close()}>취소</button><button data-theme-slot="button-primary" type="button" className="btn btn-primary" disabled={busy} onClick={() => void remove()}>{busy ? '삭제 중…' : '삭제'}</button></div>{error && <p role="alert">{error}</p>}</dialog>
     </div>
   ) : null} />
 }

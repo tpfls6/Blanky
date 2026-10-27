@@ -25,8 +25,10 @@ import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
 import { LibraryContext, type LibraryValue } from './useLibrary.ts'
 import { selfCheckAccount } from '../utils/account.ts'
 import { applyCapture, selfCheckEntries } from '../utils/entries.ts'
+import { asBookTrash, asCustomRecord, asDiary, asMemo, asWork, parseTrash, toTrash, withTrash } from '../utils/trash.ts'
 import { categoryKind, createWorkItem, selfCheckWork } from '../utils/work.ts'
 import { applyAccent, clearAccent } from '../theme/accent.ts'
+import { applyDocumentLocale, guestOrBrowserLocale, touchDeviceLocale, writeGuestLocale } from '../i18n/storage.ts'
 import { defaultPreferences, loadPreferences, normalizePreferences, pullPreferences, pushPreferences, savePreferences, syncNav } from '../services/preferences/index.ts'
 import { libraryKey } from './storage.ts'
 import {
@@ -86,7 +88,7 @@ function loadLibrary(userId: string): LibraryData {
 function loadStoredLibrary(userId: string): LibraryData {
   try {
     const raw = localStorage.getItem(libraryKey(userId))
-    if (!raw) return freshLibrary()
+    if (!raw) return withFirstLocale(freshLibrary())
     const data = JSON.parse(raw) as Partial<LibraryData>
     if (!Array.isArray(data.items) || !data.settings || !Array.isArray(data.categories)) return freshLibrary()
     const recordTypes = Array.isArray(data.recordTypes) ? data.recordTypes.flatMap((item) => {
@@ -114,12 +116,20 @@ function loadStoredLibrary(userId: string): LibraryData {
         const next = normalizeRecord(item)
         return next ? [next] : []
       }) : [],
+      trash: Array.isArray(data.trash) ? data.trash.flatMap((item) => {
+        const next = parseTrash(item)
+        return next ? [next] : []
+      }) : [],
       settings,
       pageLayouts: normalizeLayouts(data.pageLayouts),
     }
   } catch {
-    return freshLibrary()
+    return withFirstLocale(freshLibrary())
   }
+}
+
+function withFirstLocale(data: LibraryData): LibraryData {
+  return { ...data, settings: { ...data.settings, locale: guestOrBrowserLocale() } }
 }
 
 function prefersDark() {
@@ -130,6 +140,7 @@ function applyAppearance(settings: Settings) {
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && prefersDark())
   document.documentElement.classList.toggle('dark', dark)
   applyAccent(settings.accent, dark)
+  applyDocumentLocale(settings.locale)
 }
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
@@ -147,9 +158,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     if (!userId) {
       document.documentElement.classList.remove('dark')
       clearAccent()
+      applyDocumentLocale(guestOrBrowserLocale())
       return
     }
     applyAppearance(data.settings)
+    touchDeviceLocale(userId, data.settings.locale)
+    writeGuestLocale(data.settings.locale)
   }, [userId, data.settings])
 
   const [diaryError, setDiaryError] = useState('')
@@ -206,7 +220,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       await deleteDiaryRecord(userId, id)
       if (diaryUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
       setData(current => {
-        const next = { ...current, diaries: current.diaries.filter(row => row.id !== id) }
+        const entry = current.diaries.find(row => row.id === id)
+        const next = {
+          ...current,
+          diaries: current.diaries.filter(row => row.id !== id),
+          trash: entry ? withTrash(current, toTrash('diary', entry, entry.title?.trim() || entry.body.slice(0, 40) || '일기')) : current.trash,
+        }
         localStorage.setItem(libraryKey(userId), JSON.stringify(next))
         return next
       })
@@ -266,13 +285,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       else if (before && isSupabaseConfigured && remoteIds.current.has(before.id)) await getScheduleRepository().remove(before.id)
       if (activeUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
       if (saved && isSupabaseConfigured) remoteIds.current.add(saved.id)
+      if (!saved && before) remoteIds.current.delete(before.id)
       const activity: Activity = { id: crypto.randomUUID(), entityId: saved?.id ?? before!.id, before, after: saved,
         action: !before ? 'created' : !saved ? 'deleted' : saved.status === 'done' && before.status !== 'done' ? 'completed' : 'updated', source, createdAt: new Date().toISOString() }
       setData(current => {
         const merged = mergeCategories(current.categories, categories)
         return { ...current, categories: merged.categories,
           items: [...current.items.filter(item => item.id !== before?.id && item.id !== saved?.id), ...(saved ? [saved] : [])].map(merged.remap),
-          memos: current.memos.map(merged.remap), activities: [activity, ...(current.activities ?? [])] }
+          memos: current.memos.map(merged.remap), activities: [activity, ...(current.activities ?? [])],
+          trash: !saved && before ? withTrash(current, toTrash('item', before, before.title)) : current.trash }
       })
       setWorkError('')
       return saved
@@ -413,7 +434,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeMemo = useCallback((id: string) => {
-    setData((current) => ({ ...current, memos: current.memos.filter((memo) => memo.id !== id) }))
+    setData((current) => {
+      const memo = current.memos.find((item) => item.id === id)
+      return {
+        ...current,
+        memos: current.memos.filter((item) => item.id !== id),
+        trash: memo ? withTrash(current, toTrash('memo', memo, memo.title)) : current.trash,
+      }
+    })
   }, [])
 
   const addBook = useCallback((book: Omit<Book, 'id' | 'createdAt'>) => {
@@ -433,11 +461,16 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeBook = useCallback((id: string) => {
-    setData((current) => ({
-      ...current,
-      books: current.books.filter((book) => book.id !== id),
-      logs: current.logs.filter((log) => log.bookId !== id),
-    }))
+    setData((current) => {
+      const book = current.books.find((item) => item.id === id)
+      const logs = current.logs.filter((log) => log.bookId === id)
+      return {
+        ...current,
+        books: current.books.filter((item) => item.id !== id),
+        logs: current.logs.filter((log) => log.bookId !== id),
+        trash: book ? withTrash(current, toTrash('book', { id: book.id, book, logs }, book.title)) : current.trash,
+      }
+    })
   }, [])
 
   const addLog = useCallback((bookId: string, log: { date: string; page: number | null; note: string }) => {
@@ -673,8 +706,62 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeRecord = useCallback((id: string) => {
-    setData((current) => ({ ...current, records: current.records.filter((item) => item.id !== id) }))
+    setData((current) => {
+      const record = current.records.find((item) => item.id === id)
+      return {
+        ...current,
+        records: current.records.filter((item) => item.id !== id),
+        trash: record ? withTrash(current, toTrash('record', record, record.title)) : current.trash,
+      }
+    })
     mirrorRecordDelete(id)
+  }, [])
+
+  const restoreTrash = useCallback(async (id: string) => {
+    const row = data.trash.find((item) => item.id === id)
+    if (!row) return
+    if (row.kind === 'diary') {
+      const entry = asDiary(row.payload)
+      if (!entry) return
+      await commitDiary(entry)
+      setData((current) => ({ ...current, trash: current.trash.filter((item) => item.id !== id) }))
+      return
+    }
+    if (row.kind === 'item') {
+      const item = asWork(row.payload)
+      if (!item) return
+      await commitWork(null, item)
+      setData((current) => ({ ...current, trash: current.trash.filter((item) => item.id !== id) }))
+      return
+    }
+    setData((current) => {
+      const next = current.trash.filter((item) => item.id !== id)
+      if (row.kind === 'memo') {
+        const memo = asMemo(row.payload)
+        if (!memo || current.memos.some((item) => item.id === memo.id)) return { ...current, trash: next }
+        return { ...current, trash: next, memos: [memo, ...current.memos] }
+      }
+      if (row.kind === 'record') {
+        const record = asCustomRecord(row.payload)
+        if (!record || current.records.some((item) => item.id === record.id)) return { ...current, trash: next }
+        mirrorRecordSave({ id: record.id, typeId: record.typeId, title: record.title, values: record.values, templateVersion: record.templateVersion }, true)
+        return { ...current, trash: next, records: [record, ...current.records] }
+      }
+      if (row.kind === 'book') {
+        const bundle = asBookTrash(row.payload)
+        if (!bundle || current.books.some((item) => item.id === bundle.book.id)) return { ...current, trash: next }
+        return { ...current, trash: next, books: [bundle.book, ...current.books], logs: [...bundle.logs, ...current.logs] }
+      }
+      return { ...current, trash: next }
+    })
+  }, [commitDiary, commitWork, data.trash])
+
+  const purgeTrash = useCallback((id: string) => {
+    setData((current) => ({ ...current, trash: current.trash.filter((item) => item.id !== id) }))
+  }, [])
+
+  const emptyTrash = useCallback(() => {
+    setData((current) => ({ ...current, trash: [] }))
   }, [])
 
   const setPageLayout = useCallback((pageId: PageId, blocks: PageBlock[]) => {
@@ -727,6 +814,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     addRecord,
     updateRecord,
     removeRecord,
+    restoreTrash,
+    purgeTrash,
+    emptyTrash,
     setPageLayout,
     resetPageLayout,
   }

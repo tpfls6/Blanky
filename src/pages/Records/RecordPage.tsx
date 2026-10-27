@@ -121,7 +121,7 @@ export function RecordPage() {
               type="button"
               className="text-xs text-neutral-400"
               onClick={async () => {
-                if (!await confirm('이 기록을 삭제할까요?')) return
+                if (!await confirm('이 기록을 삭제할까요? 휴지통에서 복구할 수 있습니다.')) return
                 removeRecord(row.id)
                 if (reading === row.id) setReading(null)
               }}

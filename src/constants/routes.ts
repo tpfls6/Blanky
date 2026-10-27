@@ -7,6 +7,7 @@ export const ROUTES = {
   memo: '/memo',
   settings: '/settings',
   custom: '/custom',
+  trash: '/trash',
   store: '/store',
   themeEditor: '/customize/theme',
   myThemes: '/settings/themes',

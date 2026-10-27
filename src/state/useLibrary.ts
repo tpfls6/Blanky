@@ -40,6 +40,9 @@ export type LibraryValue = LibraryData & {
   addRecord: (typeId: string, input: { title: string; values: Record<string, FieldValue> }) => string
   updateRecord: (id: string, patch: { title: string; values: Record<string, FieldValue> }) => void
   removeRecord: (id: string) => void
+  restoreTrash: (id: string) => Promise<void>
+  purgeTrash: (id: string) => void
+  emptyTrash: () => void
   setPageLayout: (pageId: PageId, blocks: PageBlock[]) => void
   resetPageLayout: (pageId: PageId) => void
 }

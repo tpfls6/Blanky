@@ -16,6 +16,7 @@ import { AnalysisReview } from '../../components/schedule/AnalysisReview.tsx'
 import { RepeatPicker } from '../../components/schedule/RepeatPicker.tsx'
 import type { ScheduleAnalysis } from '@blanky/types'
 import { taskNavKey } from '../../state/storage.ts'
+import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
 import type { TimelineDensity } from '../../types/records.ts'
@@ -94,6 +95,7 @@ function byTime(left: WorkItem, right: WorkItem): number {
 }
 
 export function DailyBoard({ editing = false }: { editing?: boolean }) {
+  const confirm = useConfirm()
   const library = useLibrary()
   const { user } = useSession()
   const userId = user?.id ?? 'guest'
@@ -308,7 +310,8 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
                     onCancel={() => setDraft(null)}
                     onDelete={
                       draft.id
-                        ? () => {
+                        ? async () => {
+                            if (!await confirm(`${draft.title || '이 항목'}을 삭제할까요? 휴지통에서 복구할 수 있습니다.`)) return
                             library.removeItem(draft.id as string)
                             setDraft(null)
                           }

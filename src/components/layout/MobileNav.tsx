@@ -1,12 +1,12 @@
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { NavLink, useLocation } from 'react-router-dom'
-import { CUSTOM_NAV, STORE_NAV, THEMES_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
+import { CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
 export function MobileNav() {
   const { pathname } = useLocation()
   const { settings, recordTypes } = useLibrary()
-  const items = [...visibleNav(settings.nav, recordTypes), CUSTOM_NAV, STORE_NAV, THEMES_NAV, SETTINGS_NAV]
+  const items = [...visibleNav(settings.nav, recordTypes), CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV]
 
   return (
     <nav
