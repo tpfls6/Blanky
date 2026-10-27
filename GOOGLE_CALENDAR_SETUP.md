@@ -19,7 +19,8 @@ GOOGLE_CALENDAR_REDIRECT_URI=
 
 `GOOGLE_CALENDAR_REDIRECT_URI`를 비우면 함수가 `{SUPABASE_URL}/functions/v1/google-calendar-oauth`를 씁니다. 브라우저용 `VITE_` 변수에 Calendar 비밀을 두지 마세요.
 
-7. `google-calendar`와 `google-calendar-oauth`를 원격에 배포합니다. 배포하지 않으면 Settings는 `GOOGLE_FN_MISSING`을 보여 줍니다.
+7. 원격 DB에 `supabase/migrations/20261023120000_google_calendar_peer.sql`을 적용합니다. 테이블이 없으면 Settings의 `status`가 502를 줍니다.
+8. `google-calendar`와 `google-calendar-oauth`를 원격에 배포합니다. 배포하지 않으면 Settings는 `GOOGLE_FN_MISSING`을 보여 줍니다.
 
 ```
 npx supabase link --project-ref <project-ref>
@@ -28,7 +29,7 @@ npx supabase functions deploy google-calendar-oauth
 npx supabase secrets set GOOGLE_CALENDAR_CLIENT_ID=... GOOGLE_CALENDAR_CLIENT_SECRET=...
 ```
 
-8. Blanky에 로그인한 뒤 **Settings → Google Calendar**에서 **Google Calendar 연결**을 누릅니다. Google 동의 후 `/settings/google-calendar`로 돌아옵니다. 캘린더와 첫 가져오기 방향을 고르면 연결이 준비됩니다.
+9. Blanky에 로그인한 뒤 **Settings → Google Calendar**에서 **Google Calendar 연결**을 누릅니다. Google 동의 후 `/settings/google-calendar`로 돌아옵니다. 캘린더와 첫 가져오기 방향을 고르면 연결이 준비됩니다.
 
 비밀이 없으면 함수는 `503`과 `GOOGLE_ENV_MISSING`을 반환합니다. 함수가 없으면 게이트웨이 `404`를 `GOOGLE_FN_MISSING`으로 읽습니다. 설정 화면은 그 코드를 보고 안내를 바꿉니다.
 
