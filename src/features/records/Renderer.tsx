@@ -193,7 +193,7 @@ function BlockRow({
       <div
         className={[
           'group relative rounded-md py-1 pr-2 pl-7',
-          selected ? 'bg-[color-mix(in_srgb,var(--accent-color)_8%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent-color)_35%,transparent)]' : '',
+          selected ? 'bg-[color-mix(in_srgb,var(--accent-color)_8%,transparent)]' : '',
         ].join(' ')}
         onClick={() => onSelect?.(block.id)}
       >

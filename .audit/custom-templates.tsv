@@ -10,3 +10,4 @@ ts	phase	decision	why	evidence	result
 2026-10-27T03:18:00Z	ui	builder input :focus-visible outline none, keep global keyboard rings	root cause was index.css :focus-visible beating textarea.outline-none	src/styles/index.css src/features/builder/PageBuilder.tsx	open
 2026-10-27T03:20:00Z	verify	headless local-auth Chromium script passed	signed-in app on 127.0.0.1:5196 with empty supabase	scripts/custom-templates-browser-test.mjs	PASS overlay peek, guide, outline, core tabs, locale, mobile
 2026-10-27T03:21:00Z	verify	live Cursor browser on :5173 hit login	supabase session required, no credentials used	http://localhost:5173/login	INCONCLUSIVE on the user's signed-in profile
+2026-10-27T03:22:00Z	fix	dropped inset selection shadow on record BlockRow	explorer traced the click border to Renderer.tsx, not PageBuilder	src/features/records/Renderer.tsx	wash only, drag and focus-visible untouched
