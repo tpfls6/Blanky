@@ -48,6 +48,33 @@ test('today query and task deadline are parsed by existing core', () => {
   assert.equal(parsed.type, 'task')
   assert.equal(parsed.draft.dueDate, '2026-10-09')
 })
+test('duplicate cleanup, delete, conflicts and English verbs stay on existing items', () => {
+  const workA = { ...item, id: 'w1', title: '근로' }
+  const workB = { ...item, id: 'w2', title: '근로' }
+  const classA = { ...item, id: 'c1', title: '수업' }
+  assert.equal(conversationIntent('근로랑 수업이 두 개씩 있어. 중복 삭제해줘', [workA, workB, classA], null, today, []).type, 'dedupe')
+  assert.equal(conversationIntent('내일 근로 빼줘', [workA], null, today, []).type, 'delete')
+  const moved = conversationIntent('내일 수업 3시로 옮겨줘', [classA], null, today, [])
+  assert.equal(moved.type, 'update')
+  if (moved.type === 'update') {
+    assert.equal(moved.patch.startTime, '15:00')
+    assert.equal(moved.patch.date, '2026-10-08')
+  }
+  const conflicts = conversationIntent('다음 주 일정 중 겹치는 거 찾아줘', [workA, classA], null, today, [])
+  assert.equal(conflicts.type, 'conflicts')
+  const undone = conversationIntent('어제 못한 일 내일로 옮겨줘', [{ ...item, id: 't1', kind: 'task', title: '과제', date: '2026-10-06', status: 'todo' }], null, today, [])
+  assert.equal(undone.type, 'move_incomplete')
+  if (undone.type === 'move_incomplete') {
+    assert.equal(undone.from, '2026-10-06')
+    assert.equal(undone.to, '2026-10-08')
+  }
+  assert.equal(conversationIntent('show my schedule today', [item], null, today, []).type, 'list')
+  const english = conversationIntent('move 수업 to 3pm tomorrow', [classA], null, today, [])
+  assert.equal(english.type, 'update')
+  if (english.type === 'update') assert.equal(english.patch.startTime, '15:00')
+  assert.equal(conversationIntent('remove duplicate events', [workA, workB], null, today, []).type, 'dedupe')
+  assert.equal(conversationIntent('근로 빼줘', [workA, { ...workA, id: 'w3', date: '2026-10-09' }], null, today, []).type, 'reply')
+})
 test('follow-up can change a date, task deadline or title without creating an item', () => {
   const date = conversationIntent('그거 모레로 바꿔줘', [item], item.id, today, [])
   assert.equal(date.type, 'update')

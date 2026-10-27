@@ -1,0 +1,11 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T05:20:00Z	start	began nl-agent run	figure-it-out for natural-language CRUD agent	parent chat	open
+2026-10-27T05:25:00Z	frame	reuse conversationIntent, parse-schedule, planner, schedule repo, trash	user forbade a second AI system	src/features/ai/conversation.ts:12	open
+2026-10-27T05:26:00Z	frame	skip new manage-schedule Edge Function and archived_at migration	RLS plus existing repo and trash already bound writes	packages/api/src/scheduleRepository.ts:230	open
+2026-10-27T05:27:00Z	frame	skip architect arena	shape is an extension of Intent plus a pure duplicate table	packages/types/src/ai.ts:2	open
+2026-10-27T05:28:00Z	harness	write duplicate and intent tests before code	sequence units so a broken policy fails first	packages/scheduling/src/duplicates.test.ts	tests green
+2026-10-27T05:40:00Z	domain	duplicate means same title and slot, overlap of work and class is a conflict	user forbade time-overlap-only deletes	packages/scheduling/src/duplicates.ts	tests green
+2026-10-27T05:42:00Z	execute	deletes go through commitWork and trash undo	reuse the existing restore path	src/pages/Home/HomePage.tsx	tests green
+2026-10-27T05:43:00Z	google	never auto-delete calendar_sync or external rows	sync would recreate or delete the Google original	src/features/ai/agent.ts	unit only
+2026-10-27T05:50:00Z	verify	243 unit tests pass, browser login blocked	predicate needs a logged-in Home session for live CRUD	npm test	VERIFIED units, NOT VERIFIED browser/google/RLS live
+2026-10-27T05:51:00Z	skip	no manage-schedule Edge Function	parse-schedule and RLS already bound writes	packages/api/src/ai.ts	open

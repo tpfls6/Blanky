@@ -5,6 +5,8 @@ export { tasksFromPlanningAnalysis } from './analysis.ts'
 export { createPlanningRecommendation } from './planner.ts'
 export type { PlannerDependencies } from './planner.ts'
 
+export { findConflicts, findDuplicates } from './duplicates.ts'
+export type { ConflictPair, DuplicateGroup, Sighting } from './duplicates.ts'
 export { recommendUnits, unitsFromPlan, findPlannerConflicts } from './replanning.ts'
 export type { WorkUnit, ReplanContext } from './replanning.ts'
 export { planningPreferences } from './preferences.ts'

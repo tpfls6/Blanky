@@ -91,8 +91,11 @@ test('다음 주 월요일 발표자료 완성', () => {
 
 test('date and time helpers', () => {
   assert.equal(parseKoreanDate('오늘 회의', today), '2026-10-01')
+  assert.equal(parseKoreanDate('어제', today), '2026-09-30')
   assert.equal(parseKoreanDate('내일', today), '2026-10-02')
   assert.equal(parseKoreanDate('모레', today), '2026-10-03')
+  assert.equal(parseKoreanDate('tomorrow', today), '2026-10-02')
+  assert.equal(parseKoreanTime('move class to 3pm')?.startTime, '15:00')
   assert.equal(parseKoreanTime('오후 3시 반')?.startTime, '15:30')
   assert.equal(parseKoreanTime('3시 30분')?.startTime, '03:30')
   assert.equal(parseKoreanTime('15:30')?.startTime, '15:30')

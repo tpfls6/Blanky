@@ -7,6 +7,7 @@ import { ENTRY_OPTIONS, type EntryType } from '../../types/records.ts'
 import type { WorkItem } from '../../types/work.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { conversationIntent } from '../../features/ai/conversation.ts'
+import { describePlan, planConflicts, planDedupe, planMoveIncomplete, planSummarize, type AgentPlan } from '../../features/ai/agent.ts'
 import { analyzeSchedules } from '../../services/schedule/index.ts'
 import { AnalysisReview } from '../../components/schedule/AnalysisReview.tsx'
 import { validatePlanningRecommendation, type PlanningRecommendation, type PlannerDraft, type ScheduleAnalysis } from '@blanky/types'
@@ -20,7 +21,7 @@ import { todayISO } from '../../utils/date.ts'
 import { WorkCard } from '../../components/schedule/WorkCard.tsx'
 import { captureIntent, shouldSaveAnalysisAsMemo } from '../../utils/captureIntent.ts'
 type RecordType = 'diary' | 'memo' | 'reading'
-type Message = { id:string; role:'user'|'assistant'; text:string; items?:WorkItem[]; before?:WorkItem }
+type Message = { id:string; role:'user'|'assistant'; text:string; items?:WorkItem[]; before?:WorkItem; undoIds?:string[]; preview?:AgentPlan }
 export function HomePage() {
   const { t } = useI18n()
   const library=useLibrary()
@@ -62,6 +63,27 @@ export function HomePage() {
     const plan=routed.recommendation,existing=await getPlannerSchedules(plan.result.settings.startDate,plan.result.settings.endDate)
     autoRestore.current=false;setPlanner({input,plan,existing});setAnalysis(null)
   }
+  const applyAgentPlan=async(plan:AgentPlan)=>{
+    const executed:WorkItem[]=[]
+    const undoIds:string[]=[]
+    const failed:string[]=[]
+    for(const action of plan.actions){
+      try{
+        if(action.op==='delete'){
+          await library.commitWork(action.item,null,'ai_chat')
+          undoIds.push(action.item.id)
+          executed.push(action.item)
+        }else{
+          const saved=await library.commitWork(action.item,{...action.item,...action.patch},'ai_chat')
+          if(!saved) throw new Error('저장 실패')
+          executed.push(saved)
+        }
+      }catch{failed.push(action.item.title)}
+    }
+    const lines=[describePlan({...plan,mode:'auto',actions:plan.actions.filter(action=>!failed.includes(action.item.title))})]
+    if(failed.length)lines.push('실패: '+failed.join(', '))
+    return {text:lines.join('\n'),items:[...plan.kept,...executed],undoIds}
+  }
   const send=async()=>{
     if(!text.trim() || locked.current) return
     locked.current=true;setBusy(true)
@@ -82,10 +104,15 @@ export function HomePage() {
       if(['planner','reschedule'].includes(routeInput(input).route)){await generatePlanner(input);append({role:'assistant',text:'계획을 추천했어요. 확인·수정한 뒤 적용해 주세요. 아직 저장하지 않았어요.'});return}
       const intent=conversationIntent(input,library.items,lastId.current,new Date(),library.categories)
       if(intent.type==='reply') {
-        if(type==='auto') {fallbackToMemo=false;saveRecord(input,'memo')}
-        else append({role:'assistant',text:intent.text})
+        if(type==='auto' && !/(삭제|중복|겹치|지워|빼줘|옮겨|delete|duplicate|overlap|remove)/i.test(input)) {fallbackToMemo=false;saveRecord(input,'memo')}
+        else {fallbackToMemo=false;append({role:'assistant',text:intent.text})}
       }
-      else if(intent.type==='list') {const date=intent.date || todayISO(),items=library.items.filter(item=>occursOn(item,date));append({role:'assistant',text:date+' · '+items.length+'개 항목이 있어요.',items})}
+      else if(intent.type==='list') {
+        const date=intent.date || todayISO()
+        const end=intent.endDate || date
+        const items=library.items.filter(item=>{let day=date;while(day<=end){if(occursOn(item,day))return true;const next=new Date(`${day}T00:00:00`);next.setDate(next.getDate()+1);day=`${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}-${String(next.getDate()).padStart(2,'0')}`;if(day===date)break}return false})
+        append({role:'assistant',text:(intent.endDate?date+'~'+end:date)+' · '+items.length+'개 항목이 있어요.',items})
+      }
       else if(intent.type==='create') {
         const result = await analyzeSchedules(intent.text, library.categories, new Date())
         if(type==='auto' && shouldSaveAnalysisAsMemo(result.items)) {
@@ -97,6 +124,22 @@ export function HomePage() {
         }
         setAnalysis({ id: crypto.randomUUID(), result, input })
         append({role:'assistant',text:result.items.length+'개 항목을 분석했어요. 아래에서 확인한 후 저장해 주세요.'})
+      }
+      else if(intent.type==='delete') {
+        fallbackToMemo=false
+        await library.commitWork(intent.item,null,'ai_chat')
+        lastId.current=null
+        append({role:'assistant',text:intent.item.title+'을 휴지통으로 옮겼어요.',before:intent.item,undoIds:[intent.item.id]})
+      }
+      else if(intent.type==='dedupe'||intent.type==='conflicts'||intent.type==='summarize'||intent.type==='move_incomplete') {
+        fallbackToMemo=false
+        const plan=intent.type==='dedupe'?planDedupe(library.items):intent.type==='conflicts'?planConflicts(library.items,intent.start,intent.end):intent.type==='summarize'?planSummarize(library.items,intent.start,intent.end):planMoveIncomplete(library.items,intent.from,intent.to)
+        if(plan.mode==='preview'&&plan.actions.length) {
+          append({role:'assistant',text:describePlan(plan),items:[...plan.kept,...plan.actions.map(action=>action.item)],preview:plan})
+        } else {
+          const result=await applyAgentPlan(plan)
+          append({role:'assistant',text:result.text,items:result.items,undoIds:result.undoIds})
+        }
       }
       else {
         const before=intent.item,item={...before,...intent.patch}
@@ -137,6 +180,6 @@ export function HomePage() {
       }
       return saved
     }}/>}
-    <div className="mt-8 space-y-6" aria-live="polite" aria-busy={busy}>{messages.map(message=><div key={message.id}><p className="mb-2 text-xs text-neutral-400">{message.role==='user'?t('me'):'Blanky'}</p><p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p><div className="mt-3 space-y-2">{message.items?.map(item=><WorkCard key={item.id} snapshot={item} before={message.before}/>)}</div></div>)}{busy && <p role="status" className="text-sm text-neutral-400">{t('home.working')}</p>}</div>
+    <div className="mt-8 space-y-6" aria-live="polite" aria-busy={busy}>{messages.map(message=><div key={message.id}><p className="mb-2 text-xs text-neutral-400">{message.role==='user'?t('me'):'Blanky'}</p><p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p><div className="mt-3 space-y-2">{message.items?.map(item=><WorkCard key={item.id} snapshot={item} before={message.before}/>)}</div>{message.preview&&<div className="mt-2 flex gap-2"><button type="button" className="btn btn-ghost text-blue-600" disabled={busy} onClick={()=>void applyAgentPlan(message.preview!).then(result=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:result.text,items:result.items,undoIds:result.undoIds,preview:undefined}:row)))}>실행</button><button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:'실행하지 않았어요.',preview:undefined,items:undefined}:row))}>취소</button></div>}{message.undoIds?.length?<button type="button" className="btn btn-ghost mt-2 text-blue-600" disabled={busy} onClick={()=>void Promise.all(message.undoIds!.map(id=>library.restoreTrash(id))).then(()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:row.text+'\n되돌렸습니다.',undoIds:undefined}:row)))}>되돌리기</button>:null}</div>)}{busy && <p role="status" className="text-sm text-neutral-400">{t('home.working')}</p>}</div>
   </div>
 }

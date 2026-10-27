@@ -13,7 +13,7 @@ export function captureIntent(content: string): CaptureIntent {
   const explicit = /^(일기|메모|독서)(?:\s*기록)?\s*[:：]/.exec(text)
   if (explicit) return result(explicit[1] === '일기' ? 'diary' : explicit[1] === '독서' ? 'reading' : 'memo')
   if (/(?:레시피|조리법|요리법|재료\s*[:：])/.test(text)) return result('memo')
-  if (/(?:바꿔|변경해|미뤄|수정해|완료해|완료 처리|삭제해|지워|뭐 있어|보여줘|조회해|알려줘|재배치|계획.*(?:세워|짜|만들)|일정.*(?:짜줘|정리해))/.test(text)) return result('conversation')
+  if (/(?:바꿔|변경해|미뤄|수정해|완료해|완료 처리|삭제해|지워|빼줘|옮겨|중복|겹치|뭐 있어|보여줘|조회해|알려줘|재배치|계획.*(?:세워|짜|만들)|일정.*(?:짜줘|정리해)|delete|remove|duplicate|overlap|reschedule)/i.test(text)) return result('conversation')
   if (/(?:메모|기억해\s*둘|참고\s*자료|준비물)|아이디어\s*[:：]/.test(text)) return result('memo')
   const today = new Date()
   const leftover = parseScheduleText(text, { today }).draft.title.trim()
