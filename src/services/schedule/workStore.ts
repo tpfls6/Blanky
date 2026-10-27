@@ -43,7 +43,7 @@ export async function saveWork(userId: string, before: WorkItem | null, after: W
   const draft = { ...after, categoryId: await resolveCategory(after.categoryId), calendarId: after.calendarId?.startsWith('local-personal:') ? undefined : after.calendarId, changeSource: source }
   const item = workFromSchedule(before && remote
     ? await repository.update(before.id, draft)
-    : await repository.create(userId, draft))
+    : await repository.create(userId, draft), after.calendarType ?? before?.calendarType)
   return { item, categories: remoteCategories }
 }
 

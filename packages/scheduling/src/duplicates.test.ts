@@ -36,6 +36,10 @@ test('google-synced copies stay, the local clone is the drop candidate', () => {
   const [group] = findDuplicates([local, synced])
   assert.equal(group.keepId, 'sync')
   assert.deepEqual(group.dropIds, ['local'])
+  const edited = event('ext', '근로', { changeSource: 'ai_chat', calendarType: 'external' })
+  const [kept] = findDuplicates([local, edited])
+  assert.equal(kept.keepId, 'ext')
+  assert.equal(kept.confidence, 'safe')
 })
 
 test('two synced copies and recurring series need confirmation', () => {

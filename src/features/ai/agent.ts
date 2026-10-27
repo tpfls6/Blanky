@@ -1,5 +1,6 @@
 import { repeatsOn } from '../../../packages/types/src/recurrence.ts'
-import { findConflicts, findDuplicates, isProtected, type Sighting } from '../../../packages/scheduling/src/duplicates.ts'
+import { isGoogleOriginWork } from '../../services/calendarSync/origin.ts'
+import { findConflicts, findDuplicates, type Sighting } from '../../../packages/scheduling/src/duplicates.ts'
 import type { WorkItem, WorkPatch } from '../../types/work.ts'
 
 export type AgentAction =
@@ -52,7 +53,7 @@ export function planDedupe(items: readonly WorkItem[]): AgentPlan {
     for (const id of group.dropIds) {
       const item = index.get(id)
       if (!item) continue
-      if (isProtected(item)) {
+      if (isGoogleOriginWork(item)) {
         skipped.push({ title: item.title, reason: 'Google에서 가져온 일정은 원본을 지우지 않았어요.' })
         confirm = true
         continue

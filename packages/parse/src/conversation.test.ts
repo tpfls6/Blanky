@@ -74,6 +74,8 @@ test('duplicate cleanup, delete, conflicts and English verbs stay on existing it
   if (english.type === 'update') assert.equal(english.patch.startTime, '15:00')
   assert.equal(conversationIntent('remove duplicate events', [workA, workB], null, today, []).type, 'dedupe')
   assert.equal(conversationIntent('근로 빼줘', [workA, { ...workA, id: 'w3', date: '2026-10-09' }], null, today, []).type, 'reply')
+  const google = conversationIntent('근로 빼줘', [{ ...workA, changeSource: 'ai_chat', calendarType: 'external' }], null, today, [])
+  assert.equal(google.type, 'reply')
 })
 test('follow-up can change a date, task deadline or title without creating an item', () => {
   const date = conversationIntent('그거 모레로 바꿔줘', [item], item.id, today, [])

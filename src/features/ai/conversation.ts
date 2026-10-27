@@ -1,7 +1,7 @@
 import { parseScheduleText } from '../../../packages/parse/src/parse.ts'
 import { routeInput, PlannerRequiredError } from '../../../packages/parse/src/intentRouter.ts'
 import { addDays, formatISODate } from '../../../packages/utils/src/date.ts'
-import { isProtected } from '../../../packages/scheduling/src/duplicates.ts'
+import { isGoogleOriginWork } from '../../services/calendarSync/origin.ts'
 import type { WorkItem, WorkPatch, WorkspaceCategory } from '../../types/work.ts'
 
 export type Intent =
@@ -108,7 +108,7 @@ export function conversationIntent(text: string, items: WorkItem[], lastId: stri
   if (/(삭제|지워|빼줘|빼 줘|delete|remove)/i.test(text)) {
     const matches = matchItems(text, items, lastId, parsed.draft.date)
     if (matches.length !== 1) return { type: 'reply', text: matches.length ? '같은 이름이 여러 개예요. 어떤 항목을 지울지 알려 주세요.' : '삭제할 항목을 찾지 못했어요. 정확한 제목을 알려 주세요.' }
-    if (isProtected(matches[0])) return { type: 'reply', text: 'Google에서 가져온 일정은 원본을 지우지 않았어요. 캘린더 권한을 확인해 주세요.' }
+    if (isGoogleOriginWork(matches[0])) return { type: 'reply', text: 'Google에서 가져온 일정은 원본을 지우지 않았어요. 캘린더 권한을 확인해 주세요.' }
     return { type: 'delete', item: matches[0] }
   }
   if (text.endsWith('?')) return { type: 'reply', text: '일정 조회, 추가, 시간 변경, 할 일 완료를 요청해 주세요.' }
