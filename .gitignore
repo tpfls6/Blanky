@@ -32,3 +32,4 @@ dist-ssr
 # Diary browser test screenshots
 .tmp/diary-tests/
 .tmp/ai-tests/
+.tmp/arena-i18n/
