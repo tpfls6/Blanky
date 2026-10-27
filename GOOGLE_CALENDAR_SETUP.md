@@ -1,6 +1,6 @@
 # Google Calendar 연결
 
-Schedule 설정의 **Google Calendar 연결**은 로그인과 별개입니다. `signInWithGoogle`은 계정만 만듭니다. Calendar 권한은 나중에 Settings에서 받습니다.
+Settings → Google Calendar의 **Google Calendar 연결**은 로그인과 별개입니다. `signInWithGoogle`은 계정만 만듭니다. Calendar 권한은 나중에 Settings에서 받습니다.
 
 브라우저가 Google에 직접 쓰지 않습니다. `createCalendarSyncClient`가 `google-calendar` Edge Function을 호출하고, Google OAuth 코드는 `google-calendar-oauth`로 돌아옵니다. Client ID와 Client Secret은 Edge Function Secret에만 둡니다. 저장소에 값을 넣지 마세요.
 
@@ -19,7 +19,7 @@ GOOGLE_CALENDAR_REDIRECT_URI=
 
 `GOOGLE_CALENDAR_REDIRECT_URI`를 비우면 함수가 `{SUPABASE_URL}/functions/v1/google-calendar-oauth`를 씁니다. 브라우저용 `VITE_` 변수에 Calendar 비밀을 두지 마세요.
 
-7. Blanky에 로그인한 뒤 **Settings → Schedule**에서 **Google Calendar 연결**을 누릅니다. Google 동의 후 `/settings/schedule`로 돌아옵니다. 캘린더와 첫 가져오기 방향을 고르면 연결이 준비됩니다.
+7. Blanky에 로그인한 뒤 **Settings → Google Calendar**에서 **Google Calendar 연결**을 누릅니다. Google 동의 후 `/settings/google-calendar`로 돌아옵니다. 캘린더와 첫 가져오기 방향을 고르면 연결이 준비됩니다.
 
 비밀이 없으면 함수는 `503`과 `GOOGLE_ENV_MISSING`을 반환합니다. 설정 화면은 그 코드를 보고 안내를 바꿉니다.
 

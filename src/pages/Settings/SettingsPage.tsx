@@ -2,7 +2,7 @@ import { PlanningPreferences } from './PlanningPreferences.tsx'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router-dom'
-import { CalendarDays, Palette, PanelLeft, Plus, Sparkles, Tag, User, type LucideIcon } from 'lucide-react'
+import { CalendarDays, CalendarRange, Palette, PanelLeft, Plus, Sparkles, Tag, User, type LucideIcon } from 'lucide-react'
 import { TextField } from '../../components/common/TextField.tsx'
 import { ROUTES } from '../../constants/routes.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -19,7 +19,8 @@ const SECTIONS = [
   { id: 'account', label: 'Account', description: '프로필과 로그인 정보를 관리합니다.', icon: User },
   { id: 'appearance', label: 'Appearance', description: '앱의 화면과 포인트 색상을 설정합니다.', icon: Palette },
   { id: 'navigation', label: 'Navigation', description: '사이드바 메뉴 순서와 표시를 바꿉니다.', icon: PanelLeft },
-  { id: 'schedule', label: 'Schedule', description: '캘린더와 타임라인 기본값을 설정합니다.', icon: CalendarDays },
+  { id: 'schedule', label: 'Schedule', description: '타임라인과 알림 기본값을 설정합니다.', icon: CalendarDays },
+  { id: 'google-calendar', label: 'Google Calendar', description: 'Google Calendar 연결과 동기화를 관리합니다.', icon: CalendarRange },
   { id: 'categories', label: 'Categories', description: '상위·하위 카테고리와 색, 아이콘을 관리합니다.', icon: Tag },
   { id: 'input', label: 'Input & AI', description: 'Home 입력과 자동 분류를 설정합니다.', icon: Sparkles },
 ] as const satisfies readonly { id: string; label: string; description: string; icon: LucideIcon }[]
@@ -257,6 +258,9 @@ export function SettingsPage() {
   } else if (id === 'schedule') {
     body = (
       <Section>
+        <p className="text-sm">
+          <Link to="/settings/google-calendar">Google Calendar 연동</Link>
+        </p>
         <div>
           <p className="text-sm">Schedule 기본 탭</p>
           <div className="mt-2 flex flex-wrap gap-1" role="radiogroup" aria-label="Schedule 기본 탭">
@@ -324,6 +328,11 @@ export function SettingsPage() {
             <SwitchRow label="할 일 마감 알림" checked={settings.notifyTasks} onChange={() => patch({ notifyTasks: !settings.notifyTasks })} />
           </div>
         </div>
+      </Section>
+    )
+  } else if (id === 'google-calendar') {
+    body = (
+      <Section>
         <GoogleCalendarSection />
       </Section>
     )
