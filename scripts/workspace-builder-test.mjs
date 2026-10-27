@@ -185,7 +185,7 @@ try {
   })()`)
   assert.equal(drop.ok, true, 'kanban drop targets missing')
   await wait('(() => { const lib = JSON.parse(localStorage.getItem(' + q(library) + ')); const rec = lib.records.find(r => r.title==="칸반카드"); const type = lib.recordTypes.find(t => t.id===rec.typeId); const field = type.blocks.find(b => b.type==="select"); const done = field.props.options.find(o => o.label==="완료"); return rec.values[field.fieldKey]===done.id; })()', 'select saved as 완료')
-  log('kanban drop wrote 완료 ' + JSON.stringify(drop))
+  log('kanban DragEvent drop to 완료 ' + JSON.stringify(drop))
   await shot('02-kanban-after-drop')
 
   await navigate()
