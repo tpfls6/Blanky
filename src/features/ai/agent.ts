@@ -39,8 +39,23 @@ function byId(items: readonly WorkItem[]): Map<string, WorkItem> {
   return new Map(items.map(item => [item.id, item]))
 }
 
-export function planDedupe(items: readonly WorkItem[]): AgentPlan {
-  const groups = findDuplicates(items.map(asSighting))
+function lastDate(item: WorkItem): string {
+  return item.endDate && item.endDate >= item.date ? item.endDate : item.date
+}
+
+function inAskedRange(item: WorkItem, start?: string, end?: string): boolean {
+  if (!start && !end) return true
+  if (start && end) return inRange(item, start, end)
+  if (start) return item.repeat !== 'none' || lastDate(item) >= start
+  return lastDate(item) <= end!
+}
+
+export function planDedupe(items: readonly WorkItem[], scope?: { start?: string; end?: string; titles?: string[]; openEnd?: boolean }): AgentPlan {
+  const scoped = items.filter(item => {
+    if (scope?.titles?.length && !scope.titles.some(title => title === item.title || item.title.includes(title) || title.includes(item.title))) return false
+    return inAskedRange(item, scope?.start, scope?.end)
+  })
+  const groups = findDuplicates(scoped.map(asSighting))
   const index = byId(items)
   const actions: AgentAction[] = []
   const skipped: AgentSkip[] = []
@@ -58,8 +73,13 @@ export function planDedupe(items: readonly WorkItem[]): AgentPlan {
       actions.push({ op: 'delete', item, reason: `${group.title} 중복` })
     }
   }
+  const found = groups.reduce((sum, group) => sum + group.dropIds.length + 1, 0)
+  const range = scope?.start ? `${scope.start}${scope.end ? '~' + scope.end : ' 이후'}` : ''
+  const title = groups.length
+    ? `${range ? range + ' · ' : ''}중복 일정 ${found}건을 확인했습니다.${scope?.openEnd && !scope.end ? ' 종료일이 없어 이 날짜 이후 전체를 대상으로 합니다.' : ''}`
+    : '중복 일정이 없어요.'
   return {
-    title: groups.length ? `중복 일정 ${groups.reduce((sum, group) => sum + group.dropIds.length + 1, 0)}건을 확인했습니다.` : '중복 일정이 없어요.',
+    title,
     mode: actions.length ? 'preview' : 'auto',
     actions,
     skipped,

@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom'
 import { ENTRY_OPTIONS, type EntryType } from '../../types/records.ts'
 import type { WorkItem } from '../../types/work.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
-import { conversationIntent } from '../../features/ai/conversation.ts'
+import { conversationIntent, type ConversationPending } from '../../features/ai/conversation.ts'
 import { describePlan, failedActionIds, liveActions, planConflicts, planDedupe, planMoveIncomplete, planSummarize, type AgentPlan } from '../../features/ai/agent.ts'
 import { batchKeyFor, describeBatchApply } from '../../features/ai/batch.ts'
 import { analyzeSchedules } from '../../services/schedule/index.ts'
@@ -34,7 +34,7 @@ export function HomePage() {
     setMessages(current=>[...current,{id:crypto.randomUUID(),role:'assistant',text:t('home.savedAs', { type: t(`type.${recordType}`) })}])
   }
   const {conflicts,setConflicts,error:conflictError,setError:setConflictError}=usePlannerConflicts(library.items)
-  const locked=useRef(false),lastId=useRef<string|null>(null),batchKeys=useRef(new Map<string,string>())
+  const locked=useRef(false),lastId=useRef<string|null>(null),batchKeys=useRef(new Map<string,string>()),pending=useRef<ConversationPending>(null)
   const [analysis, setAnalysis] = useState<{ id: string; result: ScheduleAnalysis; input: string } | null>(null)
   const [planner,setPlanner]=useState<{input:string;plan:PlanningRecommendation;existing:BusySchedule[];initialDraft?:Pick<PlannerDraft,'edits'|'saved'>;resumeId?:string}|null>(()=>{
     try{const value=JSON.parse(sessionStorage.getItem(plannerKey)??'null');if(!value||typeof value.input!=='string')return null;validatePlanningRecommendation(value.plan);return value}catch{return null}
@@ -114,10 +114,11 @@ export function HomePage() {
         }
       }
       if(type!=='auto' && type!=='schedule' && type!=='task') { const error=library.saveCapture(input,type);append({role:'assistant',text:error ?? '기록을 저장했습니다.'});return }
-      if(['planner','reschedule'].includes(routeInput(input).route)){await generatePlanner(input);append({role:'assistant',text:'계획을 추천했어요. 확인·수정한 뒤 적용해 주세요. 아직 저장하지 않았어요.'});return}
-      const intent=conversationIntent(input,library.items,lastId.current,new Date(),library.categories)
+      if(['planner','reschedule'].includes(routeInput(input).route) && !pending.current){await generatePlanner(input);append({role:'assistant',text:'계획을 추천했어요. 확인·수정한 뒤 적용해 주세요. 아직 저장하지 않았어요.'});return}
+      const intent=conversationIntent(input,library.items,lastId.current,new Date(),library.categories,pending.current)
       if(intent.type==='reply') {
-        if(type==='auto' && !/(삭제|중복|겹치|지워|빼줘|옮겨|delete|duplicate|overlap|remove)/i.test(input)) {fallbackToMemo=false;saveRecord(input,'memo')}
+        if(/지울지/.test(intent.text)) pending.current={kind:'clarify'}
+        if(type==='auto' && !/(삭제|중복|겹치|지워|빼줘|남겨|남기|옮겨|delete|duplicate|overlap|remove)/i.test(input) && !pending.current) {fallbackToMemo=false;saveRecord(input,'memo')}
         else {fallbackToMemo=false;append({role:'assistant',text:intent.text})}
       }
       else if(intent.type==='list') {
@@ -127,6 +128,7 @@ export function HomePage() {
         append({role:'assistant',text:(intent.endDate?date+'~'+end:date)+' · '+items.length+'개 항목이 있어요.',items})
       }
       else if(intent.type==='create') {
+        pending.current=null
         const result = await analyzeSchedules(intent.text, library.categories, new Date())
         if(type==='auto' && shouldSaveAnalysisAsMemo(result.items)) {
           fallbackToMemo=false;saveRecord(input,'memo');return
@@ -146,7 +148,8 @@ export function HomePage() {
       }
       else if(intent.type==='dedupe'||intent.type==='conflicts'||intent.type==='summarize'||intent.type==='move_incomplete') {
         fallbackToMemo=false
-        const plan=intent.type==='dedupe'?planDedupe(library.items):intent.type==='conflicts'?planConflicts(library.items,intent.start,intent.end):intent.type==='summarize'?planSummarize(library.items,intent.start,intent.end):planMoveIncomplete(library.items,intent.from,intent.to)
+        if(intent.type==='dedupe') pending.current={kind:'dedupe',start:intent.start,end:intent.end,titles:intent.titles,openEnd:intent.openEnd}
+        const plan=intent.type==='dedupe'?planDedupe(library.items,{start:intent.start,end:intent.end,titles:intent.titles,openEnd:intent.openEnd}):intent.type==='conflicts'?planConflicts(library.items,intent.start,intent.end):intent.type==='summarize'?planSummarize(library.items,intent.start,intent.end):planMoveIncomplete(library.items,intent.from,intent.to)
         if(plan.mode==='preview'&&plan.actions.length) {
           append({role:'assistant',text:describePlan(plan),items:[...plan.kept,...plan.actions.map(action=>action.item)],preview:plan})
         } else {
@@ -193,6 +196,6 @@ export function HomePage() {
       }
       return saved
     }}/>}
-    <div className="mt-8 space-y-6" aria-live="polite" aria-busy={busy}>{messages.map(message=><div key={message.id}><p className="mb-2 text-xs text-neutral-400">{message.role==='user'?t('me'):'Blanky'}</p><p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p><div className="mt-3 space-y-2">{message.items?.map(item=><WorkCard key={item.id} snapshot={item} before={message.before}/>)}</div>{message.preview&&<div className="mt-2 flex gap-2"><button type="button" className="btn btn-ghost text-blue-600" disabled={busy} onClick={()=>{if(locked.current)return;locked.current=true;setBusy(true);void applyAgentPlan(message.preview!).then(result=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:result.text,items:result.items,undoIds:result.undoIds,preview:undefined}:row))).finally(()=>{locked.current=false;setBusy(false)})}}>실행</button><button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:'실행하지 않았어요.',preview:undefined,items:undefined}:row))}>취소</button></div>}{message.undoIds?.length?<button type="button" className="btn btn-ghost mt-2 text-blue-600" disabled={busy} onClick={()=>void Promise.all(message.undoIds!.map(id=>library.restoreTrash(id))).then(()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:row.text+'\n되돌렸습니다.',undoIds:undefined}:row)))}>되돌리기</button>:null}</div>)}{busy && <p role="status" className="text-sm text-neutral-400">{t('home.working')}</p>}</div>
+    <div className="mt-8 space-y-6" aria-live="polite" aria-busy={busy}>{messages.map(message=><div key={message.id}><p className="mb-2 text-xs text-neutral-400">{message.role==='user'?t('me'):'Blanky'}</p><p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p><div className="mt-3 space-y-2">{message.items?.map(item=><WorkCard key={item.id} snapshot={item} before={message.before}/>)}</div>{message.preview&&<div className="mt-2 flex gap-2"><button type="button" className="btn btn-ghost text-blue-600" disabled={busy} onClick={()=>{if(locked.current)return;locked.current=true;setBusy(true);void applyAgentPlan(message.preview!).then(result=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:result.text,items:result.items,undoIds:result.undoIds,preview:undefined}:row))).finally(()=>{locked.current=false;setBusy(false)})}}>실행</button><button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>{pending.current=null;setMessages(current=>current.map(row=>row.id===message.id?{...row,text:'실행하지 않았어요.',preview:undefined,items:undefined}:row))}}>취소</button></div>}{message.undoIds?.length?<button type="button" className="btn btn-ghost mt-2 text-blue-600" disabled={busy} onClick={()=>void Promise.all(message.undoIds!.map(id=>library.restoreTrash(id))).then(()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:row.text+'\n되돌렸습니다.',undoIds:undefined}:row)))}>되돌리기</button>:null}</div>)}{busy && <p role="status" className="text-sm text-neutral-400">{t('home.working')}</p>}</div>
   </div>
 }

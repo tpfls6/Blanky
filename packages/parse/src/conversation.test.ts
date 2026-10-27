@@ -89,3 +89,29 @@ test('follow-up can change a date, task deadline or title without creating an it
   assert.equal(rename.type, 'update')
   if (rename.type === 'update') assert.equal(rename.patch.title, '달리기')
 })
+
+test('keep-one cleanup and a follow-up stay on dedupe instead of memo or single delete', () => {
+  const spoken = new Date(2026, 9, 27)
+  const workA = { ...item, id: 'w1', title: '근로', date: '2026-10-29', repeat: 'weekly' as const, repeatDays: [4, 5] }
+  const workB = { ...workA, id: 'w2' }
+  const classA = { ...workA, id: 'c1', title: '수업' }
+  const classB = { ...classA, id: 'c2' }
+  const first = conversationIntent('29일 이후부터 목금마다 수업이랑 근로 시간표가 겹치는 버그가 있는 것 같은데, 저거 일정 하나만 남겨줘. 나머진 삭제해줘.', [workA, workB, classA, classB], null, spoken, [])
+  assert.equal(first.type, 'dedupe')
+  if (first.type === 'dedupe') {
+    assert.equal(first.start, '2026-10-29')
+    assert.equal(first.openEnd, true)
+    assert.deepEqual(new Set(first.titles), new Set(['근로', '수업']))
+  }
+  const follow = conversationIntent('근로랑 수업 시간대별로 두개씩 있는데 하나만 남겨줘. 중복이야.', [workA, workB, classA, classB], null, spoken, [], { kind: 'clarify' })
+  assert.equal(follow.type, 'dedupe')
+  assert.equal(conversationIntent('그중 두 개만 지워줘', [workA, workB, classA, classB], null, spoken, [], { kind: 'clarify', start: '2026-10-29' }).type, 'dedupe')
+  assert.equal(conversationIntent('시간대별로 하나만 남겨줘', [workA, workB], null, spoken, [], { kind: 'clarify' }).type, 'dedupe')
+  const workOnly = conversationIntent('근로 일정만 정리해줘', [workA, workB, classA, classB], null, spoken, [], { kind: 'dedupe', start: '2026-10-29' })
+  assert.equal(workOnly.type, 'dedupe')
+  if (workOnly.type === 'dedupe') assert.deepEqual(workOnly.titles, ['근로'])
+  const scoped = conversationIntent('29일 이후 것만 삭제해', [workA, workB], null, spoken, [], { kind: 'clarify' })
+  assert.equal(scoped.type, 'dedupe')
+  if (scoped.type === 'dedupe') assert.equal(scoped.start, '2026-10-29')
+  assert.equal(conversationIntent('오늘 일정 너무 많은데 정리해줘', [workA], null, spoken, []).type, 'reply')
+})

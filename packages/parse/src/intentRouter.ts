@@ -6,7 +6,7 @@ import type { ParsedSchedule } from './model.ts'
 export function routeInput(text: string, parsed?: ParsedSchedule, threshold = PARSE_CONFIG.aiConfidenceThreshold): InputRoute {
   const input = text.trim()
   if (!input) throw new Error('입력 내용을 확인해주세요.')
-  if (/(중복|겹치|duplicate|overlap|conflict)/i.test(input)) {
+  if (/(중복|겹치|duplicate|overlap|conflict|하나만\s*남겨|하나만\s*남기|시간대별로|일정만\s*정리)/i.test(input)) {
     return parsed && parsed.confidence < threshold
       ? { route: 'ai', reason: 'low_confidence' }
       : { route: 'parser', reason: 'simple_schedule' }

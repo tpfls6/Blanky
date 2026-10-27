@@ -4,12 +4,16 @@ import { addDays, formatISODate } from '../../../packages/utils/src/date.ts'
 import { isGoogleOriginWork } from '../../services/calendarSync/origin.ts'
 import type { WorkItem, WorkPatch, WorkspaceCategory } from '../../types/work.ts'
 
+export type DedupeScope = { start?: string; end?: string; titles?: string[]; openEnd?: boolean }
+
+export type ConversationPending = ({ kind: 'dedupe' } & DedupeScope) | { kind: 'clarify' } | null
+
 export type Intent =
   | { type: 'create'; text: string }
   | { type: 'list'; date: string; endDate?: string }
   | { type: 'update'; item: WorkItem; patch: WorkPatch }
   | { type: 'delete'; item: WorkItem }
-  | { type: 'dedupe' }
+  | ({ type: 'dedupe' } & DedupeScope)
   | { type: 'conflicts'; start: string; end: string }
   | { type: 'summarize'; start: string; end: string }
   | { type: 'move_incomplete'; from: string; to: string }
@@ -46,12 +50,56 @@ function parseDay(iso: string): Date {
   return new Date(year, month - 1, day)
 }
 
+function mentionedTitles(text: string, items: readonly WorkItem[]): string[] {
+  return [...new Set(items.map(item => item.title))].filter(title => title && text.includes(title))
+}
+
+function afterDay(text: string, today: Date): { start?: string; openEnd?: boolean } {
+  const match = /(\d{1,2})\s*일\s*이후/.exec(text)
+  if (!match) return {}
+  const day = Number(match[1])
+  if (day < 1 || day > 31) return {}
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  let candidate = new Date(year, month, day)
+  if (candidate.getDate() !== day) return {}
+  if (formatISODate(candidate) < formatISODate(today)) candidate = new Date(year, month + 1, day)
+  if (candidate.getDate() !== day) return {}
+  return { start: formatISODate(candidate), openEnd: true }
+}
+
+function keepOne(text: string) {
+  return /(하나만\s*남겨|하나만\s*남기|시간대별로\s*하나만|나머진?\s*삭제|keep one|leave one)/i.test(text)
+}
+
+function wantsDedupe(text: string, pending: ConversationPending): boolean {
+  if (/(중복|duplicate)/i.test(text) && (/(삭제|지워|정리|빼|남겨|남기|remove|delete|keep|leave)/i.test(text) || /이야|입니다|예요/.test(text))) return true
+  if (keepOne(text)) return true
+  if (/(겹치|overlap|conflict)/i.test(text) && /(남겨|남기|삭제|지워|정리|remove|delete)/i.test(text)) return true
+  if (/일정만\s*정리/.test(text)) return true
+  if (pending && /(남겨|남기|삭제|지워|정리|그중|시간대별|만 정리|이후 것만|두\s*개만|remove|delete)/i.test(text)) return true
+  return false
+}
+
+function dedupeFrom(text: string, items: readonly WorkItem[], today: Date, pending: ConversationPending): Intent {
+  const range = afterDay(text, today)
+  const titles = mentionedTitles(text, items)
+  const prior = pending && pending.kind === 'dedupe' ? pending : null
+  return {
+    type: 'dedupe',
+    start: range.start ?? prior?.start,
+    end: prior?.end,
+    openEnd: range.openEnd || prior?.openEnd,
+    titles: titles.length ? titles : prior?.titles,
+  }
+}
+
 /** Route commands; all date/time interpretation stays in the existing parser. */
-export function conversationIntent(text: string, items: WorkItem[], lastId: string | null, today: Date, categories: WorkspaceCategory[]): Intent {
+export function conversationIntent(text: string, items: WorkItem[], lastId: string | null, today: Date, categories: WorkspaceCategory[], pending: ConversationPending = null): Intent {
   const route = routeInput(text)
+  if (wantsDedupe(text, pending)) return dedupeFrom(text, items, today, pending)
   if (route.route === 'reschedule') return { type: 'reply', text: '자동 재배치는 준비 중이에요. 기존 일정은 변경하지 않았어요.' }
   if (route.route === 'planner') return { type: 'reply', text: new PlannerRequiredError().message }
-  if (/(중복|duplicate)/i.test(text) && /(삭제|지워|정리|빼|remove|delete)/i.test(text)) return { type: 'dedupe' }
   if (/(겹치|overlap|conflict)/i.test(text) && /(찾아|알려|보여|정리|find|show)/i.test(text)) {
     const parsed = parseScheduleText(text, { today, categories })
     const span = weekSpan(text, parsed.draft.date ?? formatISODate(today), today)
