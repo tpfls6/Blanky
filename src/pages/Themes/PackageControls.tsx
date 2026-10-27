@@ -1,6 +1,6 @@
 import { packageFeatures } from '../../theme/package/features.ts';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { THEME_ASSET_KEYS, THEME_ICON_KEYS, type BlankyTheme, type ThemePackage } from '@blanky/types';
+import { THEME_ASSET_KEYS, THEME_ICON_KEYS, THEME_PACKAGE_IMPORT_EXTS, type BlankyTheme, type ThemePackage } from '@blanky/types';
 import { packageFromTheme, importThemePackage, exportThemePackage, downloadTheme } from '../../theme/package/ThemeLoader.ts';
 import { validateAsset } from '../../theme/package/ThemeValidator.ts';
 import { sanitizeCss } from '../../theme/package/ThemeSanitizer.ts';
@@ -10,12 +10,11 @@ import { useSession } from '../../state/useSession.ts';
 import { useTheme } from '../../theme/context.ts';
 import { ThemePreview } from './ThemePreview.tsx';
 import { assetLabels } from '../../theme/package/features.ts';
+import { themeAssetPath } from '../../theme/package/slots.ts';
 export function ThemeExportButton({ theme }: {
     theme: BlankyTheme;
 }) { const [error, setError] = useState(''); const [busy, setBusy] = useState(false); return <><button className="btn btn-line" disabled={busy} onClick={async () => { setBusy(true); try {
-    const pkg = packageFromTheme(theme);
-    if (!Object.keys(pkg.files).length) downloadTheme(new Blob([JSON.stringify(pkg, null, 2)], { type: 'application/json' }), theme.name, '.json');
-    else downloadTheme(await exportThemePackage(pkg, readThemeStorage), theme.name, '.zip');
+    downloadTheme(await exportThemePackage(packageFromTheme(theme), readThemeStorage), theme.name);
     setError('');
 }
 catch (e) {
@@ -45,7 +44,7 @@ export function PackageEditor({ draft, setDraft }: {
         if (file.size > 5 * 1024 * 1024)
             throw new Error('파일은 최대 5MB입니다.');
         const ext = file.name.split('.').at(-1)?.toLowerCase();
-        const p = (group === 'previews' ? 'preview/' : 'assets/') + name + '-' + crypto.randomUUID() + '.' + ext;
+        const p = themeAssetPath(group, name, ext ?? 'png');
         const f = validateAsset(p, new Uint8Array(await file.arrayBuffer()), group === 'iconPack');
         if (group === 'fonts' && f.mime !== 'font/woff2')
             throw new Error('폰트는 WOFF2만 지원합니다.');
@@ -81,9 +80,9 @@ export function ThemeImport({ onPreview }: { onPreview?: (theme: BlankyTheme | n
     const [pending, setPending] = useState<BlankyTheme | null>(null);
     const [message, setMessage] = useState('');
     const [busy, setBusy] = useState(false);
-    return <div data-theme-protected><label className="btn btn-line theme-import-label">테마 가져오기<input aria-label="테마 가져오기" type="file" accept=".blanky-theme,.zip,.json" disabled={busy} onChange={async (e) => { const file = e.target.files?.[0]; e.target.value = ''; if (!file || !user)
+    return <div data-theme-protected><label className="btn btn-line theme-import-label">테마 가져오기<input aria-label="테마 가져오기" type="file" accept={THEME_PACKAGE_IMPORT_EXTS.join(',')} disabled={busy} onChange={async (e) => { const file = e.target.files?.[0]; e.target.value = ''; if (!file || !user)
         return; setBusy(true); setPending(null); onPreview?.(null); setMessage('패키지를 검사하는 중…'); try {
-        if (!/\.(blanky-theme|zip|json)$/i.test(file.name))
+        if (!THEME_PACKAGE_IMPORT_EXTS.some(ext => file.name.toLowerCase().endsWith(ext)))
             throw new Error('JSON 또는 ZIP 테마 파일을 선택해 주세요.');
         const p = await importThemePackage(file);
         const imported: BlankyTheme = { id: crypto.randomUUID(), creatorId: user.id, creatorName: p.manifest.author, name: p.manifest.name, description: p.manifest.description, thumbnailUrl: '', category: '가져온 테마', tags: [], visibility: 'private', pricingType: 'free', price: 0, config: p.config, themeType: 'package', package: p, downloadCount: 0, ratingAverage: 0, ratingCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };

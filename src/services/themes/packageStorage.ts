@@ -70,7 +70,7 @@ export async function uploadThemePackage(userId: string, themeId: string, pkg: T
             uploaded.push({ bucket: 'theme-previews', path: storagePath });
         }
         const blob = await exportThemePackage(hydrated);
-        const packagePath = prefix + '/theme.blanky-theme';
+        const packagePath = prefix + '/theme.blankytheme';
         const { error } = await client.storage.from('theme-packages').upload(packagePath, blob, { contentType: 'application/octet-stream', cacheControl: '31536000', upsert: false });
         if (error)
             throw error;

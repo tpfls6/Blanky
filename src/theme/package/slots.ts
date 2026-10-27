@@ -23,6 +23,36 @@ export function prunePackageForKind(pkg: ThemePackage, kind: ThemeKind): ThemePa
     next.files = Object.fromEntries(Object.entries(next.files).filter(([path]) => used.has(path)));
     return next;
 }
+const ASSET_FOLDERS: Record<string, string> = {
+    wallpaper: 'assets/backgrounds/',
+    background: 'assets/backgrounds/',
+    pageBackground: 'assets/backgrounds/',
+    pattern: 'assets/patterns/',
+    sidebar: 'assets/components/',
+    calendarBackground: 'assets/components/',
+    scheduleBackground: 'assets/components/',
+    taskBackground: 'assets/components/',
+    cardBackground: 'assets/components/',
+    buttonBackground: 'assets/components/',
+    checkbox: 'assets/components/',
+    diaryBackground: 'assets/components/',
+    character: 'assets/characters/',
+    sidebarTop: 'assets/characters/',
+    sidebarBottom: 'assets/characters/',
+    pageHeader: 'assets/characters/',
+    cardCorner: 'assets/characters/',
+    emptyState: 'assets/characters/',
+};
+export function themeAssetPath(group: 'assets' | 'iconPack' | 'fonts' | 'previews', name: string, ext: string): string {
+    const file = name + '-' + crypto.randomUUID() + '.' + ext;
+    if (group === 'previews')
+        return 'preview/' + file;
+    if (group === 'iconPack')
+        return 'assets/icons/' + file;
+    if (group === 'fonts')
+        return 'assets/fonts/' + file;
+    return (ASSET_FOLDERS[name] ?? 'assets/') + file;
+}
 export function defaultImageSettings(slot: string, fileName?: string): NonNullable<ThemeManifest['imageSettings']>[string] {
     const fit = slot === 'pattern' ? 'repeat' : slot === 'wallpaper' || slot === 'background' ? 'cover' : 'contain';
     return { size: slot === 'pattern' ? 24 : 100, x: slot === 'cardCorner' || slot === 'pageHeader' ? 100 : 50, y: slot === 'sidebarBottom' ? 100 : slot === 'cardCorner' || slot === 'sidebarTop' ? 0 : 50, opacity: 100, fit, visible: true, ...(fileName ? { fileName } : {}) };

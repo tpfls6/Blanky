@@ -712,7 +712,11 @@ html.dark .border-neutral-300 {
 .blanky-themed .theme-sidebar{background:var(--blanky-sidebar-background);color:var(--blanky-sidebar-text-color)}
 .blanky-themed .theme-sidebar .nav-link{color:var(--blanky-sidebar-text-color)}
 .blanky-themed .theme-sidebar .nav-link svg{color:var(--blanky-sidebar-icon-color)}
+.blanky-themed :is(.field, [data-theme-slot="input"]){background-color:color-mix(in srgb,var(--blanky-surface) 92%,transparent);color:var(--fg)}
+@media (hover:hover){
 .blanky-themed .theme-sidebar .nav-link:hover{background:var(--blanky-sidebar-hover-color)}
+.blanky-themed .theme-calendar button[data-selected=false]:hover{background:var(--blanky-calendar-hover-color)}
+}
 .blanky-themed .theme-sidebar .nav-link[aria-current=page]{background:var(--blanky-sidebar-selected-background)}
 .blanky-themed .theme-plan{background:var(--blanky-schedule-background);color:var(--blanky-schedule-text-color);border:1px solid var(--blanky-schedule-border-color);border-radius:var(--blanky-schedule-border-radius);box-shadow:var(--blanky-schedule-shadow);opacity:var(--blanky-schedule-opacity)}
 .blanky-themed .theme-task{background:var(--blanky-task-background);border-radius:var(--blanky-card-border-radius)}
@@ -723,7 +727,6 @@ html.dark .border-neutral-300 {
 .blanky-themed .theme-calendar button[data-weekend]{color:var(--blanky-calendar-weekday-color)}
 .blanky-themed .theme-calendar button[data-weekend=true]{color:var(--blanky-calendar-weekend-color)}
 .blanky-themed .theme-calendar button[data-selected=true]{background:var(--blanky-calendar-selected-color);color:var(--bg)}
-.blanky-themed .theme-calendar button[data-selected=false]:hover{background:var(--blanky-calendar-hover-color)}
 .blanky-themed .cal-today{box-shadow:inset 0 0 0 1px var(--blanky-calendar-today-color)}
 .blanky-themed[data-icon-pack=rounded] .lucide{stroke-linecap:round;stroke-linejoin:round;stroke-width:2.5}
 .blanky-themed[data-icon-pack=outline] .lucide{stroke-width:1;fill:none}

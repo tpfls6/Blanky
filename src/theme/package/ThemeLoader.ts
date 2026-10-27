@@ -1,5 +1,5 @@
 import type { BlankyTheme } from '../../../packages/types/src/theme.ts';
-import type { ThemePackage } from '../../../packages/types/src/themePackage.ts';
+import { THEME_PACKAGE_EXTENSION, type ThemePackage } from '../../../packages/types/src/themePackage.ts';
 import { LIMITS, decoder, encoder, fromBase64, packageError } from './limits.ts';
 import { readZip, writeZip } from './zip.ts';
 import { validateAsset, validateManifest, validateConfig, validatePackage } from './ThemeValidator.ts';
@@ -54,4 +54,4 @@ export async function exportThemePackage(pkg: ThemePackage, readStorage?: (p: st
         files[p] = fromBase64(f.data!);
     return new Blob([writeZip(files) as BlobPart], { type: 'application/octet-stream' });
 }
-export function downloadTheme(blob: Blob, name: string, extension = '.blanky-theme') { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name.replace(/[^a-zA-Z0-9가-힣_-]/g, '-') + extension; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+export function downloadTheme(blob: Blob, name: string, extension = THEME_PACKAGE_EXTENSION) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name.replace(/[^a-zA-Z0-9가-힣_-]/g, '-') + extension; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }

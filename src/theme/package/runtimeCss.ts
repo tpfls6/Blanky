@@ -96,6 +96,18 @@ export function runtimeCss(scope: string, theme: BlankyTheme, resolved: Resolved
         rules.push(selector('task-checkbox') + '{border:0;background-size:contain;background-repeat:no-repeat;}');
     if (resolved.assets.emptyState && assetVisible(settingsOf('emptyState')))
         rules.push(selector('empty-state') + '{background-image:' + url(resolved.assets.emptyState) + ';background-size:contain;background-position:center;background-repeat:no-repeat;min-height:160px;padding-top:96px;}');
+    const mobile: string[] = [];
+    for (const [key, deco] of Object.entries(DECORATIONS)) {
+        if (!resolved.assets[key] || !assetVisible(settingsOf(key)))
+            continue;
+        const size = (settingsOf(key)?.size ?? 100) / 100;
+        for (const host of [deco.slot, ...(deco.extra ?? [])])
+            mobile.push(selector(host) + '::' + deco.pseudo + '{width:calc(' + deco.size.split(' ')[0] + ' * .7);height:calc(' + deco.size.split(' ')[1] + ' * ' + size + ' * .7);}');
+    }
+    if (resolved.assets.character && assetVisible(settingsOf('character')))
+        mobile.push(root + '::after{transform:scale(.7)}');
+    if (mobile.length)
+        rules.push('@media (max-width:720px){' + mobile.join('') + '}');
     if (theme.package)
         for (const r of validateCss(theme.package.customCss, theme.package.manifest.assets))
             rules.push(selector(r.slot) + '{' + r.declarations.map(([p, v]) => p + ':' + (p === 'font-family' && /^blanky-(body|heading)$/.test(v) ? '"blanky-' + scope + '-' + v.slice(7) + '"' : v).replace(/url\("asset:\/\/([a-zA-Z][a-zA-Z0-9_-]*)"\)/g, (_, k: string) => url(resolved.assets[k])) + ';').join('') + '}');

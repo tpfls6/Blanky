@@ -16,6 +16,7 @@ export function ThemePreview({ theme, viewport = 'desktop' }: {
     const [view, setView] = useState('전체');
     return <>
         <div className="theme-preview-tabs" aria-label="미리보기 화면">{['전체', '캘린더', '일정', '할 일', '사이드바'].map(item => <button key={item} className={view === item ? 'chip chip-on' : 'chip'} aria-pressed={view === item} onClick={() => setView(item)}>{item}</button>)}</div>
+        {viewport === 'mobile' && <p className="mb-2 text-xs text-neutral-500">모바일 미리보기는 반응형 시뮬레이션입니다. 네이티브 렌더링과 다를 수 있습니다.</p>}
         <ThemeRuntime theme={theme} className={'theme-preview preview-' + view + ' preview-' + viewport}>
             <aside data-theme-slot="sidebar" className="theme-sidebar">
                 <strong>Blanky</strong>

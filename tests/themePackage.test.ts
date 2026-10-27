@@ -123,3 +123,51 @@ test('manifest kind and hidden image settings roundtrip', async () => {
     assert.equal(imported.manifest.imageSettings?.pattern?.visible, false);
     assert.throws(() => validateManifest({ ...pkg.manifest, kind: 'neon' }));
 });
+
+test('export blob roundtrips and a .blankytheme File is accepted', async () => {
+    const pkg = validatePackage(fixture());
+    const blob = await exportThemePackage(pkg);
+    assert.deepEqual(await importThemePackage(blob), pkg);
+    const file = new File([blob], 'x.blankytheme', { type: 'application/octet-stream' });
+    assert.deepEqual(await importThemePackage(file), pkg);
+});
+
+test('packages whose assets live under spec folders validate and roundtrip', async () => {
+    const pkg = fixture();
+    const wallpaper = validateAsset('assets/backgrounds/wallpaper.svg', encoder.encode(svg));
+    const character = validateAsset('assets/characters/sidebar-top.svg', encoder.encode(svg));
+    pkg.manifest.assets = { wallpaper: 'assets/backgrounds/wallpaper.svg', sidebarTop: 'assets/characters/sidebar-top.svg' };
+    pkg.manifest.iconPack = {};
+    pkg.customCss = '';
+    delete pkg.manifest.entry.stylesheet;
+    pkg.files = { 'assets/backgrounds/wallpaper.svg': wallpaper, 'assets/characters/sidebar-top.svg': character };
+    const safe = validatePackage(pkg);
+    const imported = await importThemePackage(await exportThemePackage(pkg));
+    assert.equal(imported.manifest.assets.wallpaper, 'assets/backgrounds/wallpaper.svg');
+    assert.equal(imported.manifest.assets.sidebarTop, 'assets/characters/sidebar-top.svg');
+    assert.deepEqual(imported, safe);
+});
+
+test('legacy flat assets/background.svg packages still import', async () => {
+    const pkg = fixture();
+    assert.equal(pkg.manifest.assets.background, 'assets/background.svg');
+    const imported = await importThemePackage(await exportThemePackage(validatePackage(pkg)));
+    assert.equal(imported.manifest.assets.background, 'assets/background.svg');
+    assert.equal(Object.hasOwn(imported.files, 'assets/background.svg'), true);
+});
+
+test('GIF assets are rejected', () => {
+    const gif = new Uint8Array([71, 73, 70, 56, 57, 97, 1, 0, 1, 0, 0, 0, 0]);
+    assert.throws(() => validateAsset('assets/a.gif', gif));
+    assert.throws(() => validateAsset('assets/backgrounds/a.gif', gif));
+});
+
+test('runtimeCss for a character decoration includes a 720px media query', () => {
+    const theme = { ...BUILTIN_THEMES[1], package: fixture() };
+    theme.package!.customCss = '';
+    theme.package!.manifest.assets = { character: 'assets/background.svg', sidebarTop: 'assets/background.svg' };
+    const css = runtimeCss('s1', theme, { assets: { character: 'blob:char', sidebarTop: 'blob:top' }, icons: {}, previews: [], fonts: {}, dispose() {} });
+    assert.match(css, /@media \(max-width:720px\)/);
+    assert.match(css, /blob:char/);
+    assert.match(css, /scale\(\.7\)/);
+});

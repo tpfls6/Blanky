@@ -65,7 +65,7 @@ async function fill(selector, value) {
 const owner='22222222-2222-4222-8222-222222222222',bob='33333333-3333-4333-8333-333333333333'
 const outDir=resolve('.tmp/theme-package-tests')
 await mkdir(outDir,{recursive:true})
-for(const name of await readdir(outDir))if(name.endsWith('.zip') || name === 'Flower-Package.json')await import('node:fs/promises').then(fs=>fs.unlink(join(outDir,name)))
+for(const name of await readdir(outDir))if(name.endsWith('.blankytheme') || name.endsWith('.zip') || name === 'Flower-Package.json')await import('node:fs/promises').then(fs=>fs.unlink(join(outDir,name)))
 const assetPath=join(outDir,'flower.svg')
 await writeFile(assetPath,'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" fill="#ffc6d8"/><circle cx="24" cy="24" r="12" fill="#ff9bb7"/></svg>')
 const checks=[]
@@ -90,8 +90,8 @@ try {
  await screenshot('editor-colors');
  await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:outDir});
  await button('테마 파일로 내보내기');
- for(let i=0;i<80;i++){if((await readdir(outDir)).includes('Flower-Package.json'))break;await pause(100)}
- assert.ok((await readdir(outDir)).includes('Flower-Package.json'),'actual JSON download');
+ for(let i=0;i<80;i++){if((await readdir(outDir)).includes('Flower-Package.blankytheme'))break;await pause(100)}
+ assert.ok((await readdir(outDir)).includes('Flower-Package.blankytheme'),'actual .blankytheme download');
  await button('캘린더');
  assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=task-card]")).display'),'none');
  await button('전체');
@@ -99,13 +99,13 @@ try {
  assert.equal(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--bg")'),'#ffffff');
  checks.push('Circular HEX picker, preview screen switching and cancel preserve active theme');
  await button('테마 가져오기');
- await upload('테마 가져오기',join(outDir,'Flower-Package.json'));
- await wait('!!document.querySelector(".theme-import-review")','JSON review');
+ await upload('테마 가져오기',join(outDir,'Flower-Package.blankytheme'));
+ await wait('!!document.querySelector(".theme-import-review")','package review');
  await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','JSON right preview');
  assert.equal(await active(),previous);
  await click('.theme-import-review .btn-line');
  assert.equal(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--bg")'),'#ffffff');
- checks.push('JSON export and import show isolated right preview and cancel restores draft');
+ checks.push('Color-only .blankytheme export and import show isolated right preview and cancel restores draft');
  await fill('input[maxlength="100"]','Flower Package');
  await button('이미지 꾸미기');
  for(const label of ['전체 배경 업로드','사이드바 배경 업로드','캘린더 배경 업로드','일정 카드 배경 업로드','체크박스 SVG 업로드','home 아이콘 업로드']){await upload(label,assetPath);await pause(100)}
@@ -155,13 +155,13 @@ try {
  await button('미리보기 종료');await wait('!document.querySelector(".theme-preview-bar")','preview ended')
  await wait('document.querySelector("aside img")?.src.startsWith("blob:")','package restored')
  assert.equal(await active(),themeId);checks.push('Temporary preview restores original package assets, icons and active theme')
- // Exercise real download button, then feed the downloaded .blanky-theme to a second isolated account.
+ // Exercise real download button, then feed the downloaded .blankytheme to a second isolated account.
  await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:outDir})
  await navigate(base+'/customize/theme?id='+themeId);await wait('!!document.querySelector(".theme-editor")','saved editor')
  await button('테마 파일로 내보내기')
  let exported
- for(let i=0;i<80;i++){exported=(await readdir(outDir)).find(n=>n.endsWith('.zip'));if(exported)break;await pause(100)}
- assert.ok(exported,'actual .blanky-theme download');checks.push('Creator export downloads the .zip extension')
+ for(let i=0;i<80;i++){exported=(await readdir(outDir)).find(n=>n.endsWith('.blankytheme'));if(exported)break;await pause(100)}
+ assert.ok(exported,'actual .blankytheme download');checks.push('Creator export downloads the .blankytheme extension')
  await evaluate('localStorage.setItem("blanky.session.v1",'+q(bob)+')')
  await navigate(base+'/settings/themes');await wait('document.querySelectorAll("article").length>=4','Bob themes')
  await upload('테마 가져오기',join(outDir,exported))

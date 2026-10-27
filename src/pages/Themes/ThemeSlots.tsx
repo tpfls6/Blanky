@@ -3,7 +3,7 @@ import { THEME_SLOT_ALIASES, THEME_SLOT_SPECS, slotsForKind, type BlankyTheme, t
 import { packageFromTheme } from '../../theme/package/ThemeLoader.ts';
 import { validateAsset } from '../../theme/package/ThemeValidator.ts';
 import { encoder } from '../../theme/package/limits.ts';
-import { defaultImageSettings } from '../../theme/package/slots.ts';
+import { defaultImageSettings, themeAssetPath } from '../../theme/package/slots.ts';
 import { PATTERN_PRESETS } from '../../theme/package/patternPresets.ts';
 function sourceKey(assets: Record<string, string>, slot: ThemeDecorationSlot) {
     if (assets[slot])
@@ -26,7 +26,7 @@ export function ThemeSlots({ draft, setDraft, kind }: {
         if (file.size > 5 * 1024 * 1024)
             throw new Error('파일은 최대 5MB입니다.');
         const ext = file.name.split('.').at(-1)?.toLowerCase();
-        const path = 'assets/' + slot + '-' + crypto.randomUUID() + '.' + ext;
+        const path = themeAssetPath('assets', slot, ext ?? 'png');
         const asset = validateAsset(path, new Uint8Array(await file.arrayBuffer()));
         if (!asset.mime.startsWith('image/'))
             throw new Error('이미지 파일을 선택해 주세요.');
@@ -49,7 +49,7 @@ export function ThemeSlots({ draft, setDraft, kind }: {
         setMessage('업로드한 파일을 미리보기에 반영했습니다.');
     };
     const applyPreset = (preset: (typeof PATTERN_PRESETS)[number]) => {
-        const path = 'assets/pattern-' + preset.id + '.svg';
+        const path = 'assets/patterns/pattern-' + preset.id + '.svg';
         const asset = validateAsset(path, encoder.encode(preset.svg));
         updatePackage(setDraft, current => {
             const next = structuredClone(current);
