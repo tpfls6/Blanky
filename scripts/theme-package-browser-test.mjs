@@ -81,10 +81,12 @@ try {
  await evaluate('[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Soft Pink")).parentElement.querySelector("button").click()')
  await wait('document.querySelector(".blanky-themed")?.style.getPropertyValue("--bg")==="#fff8fb"','legacy apply')
  const previous=await active();assert.ok(previous);checks.push('Legacy Soft Pink applies and persists')
- await navigate(base+'/customize/theme');await wait('!!document.querySelector(".theme-editor")','editor')
+ await navigate(base+'/customize/theme');await wait('!!document.querySelector(".theme-kind-card") || !!document.querySelector(".theme-editor")','kind or editor')
+ if (await evaluate('!!document.querySelector(".theme-kind-card")')) await evaluate('[...document.querySelectorAll(".theme-kind-card")].find(b=>/Color/.test(b.textContent)).click()')
+ await wait('!!document.querySelector(".theme-editor")','editor')
  await fill('input[maxlength="100"]','Flower Package')
  await evaluate('document.querySelector(".color-choice").open=true');
- await fill('[aria-label="배경 HEX"]','#e4edf9');
+ await fill('[aria-label="배경색 HEX"]','#e4edf9');
  await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','HEX live preview');
  assert.equal(await active(),previous);
  await screenshot('editor-colors');
