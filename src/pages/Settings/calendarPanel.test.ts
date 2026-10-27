@@ -76,6 +76,7 @@ test('needs reauth shows account, calendar, and reconnect', () => {
 test('error maps CalendarError codes including GOOGLE_ENV_MISSING', () => {
   const mapped: Record<CalendarErrorCode, string> = {
     GOOGLE_ENV_MISSING: 'Google Calendar 비밀값이 Edge Function에 없습니다.',
+    GOOGLE_FN_MISSING: 'google-calendar Edge Function이 배포되지 않았습니다.',
     UNAUTHENTICATED: '로그인이 필요합니다.',
     GOOGLE_DENIED: 'Google Calendar 권한이 거부되었습니다.',
     NOT_CONNECTED: 'Google Calendar에 먼저 연결해 주세요.',
@@ -95,6 +96,13 @@ test('error maps CalendarError codes including GOOGLE_ENV_MISSING', () => {
   assert.equal(panel.canConnect, false)
   assert.equal(panel.errorText, mapped.GOOGLE_ENV_MISSING)
   assert.match(panel.hint ?? '', /CLIENT_SECRET/)
+  const missingFn = calendarPanel({
+    status: 'error',
+    code: 'GOOGLE_FN_MISSING',
+    message: 'missing',
+  })
+  assert.equal(missingFn.errorText, mapped.GOOGLE_FN_MISSING)
+  assert.match(missingFn.hint ?? '', /google-calendar-oauth/)
 })
 
 test('last sync error is the result line', () => {

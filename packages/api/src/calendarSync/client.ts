@@ -26,15 +26,43 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {}
 }
 
+async function functionErrorBody(error: unknown): Promise<Record<string, unknown> | null> {
+  const context = error && typeof error === 'object' && 'context' in error
+    ? (error as { context?: { clone?: () => { json?: () => Promise<unknown> }; json?: () => Promise<unknown> } }).context
+    : undefined
+  if (!context) return null
+  const reader = typeof context.clone === 'function' ? context.clone() : context
+  if (typeof reader.json !== 'function') return null
+  return record(await reader.json().catch(() => null))
+}
+
+function isMissingFunction(body: Record<string, unknown>, message: string): boolean {
+  const code = typeof body.code === 'string' ? body.code : ''
+  const text = `${code} ${typeof body.message === 'string' ? body.message : ''} ${message}`.toLowerCase()
+  return code === 'NOT_FOUND' || text.includes('requested function was not found') || text.includes('function not found')
+}
+
 async function invoke(client: SupabaseClient, body: unknown): Promise<Record<string, unknown>> {
   const { data, error } = await client.functions.invoke('google-calendar', { body })
   const payload = record(data)
   if (payload.error) throw asCalendarSyncError(payload.error)
   if (error) {
-    const context = error as { context?: Response }
-    if (context.context && typeof context.context.json === 'function') {
-      const nested = record(await context.context.json().catch(() => null))
+    const nested = await functionErrorBody(error)
+    if (nested) {
       if (nested.error && isCalendarError(nested.error)) throw asCalendarSyncError(nested.error)
+      if (isMissingFunction(nested, error.message)) {
+        throw asCalendarSyncError({
+          code: 'GOOGLE_FN_MISSING',
+          message: 'google-calendar Edge Function이 배포되지 않았습니다.',
+        })
+      }
+      if (isCalendarError(nested)) throw asCalendarSyncError(nested)
+    }
+    if (isMissingFunction({}, error.message)) {
+      throw asCalendarSyncError({
+        code: 'GOOGLE_FN_MISSING',
+        message: 'google-calendar Edge Function이 배포되지 않았습니다.',
+      })
     }
     throw asCalendarSyncError({ code: 'GOOGLE_HTTP', message: error.message })
   }

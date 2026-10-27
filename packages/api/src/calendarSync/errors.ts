@@ -19,15 +19,27 @@ export function calendarError(code: CalendarErrorCode, message: string): Calenda
 export function errorStatus(code: CalendarErrorCode): number {
   if (code === 'UNAUTHENTICATED') return 401
   if (code === 'GOOGLE_ENV_MISSING') return 503
+  if (code === 'GOOGLE_FN_MISSING') return 404
   if (code === 'GOOGLE_DENIED' || code === 'GOOGLE_HTTP') return 502
   if (code === 'NOT_CONNECTED' || code === 'NEEDS_CALENDAR') return 409
   return 400
 }
 
+const CALENDAR_ERROR_CODES: readonly CalendarErrorCode[] = [
+  'UNAUTHENTICATED',
+  'GOOGLE_ENV_MISSING',
+  'GOOGLE_FN_MISSING',
+  'GOOGLE_DENIED',
+  'NOT_CONNECTED',
+  'NEEDS_CALENDAR',
+  'GOOGLE_HTTP',
+  'INVALID_COMMAND',
+]
+
 export function isCalendarError(value: unknown): value is CalendarError {
   if (!value || typeof value !== 'object') return false
   const row = value as { code?: unknown; message?: unknown }
-  return typeof row.code === 'string' && typeof row.message === 'string'
+  return CALENDAR_ERROR_CODES.includes(row.code as CalendarErrorCode) && typeof row.message === 'string'
 }
 
 export function asCalendarSyncError(value: unknown, fallback: CalendarErrorCode = 'GOOGLE_HTTP'): CalendarSyncError {

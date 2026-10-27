@@ -63,3 +63,24 @@ test('client surfaces CalendarError codes from invoke', async () => {
     error instanceof CalendarSyncError && error.code === 'GOOGLE_ENV_MISSING'
   ))
 })
+
+test('client maps gateway NOT_FOUND to GOOGLE_FN_MISSING', async () => {
+  const client = {
+    functions: {
+      async invoke() {
+        return {
+          data: null,
+          error: {
+            message: 'Edge Function returned a non-2xx status code',
+            context: {
+              json: async () => ({ code: 'NOT_FOUND', message: 'Requested function was not found' }),
+            },
+          },
+        }
+      },
+    },
+  } as unknown as SupabaseClient
+  await assert.rejects(createCalendarSyncClient(client).status(), (error: unknown) => (
+    error instanceof CalendarSyncError && error.code === 'GOOGLE_FN_MISSING'
+  ))
+})
