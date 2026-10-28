@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
+import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import type { UserPage as UserPageModel } from '../../features/builder/schema.ts'
 import { packDiary, packMemo, packReading, recordsForPage, unpackDiary, unpackMemo, unpackReading } from '../../features/pages/pageRecords.ts'
 import { DEFAULT_FIELD_LABELS, type PageTemplateKind } from '../../features/pages/templates.ts'
@@ -111,7 +112,10 @@ function ReadingHost({ page }: { page: UserPageModel }) {
 function Body({ page }: { page: UserPageModel }) {
   const { t } = useI18n()
   const { updateUserPage } = useLibrary()
-  const [pick, setPick] = useState(!page.template)
+  const [pick, setPick] = useState(!page.template && page.blocks.length === 0)
+  if (page.blocks.length && !page.template) {
+    return <PageBuilder blocks={page.blocks} editing={false} onChange={(blocks) => updateUserPage(page.id, { blocks })} />
+  }
   if (!page.template && pick) {
     return (
       <div className="rounded-md border border-line p-4">

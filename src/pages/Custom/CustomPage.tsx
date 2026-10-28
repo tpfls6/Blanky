@@ -15,6 +15,7 @@ import { DiaryPage } from '../Diary/DiaryPage.tsx'
 import { MemoPage } from '../Memo/MemoPage.tsx'
 import { ReadingPage } from '../Reading/ReadingPage.tsx'
 import { CreatePageWizard } from './CreatePageWizard.tsx'
+import { TemplateImport } from './PackageControls.tsx'
 import { PageSettings } from './PageSettings.tsx'
 
 const TABS = [
@@ -226,6 +227,7 @@ export function CustomPage() {
               <span className="sr-only">{t('custom.search')}</span>
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('custom.search')} className="field w-full" />
             </label>
+            <TemplateImport />
             <section className="mt-8">
               <h2 className="text-sm font-medium">{t('custom.myPages')}</h2>
               <TemplateList pages={customPages} query={query} />
