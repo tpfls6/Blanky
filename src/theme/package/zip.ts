@@ -7,7 +7,7 @@ function crc32(bytes: Uint8Array): number { let c = 0xffffffff; for (const b of 
 function bytesView(a: Uint8Array) { return new DataView(a.buffer, a.byteOffset, a.byteLength); }
 export async function readZip(bytes: Uint8Array): Promise<Record<string, Uint8Array>> {
     if (bytes.length > LIMITS.package || bytes.length < 22)
-        packageError('테마 패키지는 최대 20MB입니다.');
+        packageError('패키지는 최대 20MB입니다.');
     const v = bytesView(bytes);
     let end = -1;
     for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--)
@@ -109,7 +109,7 @@ export function writeZip(files: Record<string, Uint8Array>): Uint8Array {
         length += 76 + 2 * encoder.encode(p).length + b.length;
     }
     if (length > LIMITS.package)
-        packageError('테마 패키지는 최대 20MB입니다.');
+        packageError('패키지는 최대 20MB입니다.');
     const out = new Uint8Array(length), v = bytesView(out);
     let cursor = 0;
     const central: {
