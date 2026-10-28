@@ -862,13 +862,15 @@ html.dark .border-neutral-300 {
 .theme-editor-stack .color-choice:first-child .color-popover { left: 0; transform: none; }
 .theme-editor-stack .color-choice:nth-last-child(-n+2) .color-popover { left: auto; right: 0; transform: none; }
 .theme-editor-preview { display: flex; min-height: 0; flex: 1; flex-direction: column; }
-.theme-editor-stack .theme-editor-preview .theme-preview { flex: 1; display: block; border: 0; border-radius: 0; width: 100%; max-width: none; min-height: calc(100dvh - 13rem); }
+.theme-editor-stack .theme-editor-preview .theme-preview { flex: 1; display: grid; grid-template-columns: 13rem minmax(0, 1fr); border: 0; border-radius: 0; width: 100%; max-width: none; min-height: calc(100dvh - 13rem); pointer-events: none; }
 .theme-preview-fill, .theme-preview-fill .theme-preview, .theme-preview-fill .theme-preview-page { width: 100%; max-width: none; }
+.theme-preview-sidebar { display: flex; flex-direction: column; height: 100%; min-height: 0; width: 13rem; padding: 1.25rem 0.75rem; border-right: 1px solid var(--line); overflow: hidden; }
+.theme-preview-fill .theme-preview .theme-preview-sidebar { padding: 1.25rem 0.75rem; font-size: 14px; }
+.theme-preview-fill .theme-preview .nav-link { font-size: inherit; cursor: default; }
 .theme-preview-fill .theme-preview-page > * { max-width: none; width: 100%; margin-inline: 0; }
 .theme-preview-fill .theme-preview-page .lg\:col-span-2 { grid-column: span 3; }
-.theme-preview-page { display: flex; min-width: 0; flex-direction: column; overflow: auto; }
+.theme-preview-page { display: flex; min-width: 0; flex-direction: column; overflow: auto; pointer-events: none; }
 .theme-preview-page > * { flex: 1; min-height: min-content; }
-.theme-preview-page :is(a, button, input, textarea, select, [role='button']) { pointer-events: none; }
 .theme-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
 @media (max-width: 800px) { .theme-dropzone { min-height: 180px; padding: 28px 16px; } }
 .theme-runtime-error { padding: 12px; background: #fff4e5; color: #5b390c; font: 14px system-ui; }

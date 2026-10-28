@@ -86,12 +86,17 @@ try {
  assert.equal(await evaluate('[...document.querySelectorAll("button")].some(b=>["Pattern","Character","고급 편집"].includes(b.textContent.trim()))'),false)
  assert.equal(await evaluate('[...document.querySelectorAll(".theme-preview-tabs button")].map(b=>b.textContent.trim()).join(",")'),'홈,일정,일기,독서,메모')
  assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-editor-colors")).gridTemplateColumns.split(" ").length'),6)
+ assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=sidebar]")).display!=="none"'),true)
+ assert.equal(await evaluate('document.querySelector(".theme-preview").inert'),true)
  await evaluate('document.querySelector(".color-choice").open=true');
  await fill('[aria-label="배경색 HEX"]','#e4edf9');
  await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','HEX live preview');
  assert.equal(await active(),previous);
  await evaluate('[...document.querySelectorAll(".theme-preview-tabs button")].find(b=>b.textContent.trim()==="일정").click()')
  await wait('!!document.querySelector(".theme-preview-page .diary-page, .theme-preview-page [data-theme-slot=page-header], .theme-preview-page .reading-page, .theme-preview-page")','page preview mounted')
+ const previewPath=await evaluate('location.pathname')
+ await evaluate('document.querySelector(".theme-preview a, .theme-preview button")?.click()')
+ assert.equal(await evaluate('location.pathname'),previewPath)
  await screenshot('editor-colors');
  await button('저장');
  await wait('[...document.querySelectorAll("[role=status]")].some(p=>p.textContent==="완료했습니다.")','save colors')
