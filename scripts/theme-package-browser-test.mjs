@@ -81,77 +81,55 @@ try {
  await evaluate('[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Soft Pink")).parentElement.querySelector("button").click()')
  await wait('document.querySelector(".blanky-themed")?.style.getPropertyValue("--bg")==="#fff8fb"','legacy apply')
  const previous=await active();assert.ok(previous);checks.push('Legacy Soft Pink applies and persists')
- await navigate(base+'/customize/theme');await wait('!!document.querySelector(".theme-kind-card") || !!document.querySelector(".theme-editor")','kind or editor')
- if (await evaluate('!!document.querySelector(".theme-kind-card")')) await evaluate('[...document.querySelectorAll(".theme-kind-card")].find(b=>/Color/.test(b.textContent)).click()')
- await wait('!!document.querySelector(".theme-editor")','editor')
- await fill('input[maxlength="100"]','Flower Package')
+ await navigate(base+'/customize/theme');await wait('!!document.querySelector(".theme-editor") && document.body.innerText.includes("색상 변경") && document.body.innerText.includes("커스텀")','color and custom tabs')
+ assert.equal(await evaluate('!!document.querySelector(".theme-kind-card")'),false)
+ assert.equal(await evaluate('[...document.querySelectorAll("button")].some(b=>["Pattern","Character","고급 편집"].includes(b.textContent.trim()))'),false)
  await evaluate('document.querySelector(".color-choice").open=true');
  await fill('[aria-label="배경색 HEX"]','#e4edf9');
  await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','HEX live preview');
  assert.equal(await active(),previous);
  await screenshot('editor-colors');
- await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:outDir});
- await button('테마 파일로 내보내기');
- for(let i=0;i<80;i++){if((await readdir(outDir)).includes('Flower-Package.blankytheme'))break;await pause(100)}
- assert.ok((await readdir(outDir)).includes('Flower-Package.blankytheme'),'actual .blankytheme download');
- await button('캘린더');
- assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=task-card]")).display'),'none');
- await button('전체');
- await button('취소');
- assert.equal(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--bg")'),'#ffffff');
- checks.push('Circular HEX picker, preview screen switching and cancel preserve active theme');
- await evaluate('document.querySelector(".theme-editor details").open=true')
- await upload('테마 가져오기',join(outDir,'Flower-Package.blankytheme'));
- await wait('!!document.querySelector(".theme-import-review")','package review');
- await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','JSON right preview');
- assert.equal(await active(),previous);
- await click('.theme-import-review .btn-line');
- assert.equal(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--bg")'),'#ffffff');
- checks.push('Color-only .blankytheme export and import show isolated right preview and cancel restores draft');
- await fill('input[maxlength="100"]','Flower Package');
- await evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent.trim()==="Character").click()')
- await wait('!!document.querySelector("[aria-label=\\"전체 배경 업로드\\"]")','character slots')
- for(const label of ['전체 배경 업로드','사이드바 상단 업로드']){await upload(label,assetPath);await pause(100)}
- await evaluate('[...document.querySelectorAll("details")].forEach(d=>d.open=true)')
- for(const label of ['사이드바 배경 업로드','캘린더 배경 업로드','체크박스 SVG 업로드','home 아이콘 업로드']){await upload(label,assetPath);await pause(100)}
- const png = await evaluate('(()=>{const canvas=document.createElement("canvas");canvas.width=120;canvas.height=120;const context=canvas.getContext("2d");context.fillStyle="#b8c9ef";context.beginPath();context.arc(60,60,40,0,Math.PI*2);context.fill();return canvas.toDataURL("image/png").split(",")[1]})()');
- const characterPath=join(outDir,'character.png');await writeFile(characterPath,Buffer.from(png,'base64'));
- await upload('캐릭터 장식 업로드',characterPath);
- await pause(150);
- await fill('[aria-label="캐릭터 장식 opacity"]','65');
- await wait('getComputedStyle(document.querySelector(".theme-preview"),"::after").opacity==="0.65"','character opacity');
- assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-preview"),"::after").pointerEvents'),'none');
- await screenshot('editor-images');
- await button('고급 편집');await fill('[aria-label="고급 CSS"]',css)
- await wait('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=schedule-card]")).borderRadius==="24px"','live stylesheet')
- assert.match(await evaluate('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=sidebar]")).backgroundImage'),/blob:/)
- assert.equal(await evaluate('document.querySelectorAll(".theme-preview img").length'),1)
+ await button('저장');
+ await wait('[...document.querySelectorAll("[role=status]")].some(p=>p.textContent==="완료했습니다.")','save colors')
  assert.equal(await active(),previous)
- checks.push('Live image, SVG icon, checkbox and Custom CSS preview without changing active theme')
+ checks.push('Color tab live preview and save keep the active theme')
+ const svgB64=Buffer.from(await import('node:fs/promises').then(fs=>fs.readFile(assetPath))).toString('base64')
+ const pkg={manifest:{formatVersion:1,id:'flower-package',name:'Flower Package',description:'',author:'테마 테스트',version:'1.0.0',entry:{theme:'theme.json',stylesheet:'style.css'},assets:{background:'assets/background.svg',sidebar:'assets/background.svg',calendarBackground:'assets/background.svg',checkbox:'assets/background.svg'},iconPack:{home:'assets/home.svg',calendar:'assets/home.svg'},previews:[]},config:{mode:'light',colors:{background:'#e4edf9',surface:'#ffffff',primary:'#3a62b0',accent:'#c15e80',textPrimary:'#171717',textSecondary:'#737373',border:'#ebebeb'},calendar:{background:'#e4edf9',todayColor:'#3a62b0',selectedColor:'#3a62b0',weekdayColor:'#171717',weekendColor:'#c15e80',hoverColor:'#f6f6f5'},schedule:{background:'#f1f4fb',textColor:'#171717',borderColor:'#ebebeb',borderRadius:6,opacity:1,shadow:'none'},task:{background:'#ffffff',checkboxColor:'#3a62b0',checkboxStyle:'square',completedStyle:'strike',completedLineColor:'#737373'},card:{background:'#ffffff',borderColor:'#ebebeb',borderRadius:8,shadow:'none',opacity:1},sidebar:{background:'#ffffff',selectedBackground:'#f1f4fb',textColor:'#737373',iconColor:'#737373',hoverColor:'#f6f6f5'},typography:{headingFont:'system-ui',bodyFont:'system-ui'},iconPack:'default'},customCss:css,files:{'assets/background.svg':{mime:'image/svg+xml',data:svgB64},'assets/home.svg':{mime:'image/svg+xml',data:svgB64}}}
+ const packagePath=join(outDir,'Flower-Package.blanky')
+ await writeFile(packagePath,JSON.stringify(pkg))
+ await button('커스텀')
+ await wait('!!document.querySelector(".theme-dropzone")','custom dropzone')
  await screenshot('editor-package')
- await fill('[aria-label="고급 CSS"]','[data-theme-slot="app"]{position:fixed}')
- await button('저장');await wait('document.body.innerText.includes("허용되지 않은 CSS")','unsafe CSS error')
+ await upload('테마 가져오기',packagePath)
+ await wait('!!document.querySelector(".theme-import-review")','package review')
+ assert.match(await evaluate('document.querySelector(".theme-import-review").innerText'),/Flower Package/)
+ await wait('getComputedStyle(document.querySelector(".theme-import-review [data-theme-slot=schedule-card]")).borderRadius==="24px"','import preview stylesheet')
  assert.equal(await active(),previous)
- assert.equal(await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.some(t=>t.name==="Flower Package")'),false)
- checks.push('Unsafe CSS blocks save and preserves active theme')
- await fill('[aria-label="고급 CSS"]',css);await button('저장')
- await wait('[...document.querySelectorAll("[role=status]")].some(p=>p.textContent==="완료했습니다.")','save package')
- const themeId=await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.name==="Flower Package").id')
+ await button('설치')
+ await wait('!document.querySelector(".theme-import-review")','install closed')
  assert.equal(await active(),previous)
+ checks.push('Custom tab reviews a .blanky file and install does not apply it')
+ await upload('테마 가져오기',packagePath)
+ await wait('!!document.querySelector(".theme-import-review")','apply review')
+ await button('적용하기')
+ await wait('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.some(t=>t.name==="Flower Package" && t.id===JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).active)','apply package')
+ const themeId=await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).active')
+ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
+ await wait('document.documentElement.scrollWidth<=innerWidth+1','mobile editor overflow')
+ await screenshot('mobile-editor')
+ await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false})
+ await navigate(base+'/customize/theme?id='+themeId)
+ await wait('!!document.querySelector(".theme-editor")','owned color overlay')
+ await evaluate('document.querySelector(".color-choice").open=true')
+ await fill('[aria-label="배경색 HEX"]','#dbeafe')
+ await button('저장')
+ await wait('[...document.querySelectorAll("[role=status]")].some(p=>p.textContent==="완료했습니다.")','overlay save')
+ assert.equal(await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.id==='+q(themeId)+').package.manifest.assets.background'),'assets/background.svg')
  assert.deepEqual(await evaluate('Object.keys(JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.id==='+q(themeId)+').package.files)'),[])
- assert.equal(await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.find(t=>t.id==='+q(themeId)+').package.manifest.imageSettings.character.opacity'),65);
- await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
- await button('모바일');
- assert.ok(await evaluate('document.body.innerText.includes("반응형 시뮬레이션")'),'mobile preview names itself a simulation');
- assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),true);
- await screenshot('mobile-editor');
- await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
- checks.push('Save persists PNG assets and placement separately in IndexedDB; mobile editor has no horizontal overflow')
- await button('저장하고 적용하기');await wait('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).active==='+q(themeId),'apply package')
+ checks.push('Color overlay save keeps package assets')
  await navigate(base+'/schedule');await wait('document.querySelector("aside img")?.getAttribute("src")?.startsWith("blob:")','active icon')
  assert.match(await evaluate('getComputedStyle(document.querySelector("[data-theme-scope]")).backgroundImage'),/blob:/)
  assert.match(await evaluate('getComputedStyle(document.querySelector("[data-theme-slot=calendar]")).backgroundImage'),/blob:/)
- await wait('getComputedStyle(document.querySelector("[data-theme-scope]"),"::after").opacity==="0.65"','persisted transparent PNG character');
  await screenshot('schedule-package');checks.push('Package applies to real schedule, sidebar, calendar and icons after refresh')
  await navigate(base+'/store/themes/00000000-0000-4000-8000-000000000004')
  await wait('[...document.querySelectorAll("button")].some(b=>b.textContent==="내 일정으로 미리보기")','detail')
@@ -163,8 +141,8 @@ try {
  assert.equal(await active(),themeId);checks.push('Temporary preview restores original package assets, icons and active theme')
  // Exercise real download button, then feed the downloaded .blankytheme to a second isolated account.
  await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:outDir})
- await navigate(base+'/customize/theme?id='+themeId);await wait('!!document.querySelector(".theme-editor")','saved editor')
- await button('테마 파일로 내보내기')
+ await navigate(base+'/settings/themes');await wait('document.body.innerText.includes("Flower Package")','owned library')
+ await evaluate('[...[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Flower Package")).parentElement.querySelectorAll("button")].find(b=>b.textContent.includes("테마 파일로 내보내기")).click()')
  let exported
  for(let i=0;i<80;i++){exported=(await readdir(outDir)).find(n=>n.endsWith('.blankytheme'));if(exported)break;await pause(100)}
  assert.ok(exported,'actual .blankytheme download');checks.push('Creator export downloads the .blankytheme extension')

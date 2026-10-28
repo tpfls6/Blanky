@@ -2,7 +2,7 @@ import { deflateRawSync } from 'node:zlib';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BUILTIN_THEMES } from '../packages/types/src/theme.ts';
-import { THEME_ICON_KEYS } from '../packages/types/src/themePackage.ts';
+import { THEME_ICON_KEYS, isThemePackageFile } from '../packages/types/src/themePackage.ts';
 import { inferThemeKind, slotsForKind } from '../packages/types/src/themeSlots.ts';
 import { prunePackageForKind } from '../src/theme/package/slots.ts';
 import { runtimeCss } from '../src/theme/package/runtimeCss.ts';
@@ -33,6 +33,12 @@ test('package, CSS, image and icon size limits are enforced',async()=>{await ass
 test('asset cache shares URLs and releases only after all runtime users unmount',()=>{const p=validatePackage(fixture());const before=themeAssetCacheSize();const a=resolveThemeAssets(p),b=resolveThemeAssets(p);assert.equal(a.assets.background,b.assets.background);assert.equal(a.icons.calendar,b.icons.calendar);assert.equal(a.icons.search,undefined);assert.equal(themeAssetCacheSize(),before+2);a.dispose();assert.equal(themeAssetCacheSize(),before+2);b.dispose();assert.equal(themeAssetCacheSize(),before);b.dispose();assert.equal(themeAssetCacheSize(),before);});
 test('version changes invalidate cached object URLs',()=>{const p=validatePackage(fixture()),a=resolveThemeAssets(p);p.manifest.version='1.1.0';const b=resolveThemeAssets(p);assert.notEqual(a.assets.background,b.assets.background);a.dispose();b.dispose();});
 test('all requested icon names have a supported manifest mapping',()=>assert.equal(THEME_ICON_KEYS.length,14));
+test('theme package filenames include .blanky and legacy extensions', () => {
+    assert.equal(isThemePackageFile('Flower.blanky'), true);
+    assert.equal(isThemePackageFile('Flower.blankytheme'), true);
+    assert.equal(isThemePackageFile('Flower.json'), true);
+    assert.equal(isThemePackageFile('Flower.exe'), false);
+});
 
 test('standard DEFLATE zip entries are supported with CRC and expansion bounds',async()=>{const raw=encoder.encode(svg);const compressed=deflateRawSync(raw);const stored=writeZip({'assets/a.svg':raw});const localLength=30+encoder.encode('assets/a.svg').length;const centralOld=localLength+raw.length;const compressedZip=new Uint8Array(stored.length-raw.length+compressed.length);compressedZip.set(stored.slice(0,localLength));compressedZip.set(compressed,localLength);compressedZip.set(stored.slice(centralOld),localLength+compressed.length);const view=new DataView(compressedZip.buffer);const central=localLength+compressed.length;view.setUint16(8,8,true);view.setUint32(18,compressed.length,true);view.setUint16(central+10,8,true);view.setUint32(central+20,compressed.length,true);view.setUint32(compressedZip.length-6,central,true);assert.deepEqual((await readZip(compressedZip))['assets/a.svg'],raw);view.setUint32(central+24,1,true);view.setUint32(22,1,true);await assert.rejects(()=>readZip(compressedZip),/폭탄/);});
 test('forged raster headers and huge decoded dimensions are blocked before rendering',()=>{assert.throws(()=>validateAsset('assets/a.png',new Uint8Array([137,80,78,71,13,10,26,10])));const bytes=new Uint8Array(33);bytes.set([137,80,78,71,13,10,26,10]);bytes.set(encoder.encode('IHDR'),12);const v=new DataView(bytes.buffer);v.setUint32(16,100000);v.setUint32(20,100000);assert.throws(()=>validateAsset('assets/a.png',bytes),/32메가픽셀/);});
@@ -130,6 +136,8 @@ test('export blob roundtrips and a .blankytheme File is accepted', async () => {
     assert.deepEqual(await importThemePackage(blob), pkg);
     const file = new File([blob], 'x.blankytheme', { type: 'application/octet-stream' });
     assert.deepEqual(await importThemePackage(file), pkg);
+    const blanky = new File([blob], 'x.blanky', { type: 'application/octet-stream' });
+    assert.deepEqual(await importThemePackage(blanky), pkg);
 });
 
 test('packages whose assets live under spec folders validate and roundtrip', async () => {

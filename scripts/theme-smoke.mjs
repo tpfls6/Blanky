@@ -67,8 +67,9 @@ try {
   const html=renderToString(React.createElement(ConfirmContext.Provider,{value:async()=>true},tree))
   assert.ok(html.includes('테마')||html.includes('Blanky Default'),route)
   if (route === '/customize/theme') {
-    assert.ok(html.includes('Color') && html.includes('Pattern') && html.includes('Character'), 'type cards')
-    assert.ok(!html.includes('사이드바 상단'), 'character slots hidden until type is chosen')
+    assert.ok(html.includes('색상 변경') && html.includes('커스텀'), 'editor tabs')
+    assert.ok(html.includes('메인 컬러') && html.includes('배경색'), 'color pickers')
+    assert.ok(!html.includes('테마 유형 선택') && !html.includes('사이드바 상단') && !html.includes('고급 편집'), 'wizard and asset editors removed')
   }
   console.log('PASS render '+route)
  }

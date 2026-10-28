@@ -845,6 +845,15 @@ html.dark .border-neutral-300 {
 .theme-import-label { position: relative; overflow: hidden; cursor: pointer; }
 .theme-import-label input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
 .theme-import-review { margin: 16px 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+.theme-custom-pane { max-width: 720px; margin: 32px auto 0; }
+.theme-dropzone { position: relative; display: grid; place-items: center; min-height: 240px; padding: 40px 24px; border: 1px dashed var(--line); border-radius: 16px; background: var(--surface); text-align: center; cursor: pointer; }
+.theme-dropzone:hover, .theme-dropzone[data-active="true"] { border-color: var(--accent-color); background: var(--hover); }
+.theme-dropzone strong { font-size: 15px; }
+.theme-dropzone p { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.theme-dropzone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.theme-editor-colors { display: grid; gap: 4px; }
+.theme-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+@media (max-width: 800px) { .theme-dropzone { min-height: 180px; padding: 28px 16px; } }
 .theme-runtime-error { padding: 12px; background: #fff4e5; color: #5b390c; font: 14px system-ui; }
 [data-theme-slot="task-checkbox"] { background-position: center; }
 
