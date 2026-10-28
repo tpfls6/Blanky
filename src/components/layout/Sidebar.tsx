@@ -1,4 +1,3 @@
-import { PanelLeft } from 'lucide-react'
 import { BrandLogo } from '../common/BrandLogo.tsx'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { NavLink, useLocation } from 'react-router-dom'
@@ -30,15 +29,7 @@ function NavRow({
   )
 }
 
-export function Sidebar({
-  open = true,
-  pinned = false,
-  onToggle,
-}: {
-  open?: boolean
-  pinned?: boolean
-  onToggle: () => void
-}) {
+export function Sidebar() {
   const { pathname } = useLocation()
   const { settings } = useLibrary()
   const { t } = useI18n()
@@ -50,24 +41,10 @@ export function Sidebar({
     <aside
       id="app-sidebar"
       data-theme-slot="sidebar"
-      data-open={String(open)}
-      data-pinned={String(pinned)}
-      className="theme-sidebar peek-sidebar md:flex"
+      className="theme-sidebar hidden h-dvh w-52 shrink-0 flex-col overflow-hidden border-r border-line px-3 py-5 md:flex"
     >
       <div className="sidebar-brand">
         <BrandLogo className="px-2 text-neutral-900" />
-        <button
-          id="app-sidebar-toggle"
-          type="button"
-          className="peek-toggle icon-btn"
-          aria-expanded={open}
-          aria-pressed={pinned}
-          aria-controls="app-sidebar"
-          onClick={onToggle}
-        >
-          <PanelLeft className="size-4" strokeWidth={1.5} />
-          <span className="sr-only">{open ? t('custom.closeMenu') : t('custom.openMenu')}</span>
-        </button>
       </div>
       <nav className="mt-6 flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto" aria-label={t('nav.main')}>
         {core.map((item) => (

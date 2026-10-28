@@ -112,99 +112,41 @@ try {
   assert.equal(await evaluate('document.querySelector("h1")?.textContent'), '커스텀 템플릿')
   const layout = await evaluate(`(() => {
     const side = document.getElementById('app-sidebar')
-    const btn = document.getElementById('app-sidebar-toggle')
-    const logo = document.querySelector('.sidebar-brand').firstElementChild
     const main = document.querySelector('main')
-    const bs = getComputedStyle(btn)
-    const ss = getComputedStyle(side)
-    const br = btn.getBoundingClientRect()
     const sr = side.getBoundingClientRect()
     return {
       sideRight: sr.right,
       mainLeft: main.getBoundingClientRect().left,
-      logoRight: logo.getBoundingClientRect().right,
-      btnLeft: br.left,
-      btnRight: br.right,
-      btnX: br.x + br.width / 2,
-      btnY: br.y + br.height / 2,
-      sidePadRight: sr.right - parseFloat(ss.paddingRight),
-      border: bs.borderTopWidth,
-      bg: bs.backgroundColor,
-      shadow: bs.boxShadow,
-      transform: ss.transform,
-      left: ss.left,
-      buttons: document.querySelectorAll('#app-sidebar button').length,
-      toggleInBrand: !!document.querySelector('.sidebar-brand #app-sidebar-toggle'),
+      display: getComputedStyle(side).display,
     }
   })()`)
-  assert.ok(layout.sideRight > 100, 'sidebar starts pinned, right=' + layout.sideRight)
-  assert.ok(layout.mainLeft > 100, 'pinned main starts past sidebar, left=' + layout.mainLeft)
-  assert.equal(layout.transform, 'none')
-  assert.equal(layout.left, '0px')
-  assert.ok(layout.btnLeft > layout.logoRight, 'toggle is to the right of logo')
-  assert.ok(layout.sidePadRight - layout.btnRight < 8, 'toggle at header right')
-  assert.equal(layout.border, '0px')
-  assert.match(layout.bg, /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/)
-  assert.match(layout.shadow, /none/)
-  assert.equal(layout.buttons, 1)
-  assert.equal(layout.toggleInBrand, true)
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: layout.btnX, y: layout.btnY })
-  await pause(200)
-  const hoverBg = await evaluate('getComputedStyle(document.getElementById("app-sidebar-toggle")).backgroundColor')
-  assert.doesNotMatch(hoverBg, /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/)
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 120, y: 200 })
-  await evaluate('document.getElementById("app-sidebar-toggle").click()')
-  await pause(360)
-  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) < 8, 'unpin closes sidebar')
-  const rail = await evaluate(`(() => {
-    const r = document.getElementById('app-sidebar-toggle').getBoundingClientRect()
-    return { left: r.left, top: r.top, width: r.width, height: r.height }
-  })()`)
-  assert.ok(rail.left >= 0 && rail.left < 40, 'collapsed toggle at left, left=' + rail.left)
-  assert.ok(rail.width >= 28 && rail.height >= 28, 'toggle click size ' + rail.width + 'x' + rail.height)
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 8, y: 200 })
-  await pause(360)
-  const openX = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
-  assert.ok(openX > 100, 'hover opens sidebar, right=' + openX)
+  assert.ok(layout.sideRight > 100, 'sidebar visible, right=' + layout.sideRight)
+  assert.ok(layout.mainLeft > 100, 'main starts past sidebar, left=' + layout.mainLeft)
+  assert.equal(layout.display, 'flex')
   const sideText = await evaluate('document.getElementById("app-sidebar").innerText')
-  assert.match(sideText, /기존 페이지/)
+  assert.match(sideText, /커스텀 템플릿/)
+  assert.equal(sideText.includes('기존 페이지'), false)
   assert.equal(sideText.includes('운동 기록'), false)
   assert.equal(sideText.includes('새 페이지'), false)
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 500, y: 200 })
-  await pause(900)
-  const hiddenX = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
-  assert.ok(hiddenX < 8, 'leave closes sidebar, right=' + hiddenX)
-  await evaluate('document.getElementById("app-sidebar-toggle").click()')
-  await pause(360)
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 500, y: 200 })
-  await pause(900)
-  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin keeps sidebar open')
-  assert.ok((await evaluate('document.querySelector("main").getBoundingClientRect().left')) > 100, 'pin shifts main past sidebar')
-  await evaluate('document.getElementById("app-sidebar-toggle").click()')
-  await pause(360)
-  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) < 8, 'unpin closes sidebar')
   const before = await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.length')
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("건너뛰기"))?.click()')
   await wait('!document.querySelector("[role=dialog]")', 'guide skipped')
   assert.equal(await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.length'), before)
   await evaluate('document.querySelector(\'a[href="/"]\').click()')
   await wait('location.pathname === "/"', 'home via sidebar')
-  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) < 8, 'collapse persists to home')
-  await evaluate('document.getElementById("app-sidebar-toggle").click()')
-  await pause(360)
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'sidebar stays on home')
   await evaluate('document.querySelector(\'a[href="/schedule"]\').click()')
   await wait('location.pathname === "/schedule"', 'schedule via sidebar')
-  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin persists to schedule')
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'sidebar stays on schedule')
   for (const href of ['/activity', '/diary', '/reading', '/memo', '/store', '/settings/themes', '/trash', '/settings']) {
     const expected = href === '/settings' ? '/settings/general' : href
     await evaluate('document.querySelector(' + q('a[href="' + href + '"]') + ')?.click()')
     await wait('location.pathname === ' + q(expected), href)
-    assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin persists to ' + href)
-    assert.equal(await evaluate('!!document.querySelector(".sidebar-brand #app-sidebar-toggle")'), true)
+    assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'sidebar stays on ' + href)
   }
   await evaluate('document.querySelector(\'a[href="/custom"]\').click()')
   await wait('location.pathname === "/custom"', 'custom via sidebar')
-  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin persists to custom')
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'sidebar stays on custom')
   await navigate(base + '/custom')
   await wait('document.querySelector("h1")', 'custom reloaded')
   if (await evaluate('[...document.querySelectorAll("button")].some(b => b.textContent.includes("사용 가이드"))')) {
@@ -248,7 +190,7 @@ try {
   await pause(200)
   assert.equal(await evaluate('getComputedStyle(document.getElementById("app-sidebar")).display'), 'none')
   assert.equal(errors.length, 0, errors.join('\n'))
-  console.log('PASS: overlay peek, guide first-visit/replay, no data mutation, builder outline none, core tabs, locale, mobile.')
+  console.log('PASS: static sidebar, guide first-visit/replay, no data mutation, builder outline none, core tabs, locale, mobile.')
 } finally {
   ws.close()
   server.kill()

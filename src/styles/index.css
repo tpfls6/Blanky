@@ -897,69 +897,6 @@ html.dark .border-neutral-300 {
   min-height: 2rem;
 }
 
-.peek-sidebar {
-  position: fixed;
-  top: 0;
-  left: -13rem;
-  z-index: 40;
-  display: none;
-  height: 100dvh;
-  width: 13rem;
-  max-width: 13rem;
-  overflow: hidden;
-  flex-shrink: 0;
-  flex-direction: column;
-  border-right: 1px solid var(--line);
-  background: var(--surface);
-  padding: 1.25rem 0.75rem;
-  transition: left 280ms ease;
-  pointer-events: none;
-}
-
-@media (min-width: 768px) {
-  .peek-sidebar {
-    display: flex;
-  }
-}
-
-.peek-sidebar[data-open='true'] {
-  left: 0;
-  pointer-events: auto;
-  box-shadow: var(--shadow);
-}
-
-.peek-toggle {
-  z-index: 50;
-  display: none;
-  width: 2rem;
-  height: 2rem;
-  margin-left: auto;
-  flex-shrink: 0;
-  border: 0;
-  box-shadow: none;
-  background: transparent;
-  color: var(--blanky-sidebar-icon-color, var(--muted));
-  transition: background-color 180ms ease, color 180ms ease;
-}
-
-.peek-toggle:hover {
-  background: var(--blanky-sidebar-hover-color, var(--hover));
-  color: var(--blanky-sidebar-text-color, var(--fg));
-}
-
-.peek-sidebar[data-open='false'] .peek-toggle {
-  position: fixed;
-  top: 1.25rem;
-  left: 0.75rem;
-  pointer-events: auto;
-}
-
-@media (min-width: 768px) {
-  .peek-toggle {
-    display: inline-flex;
-  }
-}
-
 .guide-layer {
   position: fixed;
   inset: 0;
@@ -1049,10 +986,6 @@ html.dark .border-neutral-300 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .peek-sidebar {
-    transition: none;
-  }
-
   .guide-demo-a,
   .guide-demo-b {
     animation: none;

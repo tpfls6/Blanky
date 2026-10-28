@@ -101,8 +101,6 @@
     "resetNotice": "기본 레이아웃으로 되돌렸습니다.",
     "layouts": "기본 화면 꾸미기",
     "layoutsHint": "일정, 일기, 독서, 메모 화면의 블록 배치를 바꿉니다.",
-    "openMenu": "메뉴 열기",
-    "closeMenu": "메뉴 닫기",
     "tabTemplates": "커스텀 템플릿",
     "tabLayout": "앱 레이아웃",
     "templatesHint": "일기형, 독서형, 메모형으로 기록 페이지를 만들거나 .blankytpl 파일을 가져옵니다.",

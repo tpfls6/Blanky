@@ -101,8 +101,6 @@
     "resetNotice": "Restored the default layout.",
     "layouts": "Built-in page layout",
     "layoutsHint": "Change the block layout of Schedule, Diary, Reading, and Memo.",
-    "openMenu": "Open menu",
-    "closeMenu": "Close menu",
     "tabTemplates": "Custom templates",
     "tabLayout": "App layout",
     "templatesHint": "Create diary, catalog, or memo pages, or import a .blankytpl file.",
