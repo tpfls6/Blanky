@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { BookOpen, CalendarDays, House, Library, StickyNote } from 'lucide-react';
 import type { BlankyTheme } from '@blanky/types';
 import { BrandLogo } from '../../components/common/BrandLogo.tsx';
-import { IconView } from '../../constants/icons.ts';
 import { chromeNavLabel, CUSTOM_NAV, isRecordNav, SETTINGS_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, visibleNav } from '../../constants/navigation.ts';
 import { useI18n } from '../../i18n/useI18n.ts';
 import { useLibrary } from '../../state/useLibrary.ts';
@@ -24,7 +23,7 @@ const PAGES = [
 
 function PreviewSidebar({ current }: { current: string }) {
     const { t } = useI18n();
-    const { settings, customPages } = useLibrary();
+    const { settings } = useLibrary();
     const items = visibleNav(settings.nav);
     const row = (id: string, Icon: typeof STORE_NAV.icon, label: string) => (
         <span key={id} className="nav-link min-w-0" aria-current={current === id ? 'page' : undefined}>
@@ -39,13 +38,6 @@ function PreviewSidebar({ current }: { current: string }) {
                 {items.filter(item => !isRecordNav(item.id)).map(item => row(item.id, item.icon, chromeNavLabel(item.id, t, item.label)))}
                 {items.some(item => isRecordNav(item.id)) ? <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.records')}</p> : null}
                 {items.filter(item => isRecordNav(item.id)).map(item => row(item.id, item.icon, chromeNavLabel(item.id, t, item.label)))}
-                <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.pages')}</p>
-                {customPages.map(page => (
-                    <span key={page.id} className="nav-link min-w-0">
-                        <IconView name={page.icon} className="size-4 shrink-0" />
-                        <span className="min-w-0 truncate">{page.name}</span>
-                    </span>
-                ))}
             </nav>
             <div className="mt-auto border-t border-line pt-3">
                 {row('store', STORE_NAV.icon, t('nav.store'))}

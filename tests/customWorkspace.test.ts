@@ -56,6 +56,7 @@ test('sidebar nav keeps builtins and drops custom record pages', () => {
   assert.equal(isRecordNav('activity'), true)
   assert.equal(isRecordNav('workout-record'), false)
   assert.equal(visibleNav([{ id: 'memo', visible: false }, { id: 'home', visible: true }]).map((item) => item.id).join(','), 'home')
+  assert.equal(items.some((item) => item.to.startsWith('/pages/')), false)
 })
 
 test('starter collections remap without sharing ids', () => {

@@ -209,7 +209,6 @@ try {
   await shot('01-custom-hub')
 
   const workoutId = await createPage('일기형', '운동', [['오늘의 기분', '운동 컨디션']])
-  await wait('[...document.querySelectorAll("nav a")].some(a => a.textContent.includes("운동"))', 'sidebar workout')
   await clickText('새 기록')
   await wait('document.querySelector(".diary-title-input")', 'diary editor')
   await wait('![...document.querySelectorAll("summary")].some(el => el.textContent.includes("페이지 설정"))', 'no in-page settings')

@@ -2,8 +2,6 @@ import { PanelLeft } from 'lucide-react'
 import { BrandLogo } from '../common/BrandLogo.tsx'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { NavLink, useLocation } from 'react-router-dom'
-import { IconView } from '../../constants/icons.ts'
-import { ROUTES } from '../../constants/routes.ts'
 import { chromeNavLabel, isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -42,7 +40,7 @@ export function Sidebar({
   onToggle: () => void
 }) {
   const { pathname } = useLocation()
-  const { settings, customPages } = useLibrary()
+  const { settings } = useLibrary()
   const { t } = useI18n()
   const items = visibleNav(settings.nav)
   const core = items.filter((item) => !isRecordNav(item.id))
@@ -78,13 +76,6 @@ export function Sidebar({
         {records.length > 0 ? <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.records')}</p> : null}
         {records.map((item) => (
           <NavRow key={item.id} id={item.id} to={item.to} end={item.end} icon={item.icon} label={chromeNavLabel(item.id, t, item.label)} color={item.color} />
-        ))}
-        <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.pages')}</p>
-        {customPages.map((page) => (
-          <NavLink key={page.id} data-theme-slot="sidebar-item" to={ROUTES.page(page.id)} className="nav-link min-w-0">
-            <IconView name={page.icon} className="size-4 shrink-0" />
-            <span className="min-w-0 truncate">{page.name}</span>
-          </NavLink>
         ))}
       </nav>
       <div className="mt-auto border-t border-line pt-3">
