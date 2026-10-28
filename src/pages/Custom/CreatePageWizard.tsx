@@ -32,7 +32,8 @@ export function CreatePageWizard({
   const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({ ...DEFAULT_FIELD_LABELS.diary })
   const keys = FIELD_KEYS[template]
   const shown = preview
-  const previewName = name.trim() || t(`custom.kind.${shown}`)
+  const previewName = step === 0 ? t(`custom.kind.${shown}`) : name.trim() || t(`custom.kind.${template}`)
+  const previewLabels = step === 0 ? DEFAULT_FIELD_LABELS[shown] : fieldLabels
   const defaults = useMemo(() => DEFAULT_FIELD_LABELS[template], [template])
   const title = step === 0 ? t('custom.pickTemplate') : step === 1 ? t('custom.namePage') : step === 2 ? t('custom.renameFields') : t('custom.preview')
 
@@ -80,7 +81,7 @@ export function CreatePageWizard({
               key={kind}
               type="button"
               aria-pressed={template === kind}
-              className="template-card flex min-w-0 flex-col gap-0.5 rounded-md border border-line px-2.5 py-2 text-left"
+              className="template-card flex min-w-0 flex-col gap-0.5 rounded-md px-2.5 py-2 text-left"
               onMouseEnter={() => setPreview(kind)}
               onFocus={() => setPreview(kind)}
               onClick={() => select(kind)}
@@ -112,7 +113,7 @@ export function CreatePageWizard({
         </div>
       ) : null}
       <div className="template-preview-slot mt-3" aria-live="polite">
-        <TemplatePreview key={shown} kind={shown} heading={previewName} labels={fieldLabels} />
+        <TemplatePreview key={shown} kind={shown} heading={previewName} labels={previewLabels} />
       </div>
     </div>
   )

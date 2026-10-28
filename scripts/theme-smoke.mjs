@@ -69,6 +69,7 @@ try {
   if (route === '/customize/theme') {
     assert.ok(html.includes('색상 변경') && html.includes('커스텀'), 'editor tabs')
     assert.ok(html.includes('메인 컬러') && html.includes('배경색'), 'color pickers')
+    assert.ok(html.includes('미리보기 화면') && html.includes('일기') && html.includes('독서'), 'page preview tabs')
     assert.ok(!html.includes('테마 유형 선택') && !html.includes('사이드바 상단') && !html.includes('고급 편집'), 'wizard and asset editors removed')
   }
   console.log('PASS render '+route)

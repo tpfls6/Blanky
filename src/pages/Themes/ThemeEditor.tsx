@@ -88,7 +88,7 @@ function ThemeEditor({ original }: { original?: BlankyTheme }) {
             <button type="button" role="tab" aria-selected={tab === 'colors'} className={tab === 'colors' ? 'tab tab-on' : 'tab'} onClick={() => setTab('colors')}>색상 변경</button>
             <button type="button" role="tab" aria-selected={tab === 'custom'} className={tab === 'custom' ? 'tab tab-on' : 'tab'} onClick={() => setTab('custom')}>커스텀</button>
         </div>
-        {tab === 'colors' ? <div className="theme-editor mt-6">
+        {tab === 'colors' ? <div className="theme-editor theme-editor-stack mt-6">
             <div>
                 <div className="theme-editor-colors">{COLOR_FIELDS.map(field => {
                     const value = field.group === 'sidebar' ? draft.config.sidebar.background : draft.config.colors[field.key as keyof ThemeConfig['colors']];
