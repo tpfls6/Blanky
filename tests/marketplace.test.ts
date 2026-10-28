@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { forkSnapshot, sameInstallShape } from '../src/features/marketplace/install.ts'
 import { officialListings } from '../src/features/marketplace/official.ts'
-import { packageSnapshot, safeHttpsUrl, SanitizeError } from '../src/features/marketplace/sanitize.ts'
+import { coerceSnapshot, packageSnapshot, safeHttpsUrl, SanitizeError } from '../src/features/marketplace/sanitize.ts'
 import { builtinTemplates } from '../src/features/workspace/templates.ts'
 import { createPage } from '../src/features/builder/schema.ts'
 
@@ -73,6 +73,34 @@ test('install forks ids so the listing snapshot stays unchanged', () => {
   assert.equal(first.records[0]?.values[destKey], '기생충')
   assert.equal(listing.snapshot.collections[0]?.id, sourceId)
   assert.ok(sameInstallShape(listing.snapshot, first))
+})
+
+test('system page templates keep pageType through package and install', () => {
+  const page = createPage('내 일기', 'BookOpen', [])
+  page.template = 'diary'
+  page.fieldLabels = { title: '오늘의 한줄' }
+  const snapshot = packageSnapshot({
+    source: page,
+    name: '내 일기',
+    description: '일기 템플릿',
+    category: 'free',
+    tags: ['일기'],
+    thumbnailUrl: '',
+    gallery: [],
+    language: 'ko',
+    guide: '',
+    samples: [],
+  })
+  assert.equal(snapshot.pageType, 'diary')
+  assert.equal(snapshot.fieldLabels?.title, '오늘의 한줄')
+  assert.equal(snapshot.blocks.length, 0)
+  const installed = forkSnapshot(snapshot)
+  assert.equal(installed.page.template, 'diary')
+  assert.equal(installed.page.fieldLabels?.title, '오늘의 한줄')
+  assert.equal(installed.page.blocks.length, 0)
+  const again = coerceSnapshot(JSON.parse(JSON.stringify(snapshot)))
+  assert.equal(again?.pageType, 'diary')
+  assert.equal(again?.fieldLabels?.title, '오늘의 한줄')
 })
 
 test('workout install keeps number fields and does not share collection ids', () => {

@@ -160,8 +160,10 @@ try {
     await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("건너뛰기"))?.click()')
     await wait('!document.querySelector("[role=dialog]")', 'guide closed again')
   }
+  assert.equal(await evaluate('Boolean(document.querySelector(".theme-dropzone"))'), false)
   await evaluate('document.querySelector("[data-tour=new-page]").click()')
   await wait('document.body.innerText.includes("어떤 기록으로 시작할까요?")', 'wizard opened')
+  assert.equal(await evaluate('document.querySelector("h1")?.textContent'), '템플릿 만들기')
   await wait('document.querySelector(".template-preview")', 'preview on step 1')
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim() === "다음")?.click()')
   await wait('document.body.innerText.includes("이름과 아이콘")', 'step 2')

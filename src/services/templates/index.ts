@@ -7,6 +7,7 @@ import type { UserPage } from '../../features/builder/schema.ts'
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase/client.ts'
 
 const key = (id: string) => 'blanky.templates.' + id
+const PUBLIC_KEY = 'blanky.templates.public.v1'
 
 export type TemplateLibrary = {
   listings: TemplateListing[]
@@ -19,12 +20,34 @@ function official(): TemplateListing[] {
   return officialListings()
 }
 
+function publicListings(): TemplateListing[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PUBLIC_KEY) ?? '[]') as unknown
+    if (!Array.isArray(raw)) return []
+    return raw.flatMap((item) => {
+      if (!item || typeof item !== 'object') return []
+      const row = item as TemplateListing
+      if (typeof row.id !== 'string' || row.status !== 'published') return []
+      const snapshot = coerceSnapshot(row.snapshot)
+      return snapshot ? [{ ...row, snapshot }] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+function savePublic(listing: TemplateListing) {
+  const rest = publicListings().filter((item) => item.id !== listing.id)
+  localStorage.setItem(PUBLIC_KEY, JSON.stringify(listing.status === 'published' ? [...rest, listing] : rest))
+}
+
 function local(userId: string): TemplateLibrary {
   try {
     const raw = JSON.parse(localStorage.getItem(key(userId)) ?? '{}') as Partial<TemplateLibrary>
     const extra = Array.isArray(raw.listings) ? raw.listings.filter((item) => item.creatorId === userId) : []
+    const known = new Set([...official(), ...extra].map((item) => item.id))
     return {
-      listings: [...official(), ...extra],
+      listings: [...official(), ...publicListings().filter((item) => !known.has(item.id)), ...extra],
       installed: Array.isArray(raw.installed) ? raw.installed : [],
       favorites: Array.isArray(raw.favorites) ? raw.favorites : [],
       admin: true,
@@ -209,6 +232,7 @@ export async function publishTemplate(userId: string, input: {
   const state = local(userId)
   state.listings = [...state.listings.filter((item) => item.id !== listing.id), listing]
   saveLocal(userId, state)
+  savePublic(listing)
   return listing.id
 }
 
@@ -232,8 +256,10 @@ export async function publishTemplateVersion(userId: string, listingId: string, 
   state.listings = state.listings.map((item) => item.id === listingId && item.creatorId === userId
     ? { ...item, snapshot, currentVersion: item.currentVersion + 1, updatedAt: new Date().toISOString() }
     : item)
+  const updated = state.listings.find((item) => item.id === listingId)
   saveLocal(userId, state)
-  return state.listings.find((item) => item.id === listingId)?.currentVersion ?? 1
+  if (updated) savePublic(updated)
+  return updated?.currentVersion ?? 1
 }
 
 export async function updateListing(userId: string, id: string, patch: Partial<Pick<TemplateListing, 'name' | 'description' | 'thumbnailUrl' | 'gallery' | 'category' | 'tags' | 'status'>>) {
@@ -252,7 +278,9 @@ export async function updateListing(userId: string, id: string, patch: Partial<P
   }
   const state = local(userId)
   state.listings = state.listings.map((item) => item.id === id && item.creatorId === userId ? { ...item, ...patch, updatedAt: new Date().toISOString() } : item)
+  const updated = state.listings.find((item) => item.id === id)
   saveLocal(userId, state)
+  if (updated) savePublic(updated)
 }
 
 export async function toggleFavorite(userId: string, listingId: string, on: boolean) {

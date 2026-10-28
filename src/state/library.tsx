@@ -1099,15 +1099,43 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     setData((current) => {
       if (current.customPages.some((item) => item.id === input.page.id)) return current
       const page = { ...input.page, sort: current.customPages.length }
+      const typed = page.template
+        ? [{
+            id: page.id,
+            name: page.name,
+            icon: page.icon,
+            color: DEFAULT_SWATCH,
+            description: pageTypeMarker(page.template),
+            schemaVersion: 1,
+            version: 1,
+            blocks: [],
+            createdAt: page.createdAt,
+            updatedAt: page.updatedAt,
+          }]
+        : []
       return {
         ...current,
-        recordTypes: [...current.recordTypes, ...input.collections.filter((item) => !current.recordTypes.some((row) => row.id === item.id))],
+        recordTypes: [...current.recordTypes, ...typed, ...input.collections.filter((item) => !current.recordTypes.some((row) => row.id === item.id))],
         records: [...input.records.filter((item) => !current.records.some((row) => row.id === item.id)), ...current.records],
         customPages: [...current.customPages, page],
-        settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...input.collections.map((item) => item.id)]) },
+        settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...typed.map((item) => item.id), ...input.collections.map((item) => item.id)]) },
       }
     })
     if (persist) {
+      if (input.page.template) {
+        mirrorRecordTypeSave({
+          id: input.page.id,
+          name: input.page.name,
+          icon: input.page.icon,
+          color: DEFAULT_SWATCH,
+          description: pageTypeMarker(input.page.template),
+          schemaVersion: 1,
+          version: 1,
+          blocks: [],
+          createdAt: input.page.createdAt,
+          updatedAt: input.page.updatedAt,
+        })
+      }
       for (const item of input.collections) mirrorRecordTypeSave(item)
       for (const item of input.records) mirrorRecordSave({ id: item.id, typeId: item.typeId, title: item.title, values: item.values, templateVersion: item.templateVersion }, true)
       mirrorPageSave(input.page)

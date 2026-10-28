@@ -1,4 +1,5 @@
 import { coerceBlock, coercePage, type BuilderBlock } from '../builder/schema.ts'
+import { coerceFieldLabels, coerceTemplate } from '../pages/templates.ts'
 import { coerceRecordType, flatten, type CustomRecordType, type FieldValue } from '../records/schema.ts'
 import { snapshotCollections } from '../workspace/templates.ts'
 import {
@@ -130,15 +131,17 @@ export function packageSnapshot(input: PublishInput): TemplateSnapshot {
     if (textHasPii(item.name) || textHasPii(item.description)) issues.push({ code: 'pii', message: '컬렉션 이름에 개인정보가 있습니다.' })
   }
   const samples = cleanSamples(input.samples, collections, issues)
+  const pageType = coerceTemplate(input.source.template)
   const snapshot: TemplateSnapshot = {
     version: 1,
     title: name || page?.name || '템플릿',
     icon: page?.icon || 'StickyNote',
     description,
-    blocks,
+    blocks: pageType ? [] : blocks,
     collections,
     samples,
     guide,
+    ...(pageType ? { pageType, fieldLabels: coerceFieldLabels(input.source.fieldLabels, pageType) } : {}),
   }
   const bytes = new TextEncoder().encode(JSON.stringify(snapshot)).length
   if (bytes > SNAPSHOT_LIMITS.maxBytes) issues.push({ code: 'size', message: '템플릿이 너무 큽니다.' })
@@ -158,6 +161,12 @@ export function coerceSnapshot(value: unknown): TemplateSnapshot | null {
     collections: row.collections,
   })
   if (!page) return null
+  const pageType = coerceTemplate(row.pageType)
+  if (pageType) {
+    page.template = pageType
+    page.fieldLabels = coerceFieldLabels(row.fieldLabels, pageType)
+    page.blocks = []
+  }
   try {
     return packageSnapshot({
       source: page,

@@ -1,4 +1,5 @@
 import { cloneBlocks, createPage, type BuilderBlock, type UserPage } from '../builder/schema.ts'
+import { coerceFieldLabels, coerceTemplate } from '../pages/templates.ts'
 import { flatten, type Block, type CustomRecordType, type FieldValue } from '../records/schema.ts'
 import { remapCollections } from '../workspace/templates.ts'
 import type { TemplateSample, TemplateSnapshot } from './schema.ts'
@@ -75,6 +76,12 @@ export function forkSnapshot(snapshot: TemplateSnapshot): InstalledTemplate {
   const page = createPage(snapshot.title, snapshot.icon, blocks)
   page.description = snapshot.description
   page.collections = collections
+  const pageType = coerceTemplate(snapshot.pageType)
+  if (pageType) {
+    page.template = pageType
+    page.fieldLabels = coerceFieldLabels(snapshot.fieldLabels, pageType)
+    page.blocks = []
+  }
   return { page, collections, records }
 }
 

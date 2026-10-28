@@ -1,4 +1,5 @@
 import type { BuilderBlock, UserPage } from '../builder/schema.ts'
+import type { PageTemplateKind } from '../pages/templates.ts'
 import type { CustomRecordType, FieldValue } from '../records/schema.ts'
 
 export const LISTING_STATUSES = ['draft', 'pending_review', 'published', 'rejected', 'unlisted', 'archived'] as const
@@ -48,6 +49,8 @@ export type TemplateSnapshot = {
   collections: CustomRecordType[]
   samples: TemplateSample[]
   guide: string
+  pageType?: PageTemplateKind
+  fieldLabels?: Record<string, string>
 }
 
 export type TemplateListing = {

@@ -23,7 +23,7 @@ function previewSrc(pkg: TemplatePackage): string | null {
   return file ? 'data:' + file.mime + ';base64,' + file.data : null
 }
 
-export function TemplateImport({ list = true }: { list?: boolean }) {
+export function TemplateImport({ list = true, dropzone = true, hideEmpty = false }: { list?: boolean; dropzone?: boolean; hideEmpty?: boolean }) {
   const { t } = useI18n()
   const { user } = useSession()
   const confirm = useConfirm()
@@ -94,20 +94,22 @@ export function TemplateImport({ list = true }: { list?: boolean }) {
   }
 
   return (
-    <div className="theme-custom-pane mt-8 max-w-none">
-      <label
-        className="theme-dropzone"
-        data-active={over}
-        onDragEnter={(event) => { event.preventDefault(); setOver(true) }}
-        onDragOver={(event) => { event.preventDefault(); setOver(true) }}
-        onDragLeave={(event) => { event.preventDefault(); if (!event.currentTarget.contains(event.relatedTarget as Node)) setOver(false) }}
-        onDrop={(event) => { event.preventDefault(); setOver(false); void open(event.dataTransfer.files[0]) }}
-      >
-        <strong>{t('custom.importTitle')}</strong>
-        <p>{t('custom.importHint')}</p>
-        <input aria-label={t('custom.importTitle')} type="file" accept=".blankytpl,.json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void open(file) }} />
-      </label>
-      <p role={message && !pending.length ? 'alert' : 'status'} className="mt-2 text-sm text-neutral-500">{message}</p>
+    <div className={dropzone ? 'theme-custom-pane mt-8 max-w-none' : 'mt-2'}>
+      {dropzone ? (
+        <label
+          className="theme-dropzone"
+          data-active={over}
+          onDragEnter={(event) => { event.preventDefault(); setOver(true) }}
+          onDragOver={(event) => { event.preventDefault(); setOver(true) }}
+          onDragLeave={(event) => { event.preventDefault(); if (!event.currentTarget.contains(event.relatedTarget as Node)) setOver(false) }}
+          onDrop={(event) => { event.preventDefault(); setOver(false); void open(event.dataTransfer.files[0]) }}
+        >
+          <strong>{t('custom.importTitle')}</strong>
+          <p>{t('custom.importHint')}</p>
+          <input aria-label={t('custom.importTitle')} type="file" accept=".blankytpl,.json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void open(file) }} />
+        </label>
+      ) : null}
+      {message ? <p role={pending.length ? 'status' : 'alert'} className="mt-2 text-sm text-neutral-500">{message}</p> : null}
       {pending.map((pkg, index) => (
         <ImportReview
           key={pkg.manifest.id + index}
@@ -120,7 +122,7 @@ export function TemplateImport({ list = true }: { list?: boolean }) {
           onCancel={() => setPending((current) => current.filter((item) => item !== pkg))}
         />
       ))}
-      {list ? <InstalledList items={installed} onRemove={(item) => void remove(item)} /> : null}
+      {list ? <InstalledList items={installed} hideEmpty={hideEmpty} onRemove={(item) => void remove(item)} /> : null}
     </div>
   )
 }
@@ -207,7 +209,7 @@ function PackagePreview({ pkg }: { pkg: TemplatePackage }) {
   )
 }
 
-function InstalledList({ items, onRemove }: { items: InstalledTemplatePackage[]; onRemove: (item: InstalledTemplatePackage) => void }) {
+function InstalledList({ items, hideEmpty, onRemove }: { items: InstalledTemplatePackage[]; hideEmpty?: boolean; onRemove: (item: InstalledTemplatePackage) => void }) {
   const { t } = useI18n()
   const navigate = useNavigate()
   const { addUserPage, addRecordType, adoptInstalledPage } = useLibrary()
@@ -242,7 +244,7 @@ function InstalledList({ items, onRemove }: { items: InstalledTemplatePackage[];
     if (id) navigate(ROUTES.record(id))
   }
 
-  if (!items.length) return <p className="mt-6 text-sm text-neutral-400">{t('custom.emptyTemplates')}</p>
+  if (!items.length) return hideEmpty ? null : <p className="mt-6 text-sm text-neutral-400">{t('custom.emptyTemplates')}</p>
 
   return (
     <section className="mt-8">

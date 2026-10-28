@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { PAGE_GAP_OPTIONS, PAGE_IDS, type PageId } from '../../features/pages/layout.ts'
 import { recordsForPage } from '../../features/pages/pageRecords.ts'
-import { PAGE_TEMPLATES, type PageTemplateKind } from '../../features/pages/templates.ts'
+import { type PageTemplateKind } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -70,6 +70,7 @@ function PageCard({ page }: { page: UserPage }) {
         <span className="text-xs text-neutral-500">{page.template ? t(`custom.kind.${page.template}`) : t('custom.userTemplate')}</span>
       </Link>
       <div className="mt-3 flex flex-wrap gap-1">
+        <Link className="btn btn-ghost" to={ROUTES.templatePublish + '?id=' + page.id}>{t('templates.publish')}</Link>
         <button type="button" className="btn btn-ghost" onClick={() => setOpen((current) => !current)}>
           {t('custom.pageSettings')}
         </button>
@@ -214,12 +215,14 @@ export function CustomPage() {
           <section>
             <header className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-medium tracking-tight">{t('custom.tabTemplates')}</h1>
-              <button type="button" className="btn btn-primary ml-auto" data-tour="new-page" onClick={() => setWizard(true)}>
-                <Plus className="size-3.5" strokeWidth={1.5} />
-                {t('custom.newPage')}
-              </button>
+              <div className="ml-auto flex gap-2">
+                <Link className="btn btn-line" to={ROUTES.storeTemplates}>{t('templates.store')}</Link>
+                <button type="button" className="btn btn-primary" data-tour="new-page" onClick={() => setWizard(true)}>
+                  <Plus className="size-3.5" strokeWidth={1.5} />
+                  {t('custom.makeTemplate')}
+                </button>
+              </div>
             </header>
-            <p className="mt-2 text-sm text-neutral-400">{t('custom.templatesHint')}</p>
             <label className="mt-4 block">
               <span className="sr-only">{t('custom.search')}</span>
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('custom.search')} className="field w-full" />
@@ -233,21 +236,14 @@ export function CustomPage() {
               </button>
             </div>
             {group === 'basic' ? (
-              <div className="theme-grid">
-                {PAGE_TEMPLATES.filter((kind) => matches(query, { name: t(`custom.kind.${kind}`), description: t(`custom.kindHint.${kind}`) })).map((kind) => (
-                  <article key={kind}>
-                    <button type="button" className="block w-full text-left" onClick={() => setWizard(kind)}>
-                      <KindSwatch kind={kind} />
-                      <h2 className="mt-3 font-medium">{t(`custom.kind.${kind}`)}</h2>
-                      <p className="mt-1 text-sm text-neutral-500">{t(`custom.kindHint.${kind}`)}</p>
-                    </button>
-                  </article>
-                ))}
-                {basicPages.map((page) => <PageCard key={page.id} page={page} />)}
-              </div>
+              basicPages.length ? (
+                <div className="theme-grid">
+                  {basicPages.map((page) => <PageCard key={page.id} page={page} />)}
+                </div>
+              ) : <p className="mt-3 text-sm text-neutral-400">{t('custom.emptyPages')}</p>
             ) : (
               <>
-                <TemplateImport />
+                <TemplateImport dropzone={false} hideEmpty={customOnly.length > 0} />
                 {customOnly.length ? (
                   <div className="theme-grid mt-8">
                     {customOnly.map((page) => <PageCard key={page.id} page={page} />)}

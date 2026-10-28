@@ -47,6 +47,8 @@ test('nav label follows locale without changing the route', () => {
   assert.match(translate('ko', 'custom.deleteBody', { count: 2 }), /기본 일기/)
   assert.equal(translate('ko', 'custom.newPage'), '새 기록 만들기')
   assert.equal(translate('en', 'custom.newPage'), 'New record')
+  assert.equal(translate('ko', 'custom.makeTemplate'), '템플릿 만들기')
+  assert.equal(translate('en', 'custom.makeTemplate'), 'Make a template')
   assert.equal(translate('ko', 'custom.kind.diary'), '일기형')
   assert.equal(translate('ko', 'builder.pickCollection'), '기존 컬렉션 연결')
   assert.equal(translate('en', 'builder.pickCollection'), 'Link an existing collection')

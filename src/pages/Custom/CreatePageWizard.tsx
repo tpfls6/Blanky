@@ -38,7 +38,7 @@ export function CreatePageWizard({
   const previewName = step === 0 ? t(`custom.kind.${shown}`) : name.trim() || t(`custom.kind.${template}`)
   const previewLabels = step === 0 ? DEFAULT_FIELD_LABELS[shown] : fieldLabels
   const defaults = useMemo(() => DEFAULT_FIELD_LABELS[template], [template])
-  const title = step === 0 ? t('custom.pickTemplate') : step === 1 ? t('custom.namePage') : step === 2 ? t('custom.renameFields') : t('custom.preview')
+  const stepTitle = step === 0 ? t('custom.pickTemplate') : step === 1 ? t('custom.namePage') : step === 2 ? t('custom.renameFields') : t('custom.preview')
 
   const select = (next: PageTemplateKind) => {
     setTemplate(next)
@@ -51,10 +51,7 @@ export function CreatePageWizard({
   return (
     <section className="theme-page theme-customizer page-wizard">
       <header className="theme-editor-heading">
-        <div className="min-w-0 flex-1">
-          {pane === 'basic' ? <p className="text-[11px] text-neutral-400">{t('custom.progress', { current: step + 1, total: 4 })}</p> : null}
-          <h1 className="truncate">{pane === 'custom' ? t('custom.groupCustom') : title}</h1>
-        </div>
+        <h1 className="truncate">{t('custom.makeTemplate')}</h1>
         <div className="flex shrink-0 gap-2">
           <button type="button" className="btn btn-ghost" onClick={() => (pane === 'custom' || step === 0 ? onCancel() : setStep((value) => value - 1))}>
             {pane === 'custom' || step === 0 ? t('custom.goBack') : t('custom.back')}
@@ -78,7 +75,7 @@ export function CreatePageWizard({
           ) : null}
         </div>
       </header>
-      <div className="theme-editor-tabs" role="tablist" aria-label={t('custom.newPage')}>
+      <div className="theme-editor-tabs" role="tablist" aria-label={t('custom.makeTemplate')}>
         <button type="button" role="tab" aria-selected={pane === 'basic'} className={pane === 'basic' ? 'tab tab-on' : 'tab'} onClick={() => setPane('basic')}>
           {t('custom.groupBasic')}
         </button>
@@ -88,8 +85,10 @@ export function CreatePageWizard({
       </div>
       {pane === 'custom' ? <TemplateImport list={false} /> : (
         <>
+          <p className="px-6 text-[11px] text-neutral-400">{t('custom.progress', { current: step + 1, total: 4 })}</p>
+          <h2 className="px-6 text-sm font-medium">{stepTitle}</h2>
           {step === 0 ? (
-            <div className="grid grid-cols-3 gap-2 px-6">
+            <div className="mt-3 grid grid-cols-3 gap-2 px-6">
               {PAGE_TEMPLATES.map((kind) => (
                 <button
                   key={kind}
@@ -107,13 +106,13 @@ export function CreatePageWizard({
             </div>
           ) : null}
           {step === 1 ? (
-            <div className="flex items-center gap-3 px-6">
+            <div className="mt-3 flex items-center gap-3 px-6">
               <IconPicker value={icon} onChange={setIcon} />
               <input value={name} onChange={(event) => setName(event.target.value)} className="field min-w-0 flex-1" aria-label={t('custom.pageName')} placeholder={t(`custom.kind.${template}`)} />
             </div>
           ) : null}
           {step === 2 ? (
-            <div className="grid gap-2 px-6 sm:grid-cols-2">
+            <div className="mt-3 grid gap-2 px-6 sm:grid-cols-2">
               {keys.map((key) => (
                 <label key={key} className="block text-xs">
                   <span className="text-neutral-400">{defaults[key as keyof typeof defaults]}</span>

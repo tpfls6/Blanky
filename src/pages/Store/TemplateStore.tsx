@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { TemplatePreview } from '../Custom/TemplatePreview.tsx'
 import { ROUTES } from '../../constants/routes.ts'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import { officialListings } from '../../features/marketplace/official.ts'
@@ -158,11 +159,15 @@ export function TemplateDetailPage() {
       <div className="theme-editor mt-6">
         <div>
           {listing.thumbnailUrl ? <img className="mb-4 w-full rounded-xl" src={listing.thumbnailUrl} alt="" /> : null}
-          <TemplatePreviewProvider snapshot={listing.snapshot}>
-            <div className="rounded-xl border border-line p-4">
-              <PageBuilder blocks={listing.snapshot.blocks} editing={false} onChange={() => undefined} />
-            </div>
-          </TemplatePreviewProvider>
+          {listing.snapshot.pageType ? (
+            <TemplatePreview kind={listing.snapshot.pageType} heading={listing.name} labels={listing.snapshot.fieldLabels} />
+          ) : (
+            <TemplatePreviewProvider snapshot={listing.snapshot}>
+              <div className="rounded-xl border border-line p-4">
+                <PageBuilder blocks={listing.snapshot.blocks} editing={false} onChange={() => undefined} />
+              </div>
+            </TemplatePreviewProvider>
+          )}
         </div>
         <div>
           <h1>{listing.name}</h1>
@@ -170,7 +175,11 @@ export function TemplateDetailPage() {
           <p className="my-5 whitespace-pre-wrap">{listing.description}</p>
           <p className="text-sm">{t('templates.guide')}</p>
           <p className="my-2 whitespace-pre-wrap text-sm text-neutral-600">{listing.snapshot.guide || listing.description}</p>
-          <p className="text-sm">{t('templates.fields')}: {listing.snapshot.collections.flatMap((item) => item.blocks.map((block) => block.props.label).filter(Boolean)).join(' · ')}</p>
+          {listing.snapshot.pageType ? (
+            <p className="text-sm">{t(`custom.kind.${listing.snapshot.pageType}`)}</p>
+          ) : (
+            <p className="text-sm">{t('templates.fields')}: {listing.snapshot.collections.flatMap((item) => item.blocks.map((block) => block.props.label).filter(Boolean)).join(' · ')}</p>
+          )}
           <p className="mt-3 text-sm">{listing.installCount} · {listing.category} · v{listing.currentVersion}</p>
           {hint ? <p className="my-3 text-sm text-neutral-500">{t('templates.installHint')}</p> : null}
           <div className="mt-4 flex flex-wrap gap-2">
@@ -245,10 +254,14 @@ export function TemplateLibraryPage() {
 export function PublishTemplatePage() {
   const { t } = useI18n()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const { user } = useSession()
   const { customPages, pageTemplates, records } = useLibrary()
   const pages = [...customPages, ...pageTemplates]
-  const [sourceId, setSourceId] = useState(pages[0]?.id ?? '')
+  const [sourceId, setSourceId] = useState(() => {
+    const preset = params.get('id')
+    return preset && pages.some((item) => item.id === preset) ? preset : pages[0]?.id ?? ''
+  })
   const source = pages.find((item) => item.id === sourceId)
   const [name, setName] = useState(source?.name ?? '')
   const [description, setDescription] = useState(source?.description ?? '')
