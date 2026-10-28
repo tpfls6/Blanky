@@ -23,6 +23,11 @@ export const BLOCK_TYPES = [
   'checkbox',
   'select',
   'multiSelect',
+  'url',
+  'image',
+  'rating',
+  'progress',
+  'tags',
 ] as const
 
 export type BlockType = (typeof BLOCK_TYPES)[number]
@@ -99,6 +104,11 @@ const FIELD_BLOCKS = new Set<BlockType>([
   'checkbox',
   'select',
   'multiSelect',
+  'url',
+  'image',
+  'rating',
+  'progress',
+  'tags',
 ])
 
 const LEGACY_TYPE: Record<string, BlockType> = {
@@ -254,8 +264,10 @@ export function blankValues(blocks: readonly Block[]): Record<string, FieldValue
     if (!block.fieldKey) continue
     const fallback = block.props.defaultValue
     if (block.type === 'checkbox') values[block.fieldKey] = fallback === true
-    else if (block.type === 'multiSelect') values[block.fieldKey] = []
-    else if (block.type === 'number') values[block.fieldKey] = typeof fallback === 'number' ? fallback : ''
+    else if (block.type === 'multiSelect' || block.type === 'tags') values[block.fieldKey] = []
+    else if (block.type === 'number' || block.type === 'rating' || block.type === 'progress') {
+      values[block.fieldKey] = typeof fallback === 'number' ? fallback : ''
+    }
     else values[block.fieldKey] = typeof fallback === 'string' ? fallback : ''
   }
   return values
@@ -289,19 +301,47 @@ export function requiredError(blocks: readonly Block[], values: Record<string, F
       if (value !== true) return `${label}을 확인해 주세요.`
       continue
     }
-    if (block.type === 'multiSelect') {
+    if (block.type === 'multiSelect' || block.type === 'tags') {
       if (!Array.isArray(value) || value.length === 0) return `${label}을 선택해 주세요.`
       continue
     }
-    if (block.type === 'number') {
+    if (block.type === 'number' || block.type === 'rating' || block.type === 'progress') {
       if (typeof value !== 'number') return `${label}을 입력해 주세요.`
+      if (block.type === 'rating' && (value < 1 || value > 5)) return `${label}은 1에서 5 사이여야 합니다.`
+      if (block.type === 'progress' && (value < 0 || value > 100)) return `${label}은 0에서 100 사이여야 합니다.`
       if (block.props.min != null && value < block.props.min) return `${label}은 ${block.props.min} 이상이어야 합니다.`
       if (block.props.max != null && value > block.props.max) return `${label}은 ${block.props.max} 이하여야 합니다.`
+      continue
+    }
+    if (block.type === 'url' || block.type === 'image') {
+      if (typeof value !== 'string' || !value.trim()) return `${label}을 입력해 주세요.`
+      if (!validateField(block.type, value)) return `${label} 주소가 올바르지 않습니다.`
       continue
     }
     if (typeof value !== 'string' || !value.trim()) return `${label}을 입력해 주세요.`
   }
   return null
+}
+
+export function validateField(type: BlockType, value: FieldValue): boolean {
+  if (type === 'checkbox') return typeof value === 'boolean'
+  if (type === 'multiSelect' || type === 'tags') return Array.isArray(value) && value.every((item) => typeof item === 'string')
+  if (type === 'number') return typeof value === 'number' && Number.isFinite(value)
+  if (type === 'rating') return typeof value === 'number' && value >= 1 && value <= 5
+  if (type === 'progress') return typeof value === 'number' && value >= 0 && value <= 100
+  if (type === 'url' || type === 'image') {
+    if (typeof value !== 'string' || !value.trim()) return false
+    try {
+      const parsed = new URL(value)
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
+  if (type === 'date' || type === 'time' || type === 'dateTime' || type === 'textField' || type === 'longText' || type === 'title' || type === 'select') {
+    return typeof value === 'string'
+  }
+  return true
 }
 
 export function captureTarget(blocks: readonly Block[]): string | null {

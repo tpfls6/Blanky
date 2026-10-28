@@ -19,7 +19,7 @@ const WEEKDAY: Record<string, number> = {
   토: 6,
 }
 
-const DATE_PHRASE = String.raw`(?:오늘|내일|모레|(?:이번\s*주|다음\s*주)\s*[일월화수목금토]요일|(?:이번\s*주|다음\s*주)(?!\s*[일월화수목금토])|[일월화수목금토]요일|\d{1,2}\s*월\s*\d{1,2}\s*일)`
+const DATE_PHRASE = String.raw`(?:오늘|어제|내일|모레|주말|today|tomorrow|yesterday|(?:this|next)\s+week|(?:mon|tues|wednes|thurs|fri|satur|sun)day|(?:이번\s*주|다음\s*주)\s*[일월화수목금토]요일|(?:이번\s*주|다음\s*주)(?!\s*[일월화수목금토])|[일월화수목금토]요일|\d{1,2}\s*월\s*\d{1,2}\s*일)`
 const MERIDIEM = String.raw`오전|오후|저녁|밤`
 const MINUTE = String.raw`(?:\s*(?:반|(\d{1,2})\s*분))?`
 const KO_TIME = String.raw`(${MERIDIEM})?\s*(\d{1,2})\s*시(?!간)${MINUTE}`
@@ -97,11 +97,27 @@ function minuteValue(half: boolean, digits: string | undefined): number {
   return digits ? Number(digits) : 0
 }
 
+const EN_WEEKDAY: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }
+
 function parseDatePhrase(phrase: string, today: Date, anchor: Date | null): Date | null {
   const text = phrase.replace(/\s+/g, ' ').trim()
-  if (text === '오늘') return today
-  if (text === '내일') return addDays(today, 1)
+  const lower = text.toLowerCase()
+  if (text === '오늘' || lower === 'today') return today
+  if (text === '어제' || lower === 'yesterday') return addDays(today, -1)
+  if (text === '내일' || lower === 'tomorrow') return addDays(today, 1)
   if (text === '모레') return addDays(today, 2)
+  if (lower === 'this week') return mondayOf(today)
+  if (lower === 'next week') return addDays(mondayOf(today), 7)
+  if (EN_WEEKDAY[lower] !== undefined) {
+    const weekday = EN_WEEKDAY[lower]
+    if (anchor) return dateOnWeek(mondayOf(anchor), weekday)
+    return addDays(today, (weekday - today.getDay() + 7) % 7)
+  }
+  if (text === '주말') {
+    const day = today.getDay()
+    if (day === 0 || day === 6) return today
+    return addDays(today, 6 - day)
+  }
   if (text === '이번 주') return mondayOf(today)
   if (text === '다음 주') return addDays(mondayOf(today), 7)
 
@@ -140,6 +156,16 @@ function clockFromMatch(meridiem: string | undefined, hour: string | undefined, 
 }
 
 export function parseKoreanTime(text: string): { startTime: string | null; endTime: string | null } | null {
+  const english = /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i.exec(text)
+  if (english) {
+    let hour = Number(english[1])
+    const minute = Number(english[2] ?? 0)
+    const pm = english[3].toLowerCase() === 'pm'
+    if (hour === 12) hour = pm ? 12 : 0
+    else if (pm) hour += 12
+    if (hour > 23 || minute > 59) return null
+    return { startTime: formatClock(hour * 60 + minute), endTime: null }
+  }
   const range = TIME_RANGE.exec(text)
   if (range) {
     const firstHalf = range[0].slice(0, range[0].indexOf('부터')).includes('반')
@@ -294,10 +320,12 @@ export function extractRecordFields(text: string, schema: RecordSchema): Record<
   return Object.keys(values).length > 0 ? values : null
 }
 
-function chooseKind(eventScore: number, taskScore: number, hasTime: boolean): ScheduleKind {
+function chooseKind(eventScore: number, taskScore: number, hasTime: boolean, hasDue: boolean, hasParsedDate: boolean): ScheduleKind {
+  if (hasDue || taskScore > eventScore) return 'task'
   if (eventScore > taskScore) return 'event'
-  if (taskScore > eventScore) return 'task'
-  return hasTime ? 'event' : 'task'
+  if (hasTime) return 'event'
+  if (hasParsedDate && taskScore === 0) return 'event'
+  return 'task'
 }
 
 export function parseScheduleText(text: string, context: ParseContext): ParsedSchedule {
@@ -371,15 +399,17 @@ export function parseScheduleText(text: string, context: ParseContext): ParsedSc
   const eventScore = hintedEvent + learned.eventScore
   const taskScore = hintedTask + learned.taskScore
   const hasTime = Boolean(startTime)
-  const type = chooseKind(eventScore, taskScore, hasTime)
+  const type = chooseKind(eventScore, taskScore, hasTime, Boolean(dueDate), Boolean(date))
   const hasDate = Boolean(date || dueDate || endDate)
   const categoryId = learned.categoryId ?? matchCategory(original, context.categories ?? [])
   const resolvedDate = date ?? (dueDate && type === 'task' ? dueDate : null) ?? context.fallbackDate ?? formatISODate(today)
+  let confidence = confidenceFor(eventScore, taskScore, hasDate, hasTime, Boolean(endTime && startTime), learned.personal)
+  if (title && (date || dueDate || taskScore >= 1 || eventScore >= 1)) confidence = Math.max(confidence, 0.8)
 
   const fields = context.recordSchema ? extractRecordFields(original, context.recordSchema) : null
   return {
     type,
-    confidence: confidenceFor(eventScore, taskScore, hasDate, hasTime, Boolean(endTime && startTime), learned.personal),
+    confidence,
     source: learned.personal ? 'personal_rule' : 'rule',
     draft: {
       title: title || (type === 'task' ? '할 일' : '일정'),

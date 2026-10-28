@@ -14,6 +14,7 @@ const TABLES = [
   'device_push_tokens',
   'custom_record_types',
   'custom_records',
+  'user_pages',
   'classification_feedback',
   'user_classification_rules',
 ]

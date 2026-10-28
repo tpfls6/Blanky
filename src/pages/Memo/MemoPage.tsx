@@ -8,11 +8,29 @@ import { CategoryPicker } from '../../components/schedule/CategoryPicker.tsx'
 import { PageCanvas } from '../../features/pages/PageCanvas.tsx'
 import { resolveLayout } from '../../features/pages/layout.ts'
 import { EmptyState } from '../../components/common/EmptyState.tsx'
+import { useConfirm } from '../../state/useConfirm.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { categoryPath } from '../../utils/work.ts'
 
-export function MemoPage({ editing = false }: { editing?: boolean }) {
+export type MemoSource = {
+  heading: string
+  labels: Record<string, string>
+  memos: ReturnType<typeof useLibrary>['memos']
+  canvas?: boolean
+  add: (memo: { title: string; body: string }) => string
+  save: (id: string, patch: { title: string; body: string }) => void
+  remove: (id: string) => void
+}
+
+export function MemoPage({ editing = false, source }: { editing?: boolean; source?: MemoSource }) {
+  const { t } = useI18n()
+  const confirm = useConfirm()
   const library = useLibrary()
+  const memos = source?.memos ?? library.memos
+  const hideFolders = Boolean(source)
+  const heading = source?.heading ?? t('memo.title')
+  const titleLabel = source?.labels.title ?? '제목'
   const [query, setQuery] = useState('')
   const [folder, setFolder] = useState('all')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -24,38 +42,34 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
     setFolder(id)
     setSelectedId(null)
   }
-  const [selectedId, setSelectedId] = useState<string | null>(library.memos[0]?.id ?? null)
-  const selected = library.memos.find((memo) => memo.id === selectedId) ?? null
+  const [selectedId, setSelectedId] = useState<string | null>(memos[0]?.id ?? null)
+  const selected = memos.find((memo) => memo.id === selectedId) ?? null
 
   const visible = useMemo(() => {
     const text = query.trim().toLocaleLowerCase('ko')
     const ids = new Set([activeFolder, ...library.categories.filter(category => category.parentId === activeFolder).map(category => category.id)])
-    return library.memos.filter((memo) => {
+    return memos.filter((memo) => {
+      if (hideFolders) return !text || [memo.title, memoPlainText(memo.body)].join(' ').toLocaleLowerCase('ko').includes(text)
       if (activeFolder === 'none' && memo.categoryId && library.categories.some(category => category.id === memo.categoryId)) return false
       if (activeFolder !== 'all' && activeFolder !== 'none' && !ids.has(memo.categoryId ?? '')) return false
       if (!text) return true
       const path = categoryPath(memo.categoryId, library.categories) ?? ''
       return [memo.title, memoPlainText(memo.body), path].join(' ').toLocaleLowerCase('ko').includes(text)
     })
-  }, [library.categories, library.memos, query, activeFolder])
+  }, [library.categories, memos, query, activeFolder, hideFolders])
 
-  return (
-    <PageCanvas
-      pageId="memo"
-      editing={editing}
-      blocks={resolveLayout('memo', library.pageLayouts.memo)}
-      onChange={(blocks) => library.setPageLayout('memo', blocks)}
-      render={(block) =>
-        block.type === 'page-body' ? (
+  const page = (
     <div className="memo-layout grid w-full gap-8 md:grid-cols-[260px_minmax(0,1fr)]">
       <div className={selected ? 'hidden md:block' : 'block'}>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-medium tracking-tight">Memo</h1>
+          <h1 className="text-2xl font-medium tracking-tight">{heading}</h1>
           <button data-theme-slot="button-primary"
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              const id = library.addMemo({ title: '새 메모', body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' ? null : activeFolder, tags: [] })
+              const id = source
+                ? source.add({ title: t('custom.unnamed'), body: '' })
+                : library.addMemo({ title: '새 메모', body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' ? null : activeFolder, tags: [] })
               setSelectedId(id)
             }}
           >
@@ -69,7 +83,7 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
           placeholder="검색"
           className="field mt-6 w-full"
         />
-        <nav className="memo-folders" aria-label="메모 카테고리 폴더">
+        {hideFolders ? null : <nav className="memo-folders" aria-label="메모 카테고리 폴더">
           {[{ id: 'all', name: '전체 메모' }, { id: 'none', name: '미분류' }].map(item => <button type="button" key={item.id} className="memo-folder" aria-current={activeFolder === item.id ? 'page' : undefined} onClick={() => chooseFolder(item.id)}>
             {activeFolder === item.id ? <FolderOpen size={16} /> : <Folder size={16} />}<span>{item.name}</span><small>{count(item.id)}</small>
           </button>)}
@@ -86,9 +100,9 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
               </button>)}</div> : null}
             </div>
           })}
-        </nav>
-        <p className="memo-list-label">{activeFolder === 'all' ? '전체 메모' : activeFolder === 'none' ? '미분류' : categoryPath(activeFolder, library.categories)} <span>{visible.length}</span></p>
-        {visible.length === 0 ? <EmptyState>메모가 없습니다.</EmptyState> : null}
+        </nav>}
+        <p className="memo-list-label">{hideFolders ? heading : activeFolder === 'all' ? '전체 메모' : activeFolder === 'none' ? '미분류' : categoryPath(activeFolder, library.categories)} <span>{visible.length}</span></p>
+        {visible.length === 0 ? <EmptyState>{t('memo.empty')}</EmptyState> : null}
         <ul className="mt-2">
           {visible.map((memo) => (
             <li key={memo.id} className="group relative border-t border-line">
@@ -107,8 +121,10 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
                   className="icon-btn"
                   data-tip="삭제"
                   aria-label="삭제"
-                  onClick={() => {
-                    library.removeMemo(memo.id)
+                  onClick={async () => {
+                    if (!await confirm(`${memo.title} 메모를 삭제할까요? 휴지통에서 복구할 수 있습니다.`)) return
+                    if (source) source.remove(memo.id)
+                    else library.removeMemo(memo.id)
                     if (selectedId === memo.id) setSelectedId(null)
                   }}
                 >
@@ -124,9 +140,15 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
           <MemoEditor
             key={selected.id}
             id={selected.id}
+            memos={memos}
+            titleLabel={titleLabel}
+            hideCategory={hideFolders}
+            onSave={source ? (id, patch) => source.save(id, patch) : undefined}
             onBack={() => setSelectedId(null)}
-            onDelete={() => {
-              library.removeMemo(selected.id)
+            onDelete={async () => {
+              if (!await confirm(`${selected.title} 메모를 삭제할까요? 휴지통에서 복구할 수 있습니다.`)) return
+              if (source) source.remove(selected.id)
+              else library.removeMemo(selected.id)
               setSelectedId(null)
             }}
           />
@@ -135,15 +157,38 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
         )}
       </div>
     </div>
-        ) : null
-      }
+  )
+  if (hideFolders) return page
+  return (
+    <PageCanvas
+      pageId="memo"
+      editing={editing}
+      blocks={resolveLayout('memo', library.pageLayouts.memo)}
+      onChange={(blocks) => library.setPageLayout('memo', blocks)}
+      render={(block) => (block.type === 'page-body' ? page : null)}
     />
   )
 }
 
-function MemoEditor({ id, onBack, onDelete }: { id: string; onBack: () => void; onDelete: () => void }) {
+function MemoEditor({
+  id,
+  memos: scoped,
+  titleLabel,
+  hideCategory,
+  onSave,
+  onBack,
+  onDelete,
+}: {
+  id: string
+  memos?: ReturnType<typeof useLibrary>['memos']
+  titleLabel?: string
+  hideCategory?: boolean
+  onSave?: (id: string, patch: { title: string; body: string }) => void
+  onBack: () => void
+  onDelete: () => void
+}) {
   const { memos, categories, updateMemo } = useLibrary()
-  const memo = memos.find((item) => item.id === id)
+  const memo = (scoped ?? memos).find((item) => item.id === id)
   const [title, setTitle] = useState(memo?.title ?? '')
   const [body, setBody] = useState(memo?.body ?? '')
   const [categoryId, setCategoryId] = useState<string | null>(memo?.categoryId ?? null)
@@ -183,7 +228,8 @@ function MemoEditor({ id, onBack, onDelete }: { id: string; onBack: () => void; 
       className="memo-editor"
       onSubmit={(event) => {
         event.preventDefault()
-        updateMemo(id, { title, body, categoryId, tags: memo.tags })
+        if (onSave) onSave(id, { title, body })
+        else updateMemo(id, { title, body, categoryId, tags: memo.tags })
         setSaved('저장되었습니다.')
       }}
     >
@@ -191,14 +237,14 @@ function MemoEditor({ id, onBack, onDelete }: { id: string; onBack: () => void; 
         목록
       </button>
       <div className="memo-toolbar">
-        <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} />
+        {hideCategory ? <span className="sr-only">{titleLabel}</span> : <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} />}
         <div className="memo-toolbar-actions">
         <button data-theme-slot="button" type="button" onClick={onDelete} className="btn btn-ghost">삭제</button>
         <button data-theme-slot="button-primary" type="submit" className="btn btn-primary" title="저장 (Ctrl+S)">저장</button>
         </div>
       </div>
       <div className="memo-writing-area">
-        <input data-theme-slot="input" aria-label="메모 제목" value={title} onChange={(event) => { setTitle(event.target.value); setSaved('') }} className="memo-title" />
+        <input data-theme-slot="input" aria-label={titleLabel ?? '메모 제목'} value={title} onChange={(event) => { setTitle(event.target.value); setSaved('') }} className="memo-title" />
         <MemoRichEditor initialBody={memo.body} onChange={value => { setBody(value); setSaved('') }} />
       </div>
       <div className="memo-footer">

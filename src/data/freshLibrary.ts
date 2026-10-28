@@ -68,7 +68,11 @@ export function freshLibrary(): LibraryData {
     logs,
     recordTypes: [],
     records: [],
+    trash: [],
     settings: { ...DEFAULT_SETTINGS, nav: DEFAULT_SETTINGS.nav.map((item) => ({ ...item })), savedAccents: [] },
     pageLayouts: {},
+    pageGaps: {},
+    customPages: [],
+    pageTemplates: [],
   }
 }

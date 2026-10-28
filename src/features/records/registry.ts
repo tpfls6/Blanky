@@ -8,16 +8,20 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Image,
   Lightbulb,
+  Link,
   List,
   ListChecks,
   Minus,
   Quote,
   Space,
+  Star,
   Tags,
   TextCursorInput,
   Type,
   Hash,
+  Gauge,
   type LucideIcon,
 } from 'lucide-react'
 import { SWATCHES } from '../../constants/swatches.ts'
@@ -86,6 +90,16 @@ function defaultProps(type: BlockType): BlockProps {
       return { label: '선택', required: false, options: [option('옵션', 0)] }
     case 'multiSelect':
       return { label: '다중 선택', required: false, options: [option('옵션', 0)] }
+    case 'url':
+      return { label: 'URL', placeholder: 'https://', required: false, width: 'full' }
+    case 'image':
+      return { label: '이미지', placeholder: 'https://', required: false, width: 'full' }
+    case 'rating':
+      return { label: '별점', required: false, min: 1, max: 5 }
+    case 'progress':
+      return { label: '진행률', required: false, min: 0, max: 100, unit: '%' }
+    case 'tags':
+      return { label: '태그', required: false }
     default:
       return {}
   }
@@ -123,7 +137,12 @@ export const INSERT_MENU: readonly InsertItem[] = [
   item('날짜와 시간', 'fields', ['datetime', 'date time'], CalendarClock, true, () => createBlock('dateTime')),
   item('체크박스', 'fields', ['checkbox', 'check'], CheckSquare, true, () => createBlock('checkbox')),
   item('선택', 'fields', ['select'], List, true, () => createBlock('select')),
-  item('다중 선택', 'fields', ['multi', 'multiselect', 'tags'], Tags, true, () => createBlock('multiSelect')),
+  item('다중 선택', 'fields', ['multi', 'multiselect'], Tags, true, () => createBlock('multiSelect')),
+  item('URL', 'fields', ['url', 'link', 'http'], Link, true, () => createBlock('url')),
+  item('이미지', 'fields', ['image', 'img', 'photo'], Image, true, () => createBlock('image')),
+  item('별점', 'fields', ['rating', 'star'], Star, true, () => createBlock('rating')),
+  item('진행률', 'fields', ['progress', 'percent'], Gauge, true, () => createBlock('progress')),
+  item('태그', 'fields', ['tag', 'tags'], Tags, true, () => createBlock('tags')),
   item('콜아웃', 'layout', ['callout'], Lightbulb, true, () => createBlock('callout')),
   item('여백', 'layout', ['spacer', 'space'], Space, true, () => createBlock('spacer')),
 ]

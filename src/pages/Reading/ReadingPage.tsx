@@ -6,6 +6,7 @@ import type { ReadingRepository } from '@blanky/api';
 import { readingService, importLegacyReading } from '../../services/reading/index.ts';
 import { isSupabaseConfigured } from '../../services/supabase/client.ts';
 import { useSession } from '../../state/useSession.ts';
+import { useI18n } from '../../i18n/useI18n.ts';
 import { useLibrary } from '../../state/useLibrary.ts';
 import { PageCanvas } from '../../features/pages/PageCanvas.tsx';
 import { resolveLayout } from '../../features/pages/layout.ts';
@@ -60,6 +61,7 @@ function ReadingWorkspace({ userId, legacyBooks, legacyLogs }: {
     legacyBooks: ReturnType<typeof useLibrary>['books'];
     legacyLogs: ReturnType<typeof useLibrary>['logs'];
 }) {
+    const { t } = useI18n();
     const repo = useMemo(() => readingService(userId), [userId]);
     const { bookId } = useParams();
     const navigate = useNavigate();
@@ -105,7 +107,7 @@ function ReadingWorkspace({ userId, legacyBooks, legacyLogs }: {
     const filtered = data.books.filter(b => (filter === 'all' || (filter in READING_STATUS ? b.reading_status === filter : data.memberships.some(m => m.shelf_id === filter && m.user_book_id === b.id))) && (status === 'all' || b.reading_status === status) && matchesCategory(b, category) && (b.book.title + ' ' + b.book.author).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
     const current = data.books.find(b => b.id === bookId);
     return <ReadingErrorContext.Provider value={error}><div className="reading-page" data-theme-slot="reading-page">
- <header className="reading-heading"><div><h1>Reading</h1><p>읽고, 기억하고, 나만의 책장에 담아요.</p></div><button className="btn btn-primary" onClick={() => setSearch(true)}>+ 책 추가 · 검색</button></header>
+ <header className="reading-heading"><div><h1>{t('reading.title')}</h1><p>읽고, 기억하고, 나만의 책장에 담아요.</p></div><button className="btn btn-primary" onClick={() => setSearch(true)}>+ 책 추가 · 검색</button></header>
  {!isSupabaseConfigured ? <p className="reading-muted">로컬 모드 · 이 브라우저에 저장됩니다.</p> : null}
  {error ? <div role="alert" className="reading-error">{error}<button className="btn btn-ghost" disabled={busy} onClick={() => void act(() => importLegacyReading(userId, legacyBooks, legacyLogs))}>다시 시도</button></div> : null}
  {loading ? <p role="status">서재를 불러오고 있어요…</p> : <div className="reading-layout">

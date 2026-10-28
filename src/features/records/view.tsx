@@ -435,6 +435,138 @@ export function BlockBody({ ctx }: { ctx: BlockContext }) {
     )
   }
 
+  if (block.type === 'url' || block.type === 'image') {
+    const text = labelOf(props, block.type === 'url' ? 'URL' : '이미지')
+    const href = plain(ctx.value)
+    if (editing) return shell(half, <Mock label={text} required={props.required} hint={props.placeholder || 'https://'} />)
+    if (mode === 'read-only') {
+      if (block.type === 'image' && href) {
+        return (
+          <div>
+            <FieldLabel text={text} />
+            <img src={href} alt="" className="mt-1 max-h-48 rounded-md object-cover" />
+          </div>
+        )
+      }
+      return (
+        <div>
+          <FieldLabel text={text} />
+          <p className="mt-1 text-sm break-all">{href || '—'}</p>
+        </div>
+      )
+    }
+    return shell(
+      half,
+      <label className="block">
+        <FieldLabel text={text} required={props.required} />
+        <input
+          type="url"
+          value={href}
+          placeholder={props.placeholder || 'https://'}
+          onChange={(event) => ctx.setValue(event.target.value)}
+          className="field mt-1 w-full"
+        />
+        {block.type === 'image' && href ? <img src={href} alt="" className="mt-2 max-h-40 rounded-md object-cover" /> : null}
+      </label>,
+    )
+  }
+
+  if (block.type === 'rating') {
+    const text = labelOf(props, '별점')
+    const current = typeof ctx.value === 'number' ? ctx.value : 0
+    if (editing) return <FieldLabel text={text} required={props.required} />
+    return (
+      <div>
+        <FieldLabel text={text} required={props.required} />
+        <div className="mt-1 flex gap-1">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              disabled={mode === 'read-only'}
+              aria-label={`${star}점`}
+              aria-pressed={current >= star}
+              onClick={() => ctx.setValue(current === star ? '' : star)}
+              className={current >= star ? 'text-sm text-neutral-800' : 'text-sm text-neutral-300'}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (block.type === 'progress') {
+    const text = labelOf(props, '진행률')
+    const current = typeof ctx.value === 'number' ? ctx.value : 0
+    if (editing) return <Mock label={text} required={props.required} hint="0–100" />
+    if (mode === 'read-only') {
+      return (
+        <div>
+          <FieldLabel text={text} />
+          <p className="mt-1 text-sm">{typeof ctx.value === 'number' ? `${current}%` : '—'}</p>
+        </div>
+      )
+    }
+    return (
+      <label className="block">
+        <FieldLabel text={text} required={props.required} />
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={current}
+          onChange={(event) => ctx.setValue(Number(event.target.value))}
+          className="mt-1 w-full"
+        />
+        <span className="text-xs text-neutral-400">{current}%</span>
+      </label>
+    )
+  }
+
+  if (block.type === 'tags') {
+    const text = labelOf(props, '태그')
+    const picked = Array.isArray(ctx.value) ? ctx.value.filter((item): item is string => typeof item === 'string') : []
+    if (editing) return <FieldLabel text={text} required={props.required} />
+    if (mode === 'read-only') {
+      return (
+        <div>
+          <FieldLabel text={text} />
+          <div className="mt-1 flex flex-wrap gap-1">{picked.length === 0 ? <span className="text-neutral-300">—</span> : picked.map((tag) => <span key={tag} className="chip">{tag}</span>)}</div>
+        </div>
+      )
+    }
+    return (
+      <fieldset>
+        <legend className="text-xs text-neutral-500">
+          {text}
+          {props.required ? ' *' : ''}
+        </legend>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {picked.map((tag) => (
+            <button key={tag} type="button" className="chip chip-on" onClick={() => ctx.setValue(picked.filter((item) => item !== tag))}>
+              {tag}
+            </button>
+          ))}
+        </div>
+        <input
+          aria-label={text}
+          placeholder="태그 입력 후 Enter"
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') return
+            event.preventDefault()
+            const next = event.currentTarget.value.trim()
+            if (!next || picked.includes(next)) return
+            ctx.setValue([...picked, next])
+            event.currentTarget.value = ''
+          }}
+          className="field mt-1 w-full"
+        />
+      </fieldset>
+    )
+  }
+
   return null
 }
 

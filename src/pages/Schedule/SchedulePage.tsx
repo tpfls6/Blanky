@@ -16,11 +16,14 @@ import { AnalysisReview } from '../../components/schedule/AnalysisReview.tsx'
 import { RepeatPicker } from '../../components/schedule/RepeatPicker.tsx'
 import type { ScheduleAnalysis } from '@blanky/types'
 import { taskNavKey } from '../../state/storage.ts'
+import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
 import type { TimelineDensity } from '../../types/records.ts'
 import type { WorkItem, WorkspaceCategory } from '../../types/work.ts'
-import { koreanLongDate, shiftISO, todayISO } from '../../utils/date.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
+import { formatDisplayDate } from '../../i18n/format.ts'
+import { shiftISO, todayISO } from '../../utils/date.ts'
 import { selfCheckScheduleDraft, type ScheduleDraft } from '../../utils/scheduleDraft.ts'
 import { categoryPath, createWorkItem, hourOf, occursOn, placedTimes } from '../../utils/work.ts'
 import { timelineRange } from '../../utils/scheduleTimeline.ts'
@@ -94,6 +97,8 @@ function byTime(left: WorkItem, right: WorkItem): number {
 }
 
 export function DailyBoard({ editing = false }: { editing?: boolean }) {
+  const { t, locale } = useI18n()
+  const confirm = useConfirm()
   const library = useLibrary()
   const { user } = useSession()
   const userId = user?.id ?? 'guest'
@@ -236,10 +241,10 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
     if (block.type === 'date-header') {
       return (
         <div className="flex min-w-0 items-baseline gap-2">
-          <h1 className="truncate text-base font-medium tracking-tight">{koreanLongDate(selected)}</h1>
+          <h1 className="truncate text-base font-medium tracking-tight">{formatDisplayDate(locale, selected)}</h1>
           {selected !== today ? (
             <button data-theme-slot="button" type="button" onClick={() => setSelected(today)} className="shrink-0 text-sm text-accent-text">
-              오늘
+              {t('today')}
             </button>
           ) : null}
         </div>
@@ -308,7 +313,8 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
                     onCancel={() => setDraft(null)}
                     onDelete={
                       draft.id
-                        ? () => {
+                        ? async () => {
+                            if (!await confirm(`${draft.title || '이 항목'}을 삭제할까요? 휴지통에서 복구할 수 있습니다.`)) return
                             library.removeItem(draft.id as string)
                             setDraft(null)
                           }
@@ -416,13 +422,14 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
 }
 
 export function SchedulePage() {
+  const { t } = useI18n()
   const library=useLibrary(),{conflicts,error}=usePlannerConflicts(library.items)
-  return <div className="flex min-h-0 flex-1 flex-col">{(conflicts.length>0||error)&&<div role="status" className="mx-6 mt-4 rounded-md border border-line bg-surface p-3 text-sm text-blue-600">{error||('AI 일정 '+conflicts.length+'개가 다른 일정과 겹쳐요. 직접 만든 일정은 유지됩니다.')}<Link className="ml-2 underline" to="/">Home에서 재배치 확인</Link></div>}<DailyBoard /></div>
+  return <div className="flex min-h-0 flex-1 flex-col">{(conflicts.length>0||error)&&<div role="status" className="mx-6 mt-4 rounded-md border border-line bg-surface p-3 text-sm text-blue-600">{error||t('schedule.conflicts', { count: conflicts.length })}<Link className="ml-2 underline" to="/">{t('schedule.replanHome')}</Link></div>}<DailyBoard /></div>
 }
 
 function reviewLine(draft: ScheduleDraft, categories: WorkspaceCategory[]): string {
   const kind = draft.kind === 'event' ? '일정' : '할 일'
-  const time = draft.startTime ? (draft.endTime ? `${draft.startTime}–${draft.endTime}` : draft.startTime) : '시간 없음'
+  const time = draft.startTime ? (draft.endTime ? `${draft.startTime}–${draft.endTime}` : draft.startTime) : draft.kind === 'event' ? '종일' : '시간 없음'
   const project = categories.find((category) => category.id === draft.categoryId)?.name ?? '미분류'
   return `${kind} · ${time} · ${project} · ${draft.title || '제목 없음'}`
 }
@@ -675,6 +682,7 @@ function TaskFolders({
   onToggle: (id: string) => void
   onAssign: (item: WorkItem) => void
 }) {
+  const { t } = useI18n()
   const areas = categories.filter((category) => category.parentId === null)
   const options = [{ id: 'all', name: '전체' }, ...areas]
   const many = areas.length > 5
@@ -730,9 +738,9 @@ function TaskFolders({
         </div>
       )}
       {tasks.length === 0 ? (
-        <EmptyState>할 일이 없습니다.</EmptyState>
+        <EmptyState>{t('schedule.emptyTasks')}</EmptyState>
       ) : groups.length === 0 ? (
-        <EmptyState>이 범위의 할 일이 없습니다.</EmptyState>
+        <EmptyState>{t('schedule.emptyRange')}</EmptyState>
       ) : (
         <div className="mt-4 space-y-5">
           {groups.map((group) => {
@@ -890,14 +898,27 @@ function DraftEditor({
             <input data-theme-slot="input" type="date" value={draft.endDate} onChange={(event) => set({ endDate: event.target.value })} className="field mt-1 w-full" />
           </label>
         )}
-        <label className="text-xs text-neutral-500">
-          {task ? '시간' : '시작'}
-          <input data-theme-slot="input" type="time" value={draft.startTime} onChange={(event) => set({ startTime: event.target.value })} className="field mt-1 w-full" />
-        </label>
-        <label className="text-xs text-neutral-500">
-          {task ? '종료 시간' : '종료'}
-          <input data-theme-slot="input" type="time" value={draft.endTime} onChange={(event) => set({ endTime: event.target.value })} className="field mt-1 w-full" />
-        </label>
+        {!task ? (
+          <div className="sm:col-span-2 text-xs text-neutral-500">
+            시간
+            <div className="mt-1 grid grid-cols-2 gap-2" role="radiogroup" aria-label="시간">
+              <button data-theme-slot="button" type="button" role="radio" className={draft.startTime ? 'field choice-on text-center' : 'field text-center text-neutral-400'} aria-checked={Boolean(draft.startTime)} onClick={() => { if (!draft.startTime) set({ startTime: '09:00', endTime: '10:00' }) }}>시각</button>
+              <button data-theme-slot="button" type="button" role="radio" className={!draft.startTime ? 'field choice-on text-center' : 'field text-center text-neutral-400'} aria-checked={!draft.startTime} onClick={() => set({ startTime: '', endTime: '' })}>종일</button>
+            </div>
+          </div>
+        ) : null}
+        {task || draft.startTime ? (
+          <>
+            <label className="text-xs text-neutral-500">
+              {task ? '시간' : '시작'}
+              <input data-theme-slot="input" type="time" value={draft.startTime} onChange={(event) => set({ startTime: event.target.value })} className="field mt-1 w-full" />
+            </label>
+            <label className="text-xs text-neutral-500">
+              {task ? '종료 시간' : '종료'}
+              <input data-theme-slot="input" type="time" value={draft.endTime} onChange={(event) => set({ endTime: event.target.value })} className="field mt-1 w-full" />
+            </label>
+          </>
+        ) : null}
         {task ? (
           <label className="text-xs text-neutral-500">
             예상 소요 (분)

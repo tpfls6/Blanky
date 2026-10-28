@@ -1,0 +1,6 @@
+command: npx supabase test db
+started: 2026-10-27T04:21:00Z
+exit: 1
+error: LegacyDbConnectError failed to connect to 127.0.0.1:54322
+suggestion: Make sure Docker is running, then run: supabase start
+verdict: NOT RUN. Policy files were updated (read/update/delete checks) but the database was not up.

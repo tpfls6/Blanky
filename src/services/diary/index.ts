@@ -31,20 +31,24 @@ export async function deleteDiaryRecord(userId: string, id: string): Promise<voi
   if (isSupabaseConfigured) await (await repository(userId)).deleteDiaryRecord(id)
 }
 // Keep pending edits through refresh/navigation, independently of acknowledged server saves.
-const draftKey = (userId: string) => 'blanky.diary.draft.' + userId
-export function readDiaryDraft(userId: string): DiaryEntry | null {
+const draftKey = (userId: string, pageKey = 'builtin') => 'blanky.diary.draft.' + userId + '.' + pageKey
+const legacyDraftKey = (userId: string) => 'blanky.diary.draft.' + userId
+export function readDiaryDraft(userId: string, pageKey = 'builtin'): DiaryEntry | null {
   try {
-    const entry = JSON.parse(localStorage.getItem(draftKey(userId)) ?? 'null') as DiaryEntry | null
+    const raw = localStorage.getItem(draftKey(userId, pageKey)) ?? (pageKey === 'builtin' ? localStorage.getItem(legacyDraftKey(userId)) : null)
+    const entry = JSON.parse(raw ?? 'null') as DiaryEntry | null
     return entry && typeof entry.id === 'string' && typeof entry.body === 'string' && typeof entry.date === 'string' && Array.isArray(entry.tags) ? entry : null
   } catch { return null }
 }
-export function storeDiaryDraft(userId: string, entry: DiaryEntry | null) {
-  if (entry) localStorage.setItem(draftKey(userId), JSON.stringify(entry))
-  else localStorage.removeItem(draftKey(userId))
+export function storeDiaryDraft(userId: string, entry: DiaryEntry | null, pageKey = 'builtin') {
+  if (entry) localStorage.setItem(draftKey(userId, pageKey), JSON.stringify(entry))
+  else {
+    localStorage.removeItem(draftKey(userId, pageKey))
+    if (pageKey === 'builtin') localStorage.removeItem(legacyDraftKey(userId))
+  }
 }
 
-export function clearSavedDiaryDraft(userId: string, savedDraft: DiaryEntry) {
-  const stored = readDiaryDraft(userId)
-  // A previous page instance must not clear edits made after returning to the page.
-  if (stored && JSON.stringify(stored) === JSON.stringify(savedDraft)) storeDiaryDraft(userId, null)
+export function clearSavedDiaryDraft(userId: string, savedDraft: DiaryEntry, pageKey = 'builtin') {
+  const stored = readDiaryDraft(userId, pageKey)
+  if (stored && JSON.stringify(stored) === JSON.stringify(savedDraft)) storeDiaryDraft(userId, null, pageKey)
 }

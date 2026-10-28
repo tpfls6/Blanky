@@ -1,0 +1,10 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T05:45:00Z	how	commitWork loop is the non-atomic apply path	applyAgentPlan awaited one delete per action	src/pages/Home/HomePage.tsx	open
+2026-10-27T05:46:00Z	shape	ScheduleBatchRequest key+deletes -> applied|unchanged + google idle|pending|failed	one RPC result for Home copy	packages/api/src/scheduleBatch.ts	open
+2026-10-27T05:47:00Z	choose	security definer apply_schedule_batch over a client loop	PG can roll back, Google cannot share the txn	supabase/migrations/20261027170000_apply_schedule_batch.sql	open
+2026-10-27T05:48:00Z	google	refuse calendar_sync/external/google-origin; enqueue blanky-origin delete_google	local delete and Google delete stay separate	supabase/tests/apply_schedule_batch.sql	SQL verified
+2026-10-27T05:50:00Z	unit	parse, copy, idempotency key, dedupe preview	node --test scheduleBatch/batch/agent	npm run test:home-batch	VERIFIED
+2026-10-27T05:52:00Z	home	clicked 실행 on local Home with 2+2 seed	scripts/home-batch-browser-test.mjs	.audit/runs/nl-agent-batch/result.json	VERIFIED local
+2026-10-27T05:54:00Z	sql	21 pgTAP tests including rollback, RLS, replay, google pending	supabase test db apply_schedule_batch.sql	.audit/runs/nl-agent-batch/sql.txt	VERIFIED
+2026-10-27T05:55:00Z	rls	existing owner suite still passes	supabase test db rls_owner.sql	.audit/runs/nl-agent-batch/rls-owner.txt	VERIFIED
+2026-10-27T05:56:00Z	skip	Home against live Supabase and live Google API	browser test cleared VITE_SUPABASE; retry does not call Google	scripts/home-batch-browser-test.mjs	NOT VERIFIED

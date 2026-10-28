@@ -1,0 +1,18 @@
+{
+  "surface": "home-local",
+  "clickedExecute": true,
+  "batch": {
+    "status": "applied",
+    "deletedIds": [
+      "work-2",
+      "class-2"
+    ],
+    "google": "idle"
+  },
+  "leftover": [
+    "근로",
+    "수업"
+  ],
+  "rollback": "일정 변경에 실패하여 기존 일정이 유지되었습니다.",
+  "supabase": "not-configured"
+}

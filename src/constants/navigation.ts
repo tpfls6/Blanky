@@ -1,6 +1,5 @@
-import { Store, Palette, History, BookOpen, CalendarDays, House, Library, Settings, SlidersHorizontal, StickyNote } from 'lucide-react'
+import { Store, Palette, History, BookOpen, CalendarDays, House, Library, Settings, SlidersHorizontal, StickyNote, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { iconByName } from './icons.ts'
 import { ROUTES } from './routes.ts'
 import type { CustomRecordType, NavPref } from '../types/records.ts'
 
@@ -36,31 +35,34 @@ export const SETTINGS_NAV: NavItem = {
   icon: Settings,
 }
 
-export function navLabel(id: string, recordTypes: readonly CustomRecordType[]): string {
-  return BUILTIN.find((item) => item.id === id)?.label ?? recordTypes.find((item) => item.id === id)?.name ?? id
+export const TRASH_NAV: NavItem = {
+  id: 'trash',
+  label: '휴지통',
+  to: ROUTES.trash,
+  icon: Trash2,
 }
 
-export function visibleNav(nav: readonly NavPref[], recordTypes: readonly CustomRecordType[]): NavItem[] {
+const CHROME_IDS = new Set(['home', 'activity', 'schedule', 'diary', 'reading', 'memo', 'custom', 'settings', 'trash', 'store', 'themes'])
+
+export function chromeNavLabel(id: string, translate: (key: string) => string, fallback: string): string {
+  return CHROME_IDS.has(id) ? translate(`nav.${id}`) : fallback
+}
+
+export function navLabel(id: string, recordTypes: readonly CustomRecordType[], translate?: (key: string) => string): string {
+  const fallback = BUILTIN.find((item) => item.id === id)?.label ?? recordTypes.find((item) => item.id === id)?.name ?? id
+  return translate ? chromeNavLabel(id, translate, fallback) : fallback
+}
+
+export function visibleNav(nav: readonly NavPref[]): NavItem[] {
   return nav.flatMap((pref) => {
     if (!pref.visible) return []
     const builtin = BUILTIN.find((item) => item.id === pref.id)
-    if (builtin) return [builtin]
-    const record = recordTypes.find((item) => item.id === pref.id)
-    if (!record) return []
-    return [
-      {
-        id: record.id,
-        label: record.name,
-        to: ROUTES.record(record.id),
-        icon: iconByName(record.icon),
-        color: record.color,
-      },
-    ]
+    return builtin ? [builtin] : []
   })
 }
 
 export function isRecordNav(id: string): boolean {
-  return id !== 'home' && id !== 'schedule' && id !== 'diary' && id !== 'reading' && id !== 'memo' && id !== 'settings' && id !== 'custom'
+  return id === 'activity'
 }
 
 export const STORE_NAV: NavItem = {id:'store',label:'Store',to:'/store',icon:Store}

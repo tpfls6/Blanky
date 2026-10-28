@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { readGoogleOAuthEnv } from '../../../packages/api/src/calendarSync/env.ts'
 import { CALENDAR_HEADERS, calendarReply } from '../../../packages/api/src/calendarSync/http.ts'
-import { exchangeCode, hashOAuthState } from '../../../packages/api/src/calendarSync/oauth.ts'
+import { exchangeCode, GOOGLE_CALENDAR_SETTINGS_PATH, hashOAuthState } from '../../../packages/api/src/calendarSync/oauth.ts'
 import { loadConnectionByStateHash, saveConnected } from '../../../packages/api/src/calendarSync/store.ts'
 import { asGoogleSub, asUserId } from '../../../packages/types/src/calendarSync.ts'
 
@@ -24,7 +24,7 @@ Deno.serve(async (request) => {
   const admin = createClient(env.url, env.service, { auth: { persistSession: false } })
   const connection = state ? await loadConnectionByStateHash(admin, await hashOAuthState(state)) : null
   const origin = connection && connection.status === 'awaiting_consent' ? connection.origin : env.url
-  const home = `${origin.replace(/\/$/, '')}/settings/schedule`
+  const home = `${origin.replace(/\/$/, '')}${GOOGLE_CALENDAR_SETTINGS_PATH}`
   if (incoming.searchParams.get('error') || !code || !connection || connection.status !== 'awaiting_consent') {
     return Response.redirect(home, 302)
   }

@@ -1,8 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
+import { applyDocumentLocale, guestOrBrowserLocale } from './i18n/storage.ts'
 import { isSupabaseConfigured } from './services/supabase/client.ts'
 import './styles/index.css'
+
+applyDocumentLocale(guestOrBrowserLocale())
 
 const rootElement = document.getElementById('root')
 

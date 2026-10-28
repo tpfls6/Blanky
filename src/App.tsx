@@ -15,29 +15,42 @@ const ReadingPage = lazy(()=>import('./pages/Reading/ReadingPage.tsx').then(modu
 const RecordPage = lazy(()=>import('./pages/Records/RecordPage.tsx').then(module=>({default:module.RecordPage})))
 const SchedulePage = lazy(()=>import('./pages/Schedule/SchedulePage.tsx').then(module=>({default:module.SchedulePage})))
 const CustomPage = lazy(()=>import('./pages/Custom/CustomPage.tsx').then(module=>({default:module.CustomPage})))
+const UserPage = lazy(()=>import('./pages/Pages/UserPage.tsx').then(module=>({default:module.UserPage})))
+const TrashPage = lazy(()=>import('./pages/Trash/TrashPage.tsx').then(module=>({default:module.TrashPage})))
 const SettingsPage = lazy(()=>import('./pages/Settings/SettingsPage.tsx').then(module=>({default:module.SettingsPage})))
 import { ThemeProvider } from './theme/ThemeProvider.tsx'
 const StorePage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.StorePage})))
 const ThemeDetailPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.ThemeDetailPage})))
+const TemplateDetailPage=lazy(()=>import('./pages/Store/TemplateStore.tsx').then(module=>({default:module.TemplateDetailPage})))
+const TemplateLibraryPage=lazy(()=>import('./pages/Store/TemplateStore.tsx').then(module=>({default:module.TemplateLibraryPage})))
+const PublishTemplatePage=lazy(()=>import('./pages/Store/TemplateStore.tsx').then(module=>({default:module.PublishTemplatePage})))
 const MyThemesPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.MyThemesPage})))
 const ThemeEditorPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.ThemeEditorPage})))
 const CreatorPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.CreatorPage})))
 import { LibraryProvider } from './state/library.tsx'
 import { SessionProvider } from './state/session.tsx'
+import { useI18n } from './i18n/useI18n.ts'
 import { useSession } from './state/useSession.ts'
 
 function RequireAuth() {
   const { user, loading } = useSession()
-  if (loading) return <p role="status" className="p-6 text-sm text-neutral-500">로그인을 확인하고 있어요…</p>
+  const { t } = useI18n()
+  if (loading) return <p role="status" className="p-6 text-sm text-neutral-500">{t('checkingLogin')}</p>
   if (!user) return <Navigate to={ROUTES.login} replace />
   return <Outlet />
 }
 
 function GuestOnly() {
   const { user, loading } = useSession()
-  if (loading) return <p role="status" className="p-6 text-sm text-neutral-500">로그인을 확인하고 있어요…</p>
+  const { t } = useI18n()
+  if (loading) return <p role="status" className="p-6 text-sm text-neutral-500">{t('checkingLogin')}</p>
   if (user) return <Navigate to={ROUTES.home} replace />
   return <Outlet />
+}
+
+function AppLoading() {
+  const { t } = useI18n()
+  return <p role="status" className="p-6 text-sm text-neutral-500">{t('loading')}</p>
 }
 
 function AppRoutes() {
@@ -58,9 +71,14 @@ function AppRoutes() {
           <Route path="/reading/:bookId" element={<ReadingPage />} />
           <Route path={ROUTES.memo} element={<MemoPage />} />
           <Route path={ROUTES.custom} element={<CustomPage />} />
-          <Route path={ROUTES.settings} element={<Navigate to="/settings/account" replace />} />
+          <Route path="/pages/:pageId" element={<UserPage />} />
+          <Route path={ROUTES.trash} element={<TrashPage />} />
+          <Route path={ROUTES.settings} element={<Navigate to="/settings/general" replace />} />
           <Route path="/store" element={<StorePage />} />
           <Route path="/store/themes/:themeId" element={<ThemeDetailPage />} />
+          <Route path="/store/templates/library" element={<TemplateLibraryPage />} />
+          <Route path="/store/templates/publish" element={<PublishTemplatePage />} />
+          <Route path="/store/templates/:templateId" element={<TemplateDetailPage />} />
           <Route path="/settings/themes" element={<MyThemesPage />} />
           <Route path="/customize/theme" element={<ThemeEditorPage />} />
           <Route path="/creator/:userId" element={<CreatorPage />} />
@@ -78,7 +96,7 @@ export default function App() {
     <BrowserRouter>
       <SessionProvider>
         <LibraryProvider>
-          <ThemeProvider><ConfirmProvider><RouteLoadBoundary><Suspense fallback={<p role="status" className="p-6 text-sm text-neutral-500">화면을 불러오고 있어요…</p>}><AppRoutes /></Suspense></RouteLoadBoundary></ConfirmProvider></ThemeProvider>
+          <ThemeProvider><ConfirmProvider><RouteLoadBoundary><Suspense fallback={<AppLoading />}><AppRoutes /></Suspense></RouteLoadBoundary></ConfirmProvider></ThemeProvider>
         </LibraryProvider>
       </SessionProvider>
     </BrowserRouter>

@@ -159,6 +159,8 @@ export async function loadConnectionByStateHash(admin: DbClient, hash: string): 
 }
 
 export async function saveAwaitingConsent(admin: DbClient, input: { userId: UserId; hash: string; origin: string; id?: ConnectionId }): Promise<void> {
+  // Old links would look like missing local rows on the next bind and delete Google events.
+  if (input.id) await wipeLinks(admin, input.id)
   const row = {
     id: input.id,
     user_id: input.userId,
@@ -275,7 +277,21 @@ function whenFromSchedule(row: { allDay?: boolean; date: string; startTime: stri
   }
 }
 
-export function snapshotRowFromSchedule(row: ReturnType<typeof mapScheduleRow>): SnapshotRow {
+async function categoryColors(admin: DbClient, userId: UserId): Promise<Map<string, string | null>> {
+  const rows = await one(query(admin, 'categories').select('id, color').eq('user_id', userId))
+  const colors = new Map<string, string | null>()
+  for (const value of Array.isArray(rows) ? rows : []) {
+    const row = record(value)
+    const id = text(row.id)
+    if (id) colors.set(id, text(row.color) || null)
+  }
+  return colors
+}
+
+export function snapshotRowFromSchedule(
+  row: ReturnType<typeof mapScheduleRow>,
+  colors: ReadonlyMap<string, string | null> = new Map(),
+): SnapshotRow {
   return {
     scheduleId: asScheduleId(row.id),
     updatedAt: asIsoDateTime(row.updatedAt),
@@ -283,15 +299,18 @@ export function snapshotRowFromSchedule(row: ReturnType<typeof mapScheduleRow>):
     description: row.description,
     when: whenFromSchedule(row),
     recurrence: parseRecurrenceFromSchedule(row),
+    categoryId: row.categoryId,
+    color: row.categoryId ? colors.get(row.categoryId) ?? null : null,
   }
 }
 
 export async function loadSnapshot(admin: DbClient, connection: ReadyConnection): Promise<BlankySnapshot> {
   const schedules = await one(query(admin, 'schedules').select('*').eq('calendar_id', connection.calendar.blankyCalendarId))
   const links = await one(query(admin, 'google_calendar_event_links').select('*').eq('connection_id', connection.id))
+  const colors = await categoryColors(admin, connection.userId)
   return {
     calendarId: connection.calendar.blankyCalendarId,
-    rows: (Array.isArray(schedules) ? schedules : []).map((row) => snapshotRowFromSchedule(mapScheduleRow(row))),
+    rows: (Array.isArray(schedules) ? schedules : []).map((row) => snapshotRowFromSchedule(mapScheduleRow(row), colors)),
     links: (Array.isArray(links) ? links : []).map((value) => {
       const row = record(value)
       return {
@@ -334,6 +353,7 @@ export async function upsertSchedule(admin: DbClient, input: {
     kind: 'event',
     priority: 'medium',
     status: 'todo',
+    category_id: input.draft.categoryId,
   }).select('id, updated_at').single())
   const row = record(data)
   return { scheduleId: asScheduleId(row.id), updatedAt: asIsoDateTime(row.updated_at) }
@@ -394,12 +414,13 @@ export async function clonePersonalOntoBoundCalendar(admin: DbClient, input: {
   boundCalendarId: CalendarId
 }): Promise<void> {
   const rows = await one(query(admin, 'schedules').select('*').eq('calendar_id', input.personalCalendarId).eq('user_id', input.userId))
+  const colors = await categoryColors(admin, input.userId)
   for (const value of Array.isArray(rows) ? rows : []) {
     const row = mapScheduleRow(value)
     await upsertSchedule(admin, {
       userId: input.userId,
       calendarId: input.boundCalendarId,
-      draft: snapshotRowFromSchedule(row),
+      draft: snapshotRowFromSchedule(row, colors),
     })
   }
 }

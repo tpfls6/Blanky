@@ -70,6 +70,7 @@ export function parseGoogleEvent(value: unknown, calendarTimeZone: string): Goog
   if (event.status === 'cancelled') return { id, etag, status: 'cancelled' }
   const privateProps = record(record(event.extendedProperties).private)
   const blanky = text(privateProps.blankyScheduleId)
+  const colorId = text(event.colorId)
   return {
     id,
     etag,
@@ -80,6 +81,7 @@ export function parseGoogleEvent(value: unknown, calendarTimeZone: string): Goog
     recurrence: parseGoogleRecurrence(Array.isArray(event.recurrence) ? event.recurrence.map(String) : []),
     updated: asIsoDateTime(text(event.updated) || new Date().toISOString()),
     blankyScheduleId: blanky ? asScheduleId(blanky) : null,
+    colorId: /^([1-9]|1[01])$/.test(colorId) ? colorId : null,
   }
 }
 

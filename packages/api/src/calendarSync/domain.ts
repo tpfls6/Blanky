@@ -72,6 +72,8 @@ export type SnapshotRow = {
   description: string
   when: PeerWhen
   recurrence: Recurrence
+  categoryId: string | null
+  color: string | null
 }
 
 export type BlankySnapshot = {
@@ -93,6 +95,7 @@ export type GooglePeerEvent =
       recurrence: Recurrence | UnsupportedRecurrence
       updated: IsoDateTime
       blankyScheduleId: ScheduleId | null
+      colorId: string | null
     }
   | { id: GoogleEventId; etag: Etag; status: 'cancelled' }
 
@@ -112,6 +115,7 @@ export type GoogleEventWrite = {
   when: PeerWhen
   recurrence: Recurrence
   blankyScheduleId: ScheduleId
+  colorId: string | null
 }
 
 export type ConflictNote = {

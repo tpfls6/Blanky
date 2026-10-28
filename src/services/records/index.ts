@@ -45,6 +45,11 @@ export async function getCustomRecords(typeId: string): Promise<CustomRecord[]> 
   return records.getCustomRecords(typeId)
 }
 
+export async function getAllCustomRecords(): Promise<CustomRecord[]> {
+  const { records } = await repository()
+  return records.getAllCustomRecords()
+}
+
 export async function getCustomRecord(id: string): Promise<CustomRecord> {
   const { records } = await repository()
   return records.getCustomRecord(id)

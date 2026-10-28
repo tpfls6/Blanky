@@ -1,0 +1,27 @@
+command: npx supabase test db
+ran: this chat after b3460f7
+log: .audit/runs/workspace-builder-pointer/rls-suite.txt
+workspace commits 7400a8e c7f5dba b3460f7 did not touch these three files.
+
+google_calendar_peer
+  reproduce: npx supabase test db with local postgres
+  errors: test 16 caught 42501 wanted 23503 bound external calendar cannot be deleted. test 20 died 42501 permission denied for table google_calendar_connections while deleting an unbound calendar. planned 22 ran 21.
+  code: supabase/tests/google_calendar_peer.sql:183-212 supabase/migrations/20261023120000_google_calendar_peer.sql:82-104
+  why: guard_bound_external_calendar SELECTs google_calendar_connections. authenticated has no SELECT grant. the trigger raises 23503 only after that SELECT succeeds.
+  related to b3460f7: no
+  since when: the test and the revoke landed together in 3b21b2d 2026-10-26. whether CI ever passed after that commit is UNKNOWN.
+
+personal_calendars
+  reproduce: same command
+  errors: test 10 nonempty calendar deletion cannot erase schedules caught 42501 wanted 23503. then line 53 insert into schedule_changes violates schedule_changes_user_id_fkey user a1000000-... not in users. planned 20 ran 18.
+  code: supabase/tests/personal_calendars.sql:33-34,53 supabase/migrations/20261023120000_google_calendar_peer.sql:82-96 supabase/migrations/20261007120000_ai_activity.sql:16-33
+  why: any authenticated calendar delete now hits the Google guard SELECT. account deletion then cascades schedules and record_schedule_activity writes history for a user row that is already gone.
+  related to b3460f7: no
+  since when: test 10 failure follows 3b21b2d. the FK on user delete is UNKNOWN as a pre-3b21b2d failure.
+
+theme_packages
+  reproduce: same command
+  error: syntax error at or near "$" at theme_packages.sql:28. planned 17 ran 6.
+  code: supabase/tests/theme_packages.sql:28 uses $select ... $ instead of $$select ... $$
+  related to b3460f7: no
+  since when: the bad dollar quote is in 2b91e30 2026-10-08 when the file was added. product regression UNKNOWN. test file has been invalid since birth.

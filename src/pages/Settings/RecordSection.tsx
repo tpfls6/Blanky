@@ -6,8 +6,10 @@ import { iconByName } from '../../constants/icons.ts'
 import { SWATCHES, DEFAULT_SWATCH } from '../../constants/swatches.ts'
 import { RecordBuilder } from '../../features/records/Builder.tsx'
 import { createBlock } from '../../features/records/registry.ts'
-import { countBlocks, exportTemplate, parseTemplateFile } from '../../features/records/schema.ts'
+import { cloneBlock, countBlocks, exportTemplate } from '../../features/records/schema.ts'
 import { STARTERS } from '../../features/records/templates.ts'
+import { importTemplatePackages } from '../../template/package/TemplateLoader.ts'
+import { isSystemRecordType } from '../../features/pages/templates.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
 function swatchName(hex: string): string {
@@ -17,7 +19,8 @@ function swatchName(hex: string): string {
 export function RecordSection() {
   const confirm = useConfirm()
 
-  const { recordTypes, addRecordType, updateRecordType, duplicateRecordType, removeRecordType } = useLibrary()
+  const { recordTypes: allRecordTypes, addRecordType, updateRecordType, duplicateRecordType, removeRecordType } = useLibrary()
+  const recordTypes = allRecordTypes.filter((item) => !isSystemRecordType(item.description))
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -74,7 +77,7 @@ export function RecordSection() {
         <input
           ref={fileRef}
           type="file"
-          accept="application/json,.json"
+          accept="application/json,.json,.blankytpl"
           className="hidden"
           aria-label="템플릿 가져오기"
           onChange={async (event) => {
@@ -82,26 +85,27 @@ export function RecordSection() {
             event.target.value = ''
             if (!file) return
             try {
-              const parsed = JSON.parse(await file.text()) as unknown
-              const files = Array.isArray(parsed) ? parsed : [parsed]
+              const packages = await importTemplatePackages(file)
               const errors: string[] = []
-              for (const item of files) {
-                const result = parseTemplateFile(item)
-                if (!result.ok) {
-                  errors.push(result.error)
+              for (const pkg of packages) {
+                const collections = pkg.snapshot?.collections ?? []
+                if (!collections.length) {
+                  errors.push('기록 블록이 없는 템플릿입니다.')
                   continue
                 }
-                addRecordType({
-                  name: result.file.name,
-                  icon: result.file.icon,
-                  color: result.file.color,
-                  description: result.file.description,
-                  blocks: result.file.blocks,
-                })
+                for (const collection of collections) {
+                  addRecordType({
+                    name: collection.name,
+                    icon: collection.icon,
+                    color: collection.color,
+                    description: collection.description,
+                    blocks: collection.blocks.map(cloneBlock),
+                  })
+                }
               }
               setError(errors[0] ?? '')
             } catch {
-              setError('JSON 파일을 읽지 못했습니다.')
+              setError('템플릿 파일을 읽지 못했습니다.')
             }
           }}
         />

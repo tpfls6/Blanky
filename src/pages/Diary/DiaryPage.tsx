@@ -7,6 +7,9 @@ import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
 import type { DiaryEntry } from '../../types/records.ts'
 import { diaryTitle, readDiaryDraft, storeDiaryDraft, clearSavedDiaryDraft } from '../../services/diary/index.ts'
+import { DEFAULT_FIELD_LABELS, fieldLabel } from '../../features/pages/templates.ts'
+import { formatDisplayDate } from '../../i18n/format.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
 import { todayISO } from '../../utils/date.ts'
 import { DiaryCalendar } from './DiaryCalendar.tsx'
 import './diary.css'
@@ -25,29 +28,63 @@ function blankEntry(): DiaryEntry {
   const now = new Date().toISOString()
   return { id: crypto.randomUUID(), title: '', body: '', date: todayISO(), tags: [], isFavorite: false, createdAt: now, updatedAt: now }
 }
-const fullDate = (date: string) => new Date(date + 'T12:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
+export type DiaryWorkspaceProps = {
+  userId: string
+  pageKey?: string
+  editing?: boolean
+  canvas?: boolean
+  heading?: string
+  tagline?: string
+  labels?: Record<string, string>
+  entries?: DiaryEntry[]
+  loading?: boolean
+  error?: string
+  save?: (entry: DiaryEntry) => Promise<DiaryEntry>
+  remove?: (id: string) => Promise<void>
+}
 
 export function DiaryPage({ editing = false }: { editing?: boolean }) {
   const { user } = useSession()
   return <DiaryWorkspace key={user?.id ?? 'guest'} userId={user?.id ?? ''} editing={editing} />
 }
-function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean }) {
-  const { diaries, commitDiary, eraseDiary, diaryLoading, diaryError, settings, pageLayouts, setPageLayout } = useLibrary()
+export function DiaryWorkspace({
+  userId,
+  pageKey = 'builtin',
+  editing = false,
+  canvas = true,
+  heading = 'Diary',
+  tagline = '지나가는 하루, 남겨두고 싶은 생각.',
+  labels = DEFAULT_FIELD_LABELS.diary,
+  entries,
+  loading,
+  error: errorProp,
+  save: saveProp,
+  remove: removeProp,
+}: DiaryWorkspaceProps) {
+  const { t, locale } = useI18n()
+  const library = useLibrary()
+  const diaries = entries ?? library.diaries
+  const commitDiary = saveProp ?? library.commitDiary
+  const eraseDiary = removeProp ?? library.eraseDiary
+  const diaryLoading = loading ?? library.diaryLoading
+  const diaryError = errorProp ?? library.diaryError
+  const { settings, pageLayouts, setPageLayout } = library
+  const field = (key: string) => fieldLabel('diary', key, labels)
   const [tab, setTab] = useState<string>('records')
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'list' | 'calendar'>('list')
   const [month, setMonth] = useState(() => todayISO().slice(0, 7))
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [favoriteError, setFavoriteError] = useState('')
-  const [draft, setDraft] = useState<DiaryEntry | null>(() => readDiaryDraft(userId))
-  const [dirty, setDirty] = useState(() => Boolean(readDiaryDraft(userId)))
+  const [draft, setDraft] = useState<DiaryEntry | null>(() => readDiaryDraft(userId, pageKey))
+  const [dirty, setDirty] = useState(() => Boolean(readDiaryDraft(userId, pageKey)))
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const deleting = useRef(false)
-  const [tagsText, setTagsText] = useState(() => readDiaryDraft(userId)?.tags.join(', ') ?? '')
-  const [showEditor, setShowEditor] = useState(() => Boolean(readDiaryDraft(userId)))
+  const [tagsText, setTagsText] = useState(() => readDiaryDraft(userId, pageKey)?.tags.join(', ') ?? '')
+  const [showEditor, setShowEditor] = useState(() => Boolean(readDiaryDraft(userId, pageKey)))
   const persisted = useRef(new Set(diaries.map(entry => entry.id)))
   useEffect(() => { for (const entry of diaries) persisted.current.add(entry.id) }, [diaries])
   const current = useRef(draft)
@@ -65,7 +102,7 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
     if (!previous) return
     const next = { ...previous, ...patch }
     // Write the recovery draft before scheduling a remote save.
-    try { storeDiaryDraft(userId, next) } catch { setError('임시 기록을 보관하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.'); return }
+    try { storeDiaryDraft(userId, next, pageKey) } catch { setError('임시 기록을 보관하지 못했습니다. 브라우저 저장 공간을 확인해 주세요.'); return }
     current.current = next
     revision.current += 1
     dirtyRef.current = true
@@ -93,7 +130,7 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
         const saved = await commitDiary(entry)
         persisted.current.add(saved.id)
         if (version === revision.current) {
-          clearSavedDiaryDraft(userId, entry)
+          clearSavedDiaryDraft(userId, entry, pageKey)
           dirtyRef.current = false
           current.current = saved
           if (mounted.current) { setDraft(saved); setDirty(false); setStatus('저장됨') }
@@ -108,7 +145,7 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
     const ok = await operation
     if (pending.current === operation) pending.current = null
     return ok
-  }, [commitDiary, userId])
+  }, [commitDiary, userId, pageKey])
   useEffect(() => {
     if (!dirty || diaryLoading || busy || dialogOpen) return
     const timer = window.setTimeout(() => { if (!composing.current) void save() }, 900)
@@ -134,7 +171,7 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
     }
     if (!mounted.current) return
     const next = entry ?? { ...blankEntry(), date: view === 'calendar' && selectedDate ? selectedDate : todayISO() }
-    storeDiaryDraft(userId, null)
+    storeDiaryDraft(userId, null, pageKey)
     current.current = next
     revision.current += 1
     dirtyRef.current = false
@@ -176,7 +213,7 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
       if (pending.current) await pending.current
       const id = draft.id
       if (persisted.current.has(id)) await eraseDiary(id)
-      storeDiaryDraft(userId, null)
+      storeDiaryDraft(userId, null, pageKey)
       revision.current += 1; dirtyRef.current = false; current.current = null
       setDraft(null); setDirty(false); setShowEditor(false); setStatus(''); setError('')
       dialog.current?.close()
@@ -184,9 +221,9 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
     finally { deleting.current = false; setBusy(false) }
   }
 
-  return <PageCanvas pageId="diary" editing={editing} blocks={resolveLayout('diary', pageLayouts.diary)} onChange={blocks => setPageLayout('diary', blocks)} render={block => block.type === 'page-body' ? (
+  const page = (
     <div className="diary-page">
-      <header data-theme-slot="page-header" className="diary-heading"><div><h1>Diary</h1><p>지나가는 하루, 남겨두고 싶은 생각.</p></div><button type="button" data-theme-slot="button-secondary" className="diary-view-toggle" aria-label={view === 'list' ? '달력으로 보기' : '목록으로 보기'} aria-pressed={view === 'calendar'} onClick={changeView}><ThemeIcon name={view === 'list' ? 'calendar' : 'diary'} fallback={view === 'list' ? CalendarDays : List} size={17} strokeWidth={1.5} /><span>{view === 'list' ? '달력 보기' : '목록 보기'}</span></button></header>
+      <header data-theme-slot="page-header" className="diary-heading"><div><h1>{heading}</h1><p>{tagline}</p></div><button type="button" data-theme-slot="button-secondary" className="diary-view-toggle" aria-label={view === 'list' ? '달력으로 보기' : '목록으로 보기'} aria-pressed={view === 'calendar'} onClick={changeView}><ThemeIcon name={view === 'list' ? 'calendar' : 'diary'} fallback={view === 'list' ? CalendarDays : List} size={17} strokeWidth={1.5} /><span>{view === 'list' ? '달력 보기' : '목록 보기'}</span></button></header>
       {diaryError && <p role="alert" className="diary-error">기록 연결 오류: {diaryError} <button data-theme-slot="button-secondary" type="button" className="btn btn-line" onClick={() => window.location.reload()}>다시 불러오기</button></p>}
       <div data-theme-slot="diary-page" className={'diary-workspace' + (showEditor ? ' diary-editor-open' : '')}>
         <aside data-theme-slot="diary-list" className="diary-list" aria-label="기록 목록">
@@ -202,18 +239,20 @@ function DiaryWorkspace({ userId, editing }: { userId: string; editing: boolean 
           {draft ? <>
             <div className="diary-editor-top"><button data-theme-slot="button" type="button" className="btn btn-ghost diary-back" onClick={async () => { if (await save()) setShowEditor(false) }}><ArrowLeft size={15} />목록</button><div className="diary-editor-actions"><button data-theme-slot="button" type="button" className="icon-btn diary-star" aria-label={draft.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'} aria-pressed={Boolean(draft.isFavorite)} disabled={busy} onClick={() => edit({ isFavorite: !draft.isFavorite })}><ThemeIcon name="favorite" fallback={Star} size={18} fill={draft.isFavorite ? 'currentColor' : 'none'} strokeWidth={1.5} /></button><button data-theme-slot="button" type="button" aria-label="기록 삭제" className="icon-btn" disabled={busy} onClick={() => { setDialogOpen(true); dialog.current?.showModal() }}><ThemeIcon name="delete" fallback={Trash2} size={16} strokeWidth={1.5} /></button></div></div>
             <fieldset disabled={busy || diaryLoading} className="diary-writing-fields">
-              <p className="diary-date-heading">{fullDate(draft.date)}</p><label className="diary-date-input">기록 날짜 <input data-theme-slot="input" type="date" aria-label="기록 날짜" value={draft.date} onChange={e => { if (e.target.value) edit({ date: e.target.value }) }} /></label>
-              <input data-theme-slot="input" ref={titleInput} aria-label="기록 제목" className="diary-title-input" placeholder="제목을 입력하세요" value={draft.title ?? ''} onChange={e => edit({ title: e.target.value })} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} />
-              <div className="diary-feelings">{[{ label: '오늘의 기분', choices: MOODS, field: 'mood' as const }, { label: '오늘의 날씨', choices: WEATHER, field: 'weather' as const }].map(group => <fieldset key={group.field} className="diary-choices"><legend>{group.label}</legend><div>{group.choices.map(([value, icon, label]) => <button data-theme-slot="button" key={value} type="button" title={label} aria-label={label} aria-pressed={draft[group.field] === value} className={'diary-choice' + (draft[group.field] === value ? ' diary-choice-on' : '')} onClick={() => edit({ [group.field]: draft[group.field] === value ? undefined : value })}>{icon}</button>)}</div></fieldset>)}</div>
-              <label className="diary-tags"><span className="diary-tags-label">태그</span><span className="diary-tags-field"><input data-theme-slot="input" aria-label="기록 태그" placeholder="#학교, #데이트, #프로젝트" value={tagsText} onChange={e => { setTagsText(e.target.value); edit({ tags: [...new Set(e.target.value.split(/[,#]+/).map(tag => tag.trim()).filter(Boolean))] }) }} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} /></span></label>
-              <textarea data-theme-slot="input" aria-label="기록 본문" className="diary-body-input" placeholder="오늘 있었던 일이나 생각을 자유롭게 기록해보세요." value={draft.body} onChange={e => edit({ body: e.target.value })} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} />
+              <p className="diary-date-heading">{formatDisplayDate(locale, draft.date, 'full')}</p><label className="diary-date-input">{field('date')} <input data-theme-slot="input" type="date" aria-label={field('date')} value={draft.date} onChange={e => { if (e.target.value) edit({ date: e.target.value }) }} /></label>
+              <input data-theme-slot="input" ref={titleInput} aria-label={field('title')} className="diary-title-input" placeholder={field('title')} value={draft.title ?? ''} onChange={e => edit({ title: e.target.value })} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} />
+              <div className="diary-feelings">{[{ caption: field('mood'), choices: MOODS, key: 'mood' as const }, { caption: field('weather'), choices: WEATHER, key: 'weather' as const }].map(group => <fieldset key={group.key} className="diary-choices"><legend>{group.caption}</legend><div>{group.choices.map(([value, icon, name]) => <button data-theme-slot="button" key={value} type="button" title={name} aria-label={name} aria-pressed={draft[group.key] === value} className={'diary-choice' + (draft[group.key] === value ? ' diary-choice-on' : '')} onClick={() => edit({ [group.key]: draft[group.key] === value ? undefined : value })}>{icon}</button>)}</div></fieldset>)}</div>
+              <label className="diary-tags"><span className="diary-tags-label">{field('tags')}</span><span className="diary-tags-field"><input data-theme-slot="input" aria-label={field('tags')} placeholder="#학교, #데이트, #프로젝트" value={tagsText} onChange={e => { setTagsText(e.target.value); edit({ tags: [...new Set(e.target.value.split(/[,#]+/).map(tag => tag.trim()).filter(Boolean))] }) }} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} /></span></label>
+              <textarea data-theme-slot="input" aria-label={field('body')} className="diary-body-input" placeholder={field('body')} value={draft.body} onChange={e => edit({ body: e.target.value })} onCompositionStart={() => { composing.current = true }} onCompositionEnd={() => { composing.current = false; void save() }} />
             </fieldset>
             <footer className="diary-save-footer"><span>{draft.body.length.toLocaleString()}자</span><div><span role="status">{status === '저장 중…' ? <LoaderCircle size={12} className="animate-spin" /> : !dirty && status === '저장됨' ? <Check size={12} /> : null}{status}</span>{dirty && <button data-theme-slot="button" type="button" className="btn btn-ghost" disabled={busy || diaryLoading} onClick={() => void save()}>{error ? '다시 저장' : '지금 저장'}</button>}</div></footer>
-          </> : <div className="diary-editor-empty"><ThemeIcon name="diary" fallback={BookOpen} size={32} strokeWidth={1} /><h2>오늘의 한 줄을 남겨보세요</h2><p>완벽한 문장이 아니어도 괜찮아요.<br />하루의 순간과 생각을 편하게 적어두세요.</p><button data-theme-slot="button-secondary" type="button" className="btn btn-line" disabled={diaryLoading} onClick={() => void open(null)}><ThemeIcon name="add" fallback={Plus} size={14} />새 기록</button></div>}
+          </> : <div className="diary-editor-empty"><ThemeIcon name="diary" fallback={BookOpen} size={32} strokeWidth={1} /><h2>{t('diary.emptyTitle')}</h2><p>{t('diary.emptyBody')}<br />{t('diary.emptyHint')}</p><button data-theme-slot="button-secondary" type="button" className="btn btn-line" disabled={diaryLoading} onClick={() => void open(null)}><ThemeIcon name="add" fallback={Plus} size={14} />{t('diary.newEntry')}</button></div>}
           {error && <p className="diary-error" role="alert">{error} 입력한 내용은 임시 보관되어 있습니다.</p>}
         </section>
       </div>
-      <dialog data-theme-slot="modal" ref={dialog} className="diary-delete-dialog" onClose={() => setDialogOpen(false)} onCancel={event => { if (busy) event.preventDefault() }}><h2>이 기록을 삭제하시겠습니까?</h2><p>삭제된 기록은 복구할 수 없습니다.</p><div><button data-theme-slot="button-secondary" type="button" autoFocus className="btn btn-line" disabled={busy} onClick={() => dialog.current?.close()}>취소</button><button data-theme-slot="button-primary" type="button" className="btn btn-primary" disabled={busy} onClick={() => void remove()}>{busy ? '삭제 중…' : '삭제'}</button></div>{error && <p role="alert">{error}</p>}</dialog>
+      <dialog data-theme-slot="modal" ref={dialog} className="diary-delete-dialog" onClose={() => setDialogOpen(false)} onCancel={event => { if (busy) event.preventDefault() }}><h2>이 기록을 삭제하시겠습니까?</h2><p>휴지통으로 이동하며, 거기서 복구할 수 있습니다.</p><div><button data-theme-slot="button-secondary" type="button" autoFocus className="btn btn-line" disabled={busy} onClick={() => dialog.current?.close()}>취소</button><button data-theme-slot="button-primary" type="button" className="btn btn-primary" disabled={busy} onClick={() => void remove()}>{busy ? '삭제 중…' : '삭제'}</button></div>{error && <p role="alert">{error}</p>}</dialog>
     </div>
-  ) : null} />
+  )
+  if (!canvas) return page
+  return <PageCanvas pageId="diary" editing={editing} blocks={resolveLayout('diary', pageLayouts.diary)} onChange={blocks => setPageLayout('diary', blocks)} render={block => block.type === 'page-body' ? page : null} />
 }

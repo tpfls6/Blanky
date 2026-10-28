@@ -44,6 +44,12 @@ test('complex sentences override even high rule confidence', async () => {
   assert.equal(spy.calls(), 3)
 })
 
+test('duplicate and overlap cleanup stay on the parser route', () => {
+  assert.equal(routeInput('중복 일정 삭제해줘').route, 'parser')
+  assert.equal(routeInput('겹치는 일정 정리해줘').route, 'parser')
+  assert.equal(routeInput('오늘 일정 너무 많은데 정리해줘').route, 'planner')
+  assert.equal(conversationIntent('중복 일정 삭제해줘', [], null, context.today, []).type, 'dedupe')
+})
 test('planning has priority and never calls the schedule provider or creates a conversation item', async () => {
   const spy = spyProvider()
   for (const text of ['이번 주 공부 계획 세워줘', '회의하고 운동할 시간 찾아줘', '시험 준비 계획을 짜줘', '오늘 일정 너무 많은데 정리해줘']) {

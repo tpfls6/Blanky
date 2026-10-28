@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react'
-import type { Book, CustomRecordType, DiaryEntry, EntryType, FieldValue, LibraryData, Memo, Settings } from '../types/records.ts'
+import type { Book, CustomRecord, CustomRecordType, DiaryEntry, EntryType, FieldValue, LibraryData, Memo, Settings } from '../types/records.ts'
+import type { BuilderBlock, UserPage } from '../features/builder/schema.ts'
+import type { PageTemplateKind } from '../features/pages/templates.ts'
 import type { PageBlock, PageId } from '../features/pages/layout.ts'
 import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
 
@@ -9,6 +11,7 @@ export type LibraryValue = LibraryData & {
   diaryError: string
   diaryLoading: boolean
   commitWork: (before: import('../types/work.ts').WorkItem | null, after: import('../types/work.ts').WorkItem | null, source?: 'manual' | 'ai_chat') => Promise<import('../types/work.ts').WorkItem | null>
+  applyWorkBatch: (input: { key: string; deletes: import('../types/work.ts').WorkItem[]; source?: 'manual' | 'ai_chat' }) => Promise<import('@blanky/api').ScheduleBatchResult>
   workError: string
   adoptPlannerSchedules: (rows: import('@blanky/types').Schedule[]) => void
   refreshWork: () => Promise<void>
@@ -37,11 +40,25 @@ export type LibraryValue = LibraryData & {
   updateRecordType: (id: string, patch: Partial<Pick<CustomRecordType, 'name' | 'icon' | 'color' | 'description' | 'blocks'>>) => void
   duplicateRecordType: (id: string) => string | null
   removeRecordType: (id: string) => void
-  addRecord: (typeId: string, input: { title: string; values: Record<string, FieldValue> }) => string
+  addRecord: (typeId: string, input: { id?: string; title: string; values: Record<string, FieldValue> }) => string
   updateRecord: (id: string, patch: { title: string; values: Record<string, FieldValue> }) => void
   removeRecord: (id: string) => void
+  restoreTrash: (id: string) => Promise<void>
+  purgeTrash: (id: string) => void
+  emptyTrash: () => void
   setPageLayout: (pageId: PageId, blocks: PageBlock[]) => void
+  setPageGap: (pageId: PageId, gap: number) => void
   resetPageLayout: (pageId: PageId) => void
+  addUserPage: (input: { name?: string; icon?: string; blocks?: BuilderBlock[]; template?: PageTemplateKind; fieldLabels?: Record<string, string> }) => string
+  updateUserPage: (id: string, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks' | 'template' | 'fieldLabels'>>) => void
+  duplicateUserPage: (id: string) => string | null
+  removeUserPage: (id: string) => void
+  moveUserPage: (id: string, delta: -1 | 1) => void
+  reorderUserPages: (ordered: UserPage[]) => void
+  savePageTemplate: (pageId: string, name?: string) => string | null
+  addPageFromTemplate: (template: { name: string; icon: string; blocks: BuilderBlock[]; collections?: CustomRecordType[] }) => string
+  adoptInstalledPage: (input: { page: UserPage; collections: CustomRecordType[]; records: CustomRecord[] }, persist?: boolean) => string
+  removePageTemplate: (id: string) => void
 }
 
 export const LibraryContext = createContext<LibraryValue | null>(null)

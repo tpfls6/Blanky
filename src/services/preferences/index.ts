@@ -1,3 +1,5 @@
+import { coerceLocale, type AppLocale } from '../../i18n/locale.ts'
+import { readDeviceLocale, writeDeviceLocale, writeGuestLocale } from '../../i18n/storage.ts'
 import { schedulingSettings } from '../../../packages/scheduling/src/settings.ts'
 import { createPreferenceRepository } from '@blanky/api'
 import type { UserPreference } from '@blanky/types'
@@ -22,6 +24,7 @@ import {
  */
 export type UserPreferences = Settings
 
+const LOCALES: readonly AppLocale[] = ['ko', 'en']
 const THEMES: readonly ThemeSetting[] = ['light', 'dark', 'system']
 const TABS: readonly ScheduleTab[] = ['all', 'timeline', 'tasks']
 const DENSITIES: readonly TimelineDensity[] = ['compact', 'default', 'comfortable']
@@ -77,6 +80,7 @@ export function normalizePreferences(value: unknown): UserPreferences {
   return {
     timezone:typeof raw.timezone==='string'?raw.timezone:undefined,
     scheduling: (()=>{try{const value=isRecord(raw.scheduling)?raw.scheduling:{};const normalized=schedulingSettings({...value,dayStartTime:clock(raw.dayStartTime,DEFAULT_SETTINGS.dayStartTime),dayEndTime:clock(raw.dayEndTime,DEFAULT_SETTINGS.dayEndTime)});return Object.fromEntries(Object.entries(normalized).filter(([name])=>!['now','startDate','endDate','timezone','dayStartTime','dayEndTime','defaultDurationMinutes'].includes(name)))}catch{return {}}})(),
+    locale: oneOf(raw.locale, LOCALES, 'ko'),
     theme: oneOf(raw.theme, THEMES, 'light'),
     accent: normalizeAccent(typeof (raw.accent ?? raw.accentColor) === 'string' ? String(raw.accent ?? raw.accentColor) : undefined),
     savedAccents: normalizeSaved(raw.savedAccents),
@@ -95,6 +99,7 @@ export function normalizePreferences(value: unknown): UserPreferences {
     taskView: raw.taskView === 'all' ? 'all' : 'open',
     notifyEvents: flag(raw.notifyEvents, true),
     notifyTasks: flag(raw.notifyTasks, true),
+    customTemplatesGuideSeen: flag(raw.customTemplatesGuideSeen, false),
   }
 }
 
@@ -128,7 +133,7 @@ export function toStoredPreference(userId: string, settings: Settings): UserPref
     dayStartTime: settings.dayStartTime,
     dayEndTime: settings.dayEndTime,
     defaultDuration: settings.taskDefaultDuration,
-    locale: 'ko',
+    locale: settings.locale,
     notificationsEnabled: settings.notifyEvents || settings.notifyTasks,
     theme: settings.theme,
     accentColor: settings.accent,
@@ -144,6 +149,7 @@ export function toStoredPreference(userId: string, settings: Settings): UserPref
 export function settingsFromPreference(preference: UserPreference): UserPreferences {
   return normalizePreferences({
     ...preference.settings,
+    locale: coerceLocale(preference.locale ?? (isRecord(preference.settings) ? preference.settings.locale : undefined)),
     timezone:preference.timezone,
     theme: preference.theme,
     accent: preference.accentColor,
@@ -174,7 +180,15 @@ export async function pullPreferences(): Promise<UserPreferences | null> {
     const userId = await getCurrentUserId()
     if (!userId) return null
     const remote = await createPreferenceRepository(getSupabaseClient()).get(userId)
-    return remote ? settingsFromPreference(remote) : null
+    if (!remote) return null
+    const settings = settingsFromPreference(remote)
+    const device = readDeviceLocale(userId)
+    if (device && device.updatedAt > remote.updatedAt && device.locale !== settings.locale) {
+      return { ...settings, locale: device.locale }
+    }
+    writeDeviceLocale(userId, settings.locale, remote.updatedAt)
+    writeGuestLocale(settings.locale, remote.updatedAt)
+    return settings
   } catch {
     return null
   }
@@ -183,6 +197,7 @@ export async function pullPreferences(): Promise<UserPreferences | null> {
 function selfCheckPreferences(): void {
   if (!import.meta.env.DEV) return
   const legacy = normalizePreferences({
+    locale: 'fr',
     theme: 'nope',
     accentColor: 'pink',
     scheduleDefaultView: 'tasks',
@@ -192,6 +207,7 @@ function selfCheckPreferences(): void {
     taskDefaultDuration: 7,
     nav: [{ id: 'memo', visible: false }, { id: 'nope', visible: true }],
   })
+  if (legacy.locale !== 'ko') throw new Error('preference locale')
   if (legacy.theme !== 'light' || legacy.accent !== 'pink') throw new Error('preference fallback')
   if (legacy.defaultScheduleTab !== 'tasks' || legacy.homeDefaultInput !== 'diary') throw new Error('preference alias')
   if (legacy.autoClassify || !legacy.autoSaveAfterClassify) throw new Error('preference flags')
@@ -202,6 +218,8 @@ function selfCheckPreferences(): void {
   if (!nav.some((item) => item.id === 'workout' && item.visible)) throw new Error('nav record')
   if (nav.some((item) => item.id === 'nope')) throw new Error('nav junk')
   if (defaultPreferences().autoSaveAfterClassify) throw new Error('autosave default')
+  if (defaultPreferences().customTemplatesGuideSeen) throw new Error('guide default')
+  if (!normalizePreferences({ customTemplatesGuideSeen: true }).customTemplatesGuideSeen) throw new Error('guide persist')
 }
 
 selfCheckPreferences()

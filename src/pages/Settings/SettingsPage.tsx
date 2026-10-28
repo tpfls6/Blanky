@@ -2,7 +2,9 @@ import { PlanningPreferences } from './PlanningPreferences.tsx'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, NavLink, useNavigate, useParams } from 'react-router-dom'
-import { CalendarDays, Palette, PanelLeft, Plus, Sparkles, Tag, User, type LucideIcon } from 'lucide-react'
+import { CalendarDays, CalendarRange, Languages, Palette, PanelLeft, Plus, Sparkles, Tag, User, type LucideIcon } from 'lucide-react'
+import { APP_LOCALES, type AppLocale } from '../../i18n/locale.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
 import { TextField } from '../../components/common/TextField.tsx'
 import { ROUTES } from '../../constants/routes.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -15,14 +17,16 @@ import { NavSection } from './NavSection.tsx'
 import { Choice, ConfirmDialog, Section, SwitchRow } from './bits.tsx'
 
 const SECTIONS = [
-  { id: 'planning', label: 'AI Planner', description: '작업 시간과 개인화 추천을 설정합니다.', icon: Sparkles },
-  { id: 'account', label: 'Account', description: '프로필과 로그인 정보를 관리합니다.', icon: User },
-  { id: 'appearance', label: 'Appearance', description: '앱의 화면과 포인트 색상을 설정합니다.', icon: Palette },
-  { id: 'navigation', label: 'Navigation', description: '사이드바 메뉴 순서와 표시를 바꿉니다.', icon: PanelLeft },
-  { id: 'schedule', label: 'Schedule', description: '캘린더와 타임라인 기본값을 설정합니다.', icon: CalendarDays },
-  { id: 'categories', label: 'Categories', description: '상위·하위 카테고리와 색, 아이콘을 관리합니다.', icon: Tag },
-  { id: 'input', label: 'Input & AI', description: 'Home 입력과 자동 분류를 설정합니다.', icon: Sparkles },
-] as const satisfies readonly { id: string; label: string; description: string; icon: LucideIcon }[]
+  { id: 'general', key: 'general', icon: Languages },
+  { id: 'planning', key: 'planning', icon: Sparkles },
+  { id: 'account', key: 'account', icon: User },
+  { id: 'appearance', key: 'appearance', icon: Palette },
+  { id: 'navigation', key: 'navigation', icon: PanelLeft },
+  { id: 'schedule', key: 'schedule', icon: CalendarDays },
+  { id: 'google-calendar', key: 'googleCalendar', icon: CalendarRange },
+  { id: 'categories', key: 'categories', icon: Tag },
+  { id: 'input', key: 'input', icon: Sparkles },
+] as const satisfies readonly { id: string; key: string; icon: LucideIcon }[]
 
 function CustomAccent({
   accent,
@@ -98,10 +102,13 @@ function CustomAccent({
 
 export function SettingsPage() {
   const confirm = useConfirm()
+  const { t, locale, setLocale } = useI18n()
 
   const navigate = useNavigate()
   const params = useParams()
   const section = SECTIONS.find((item) => item.id === params.section)
+  const sectionLabel = section ? t(`settings.${section.key}.label`) : ''
+  const sectionDescription = section ? t(`settings.${section.key}.description`) : ''
   const { user, updateProfile, changePassword, signOut, deleteAccount } = useSession()
   const { settings, updateSettings, resetPreferences } = useLibrary()
   const [resetOpen, setResetOpen] = useState(false)
@@ -117,19 +124,19 @@ export function SettingsPage() {
 
   if (!user) return null
   if (params.section === 'custom-records') return <Navigate to="/custom?panel=records" replace />
-  if (!section) return <Navigate to="/settings/account" replace />
+  if (!section) return <Navigate to="/settings/general" replace />
   const id = section.id
 
   const saveProfile = async (event: FormEvent) => {
     event.preventDefault()
     const message = await updateProfile({ name, nickname, email, avatar })
-    setProfileMessage(message ?? '저장되었습니다.')
+    setProfileMessage(message ?? t('settings.account.profileSaved'))
   }
 
   const savePassword = async (event: FormEvent) => {
     event.preventDefault()
     const message = await changePassword(currentPassword, nextPassword, confirmPassword)
-    setPasswordMessage(message ?? '비밀번호를 바꿨습니다.')
+    setPasswordMessage(message ?? t('settings.account.passwordChanged'))
     if (!message) {
       setCurrentPassword('')
       setNextPassword('')
@@ -141,18 +148,39 @@ export function SettingsPage() {
   const minutes = (value: number) => patch({ taskDefaultDuration: value, defaultEventMinutes: value })
 
   let body: ReactNode = null
-  if (id === 'account') {
+  if (id === 'general') {
     body = (
       <Section>
         <div>
-          <p className="text-sm">Profile</p>
+          <p className="text-sm">{t('settings.general.language')}</p>
+          <p className="mt-1 text-xs text-neutral-400">{t('settings.general.languageHint')}</p>
+          <label className="mt-3 block text-sm">
+            <span className="sr-only">{t('settings.general.language')}</span>
+            <select
+              className="field select mt-1 block w-52 max-w-full"
+              value={locale}
+              onChange={(event) => setLocale(event.target.value as AppLocale)}
+            >
+              {APP_LOCALES.map((value) => (
+                <option key={value} value={value}>{t(value === 'ko' ? 'settings.general.korean' : 'settings.general.english')}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </Section>
+    )
+  } else if (id === 'account') {
+    body = (
+      <Section>
+        <div>
+          <p className="text-sm">{t('settings.account.profile')}</p>
           <form onSubmit={saveProfile} className="mt-4 space-y-4">
           <div className="flex items-center gap-4">
             <div className="flex size-16 items-center justify-center overflow-hidden rounded-full bg-neutral-100 text-xs text-neutral-400">
-              {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : '사진'}
+              {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : t('settings.account.photo')}
             </div>
             <label className="text-sm text-neutral-500">
-              프로필 이미지
+              {t('settings.account.profileImage')}
               <input
                 type="file"
                 accept="image/*"
@@ -161,7 +189,7 @@ export function SettingsPage() {
                   const file = event.target.files?.[0]
                   if (!file) return
                   if (file.size > 350_000) {
-                    setProfileMessage('이미지는 350KB 이하로 올려 주세요.')
+                    setProfileMessage(t('settings.account.imageTooLarge'))
                     return
                   }
                   const reader = new FileReader()
@@ -171,36 +199,36 @@ export function SettingsPage() {
               />
             </label>
           </div>
-          <TextField label="이름" value={name} onChange={setName} />
-          <TextField label="닉네임" value={nickname} onChange={setNickname} />
-          <TextField label="이메일" type="email" value={email} onChange={setEmail} />
+          <TextField label={t('settings.account.name')} value={name} onChange={setName} />
+          <TextField label={t('settings.account.nickname')} value={nickname} onChange={setNickname} />
+          <TextField label={t('settings.account.email')} type="email" value={email} onChange={setEmail} />
           {profileMessage ? <p className="text-sm text-neutral-500">{profileMessage}</p> : null}
-          <button type="submit" className="btn btn-primary">프로필 저장</button>
+          <button type="submit" className="btn btn-primary">{t('settings.account.saveProfile')}</button>
           </form>
         </div>
         <div>
-          <p className="text-sm">비밀번호 변경</p>
+          <p className="text-sm">{t('settings.account.changePassword')}</p>
           <form onSubmit={savePassword} className="mt-4 space-y-4">
-          <TextField label="현재 비밀번호" type="password" value={currentPassword} onChange={setCurrentPassword} />
-          <TextField label="새 비밀번호" type="password" value={nextPassword} onChange={setNextPassword} />
-          <TextField label="새 비밀번호 확인" type="password" value={confirmPassword} onChange={setConfirmPassword} />
+          <TextField label={t('settings.account.currentPassword')} type="password" value={currentPassword} onChange={setCurrentPassword} />
+          <TextField label={t('settings.account.newPassword')} type="password" value={nextPassword} onChange={setNextPassword} />
+          <TextField label={t('settings.account.confirmPassword')} type="password" value={confirmPassword} onChange={setConfirmPassword} />
           {passwordMessage ? <p className="text-sm text-neutral-500">{passwordMessage}</p> : null}
-          <button type="submit" className="btn btn-primary">비밀번호 변경</button>
+          <button type="submit" className="btn btn-primary">{t('settings.account.changePassword')}</button>
           </form>
         </div>
         <div className="flex gap-4 text-sm">
-          <button type="button" className="btn btn-ghost" onClick={async () => { try { await signOut(); navigate(ROUTES.login) } catch { setProfileMessage('로그아웃하지 못했습니다. 다시 시도해 주세요.') } }}>로그아웃</button>
+          <button type="button" className="btn btn-ghost" onClick={async () => { try { await signOut(); navigate(ROUTES.login) } catch { setProfileMessage(t('settings.account.signOutFailed')) } }}>{t('settings.account.signOut')}</button>
           <button
             type="button"
             className="text-neutral-400"
             onClick={async () => {
-              if (!await confirm('계정을 삭제할까요? 이 기기의 기록도 함께 지워집니다.')) return
+              if (!await confirm(t('settings.account.deleteAccountConfirm'))) return
               const message = await deleteAccount()
               if (message) { setProfileMessage(message); return }
               navigate(ROUTES.login)
             }}
           >
-            회원 탈퇴
+            {t('settings.account.deleteAccount')}
           </button>
         </div>
       </Section>
@@ -210,16 +238,16 @@ export function SettingsPage() {
       <Section>
         <p className="text-sm text-neutral-500">커스텀 테마가 적용되어 있으면 아래 색상 설정보다 우선합니다. <Link className="text-accent-text" to="/settings/themes">내 테마 관리</Link>에서 기존 설정으로 돌아갈 수 있습니다.</p>
         <div>
-          <p className="text-sm">Theme</p>
-          <div className="mt-2 flex gap-1" role="radiogroup" aria-label="Theme">
-            <Choice value="light" current={settings.theme} label="Light" onPick={(theme) => patch({ theme })} />
-            <Choice value="dark" current={settings.theme} label="Dark" onPick={(theme) => patch({ theme })} />
-            <Choice value="system" current={settings.theme} label="System" onPick={(theme) => patch({ theme })} />
+          <p className="text-sm">{t('settings.appearance.theme')}</p>
+          <div className="mt-2 flex gap-1" role="radiogroup" aria-label={t('settings.appearance.theme')}>
+            <Choice value="light" current={settings.theme} label={t('settings.appearance.light')} onPick={(theme) => patch({ theme })} />
+            <Choice value="dark" current={settings.theme} label={t('settings.appearance.dark')} onPick={(theme) => patch({ theme })} />
+            <Choice value="system" current={settings.theme} label={t('settings.appearance.system')} onPick={(theme) => patch({ theme })} />
           </div>
         </div>
         <div>
-          <p className="text-sm">Accent Color</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2.5" role="radiogroup" aria-label="Accent Color">
+          <p className="text-sm">{t('settings.appearance.accent')}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2.5" role="radiogroup" aria-label={t('settings.appearance.accent')}>
             {ACCENTS.map((accent) => {
               const selected = settings.accent === accent.id
               return (
@@ -257,14 +285,17 @@ export function SettingsPage() {
   } else if (id === 'schedule') {
     body = (
       <Section>
+        <p className="text-sm text-neutral-500">
+          <Link className="text-accent-text" to="/settings/google-calendar">{t('settings.schedule.googleLink')}</Link>
+        </p>
         <div>
-          <p className="text-sm">Schedule 기본 탭</p>
-          <div className="mt-2 flex flex-wrap gap-1" role="radiogroup" aria-label="Schedule 기본 탭">
+          <p className="text-sm">{t('settings.schedule.defaultTab')}</p>
+          <div className="mt-2 flex flex-wrap gap-1" role="radiogroup" aria-label={t('settings.schedule.defaultTab')}>
             {([
-              ['all', '전체'],
-              ['timeline', 'Timeline'],
-              ['tasks', 'Tasks'],
-            ] as const satisfies readonly [ScheduleTab, string][]).map(([value, label]) => (
+              ['all', t('settings.schedule.tabAll')],
+              ['timeline', t('settings.schedule.tabTimeline')],
+              ['tasks', t('settings.schedule.tabTasks')],
+            ] as [ScheduleTab, string][]).map(([value, label]) => (
               <Choice key={value} value={value} current={settings.defaultScheduleTab} label={label} onPick={(defaultScheduleTab) => patch({ defaultScheduleTab })} />
             ))}
           </div>
@@ -324,6 +355,11 @@ export function SettingsPage() {
             <SwitchRow label="할 일 마감 알림" checked={settings.notifyTasks} onChange={() => patch({ notifyTasks: !settings.notifyTasks })} />
           </div>
         </div>
+      </Section>
+    )
+  } else if (id === 'google-calendar') {
+    body = (
+      <Section>
         <GoogleCalendarSection />
       </Section>
     )
@@ -372,15 +408,15 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl items-start gap-8 px-6 py-8 md:px-10 lg:gap-14">
-      <nav aria-label="설정 메뉴" className="sticky top-8 hidden w-48 shrink-0 lg:block">
-        <p className="px-3 pb-3 text-sm font-medium tracking-tight">Settings</p>
+      <nav aria-label={t('settings.menu')} className="sticky top-8 hidden w-48 shrink-0 lg:block">
+        <p className="px-3 pb-3 text-sm font-medium tracking-tight">{t('settings.title')}</p>
         <div className="flex flex-col gap-0.5">
           {SECTIONS.map((item) => {
             const Icon = item.icon
             return (
               <NavLink key={item.id} to={`/settings/${item.id}`} className="settings-link">
                 <Icon strokeWidth={1.5} aria-hidden="true" />
-                {item.label}
+                {t(`settings.${item.key}.label`)}
               </NavLink>
             )
           })}
@@ -388,31 +424,31 @@ export function SettingsPage() {
       </nav>
       <div className="min-w-0 flex-1">
         <label className="mb-6 block lg:hidden">
-          <span className="sr-only">설정 메뉴</span>
+          <span className="sr-only">{t('settings.menu')}</span>
           <select
             className="field select w-full"
             value={id}
             onChange={(event) => navigate(`/settings/${event.target.value}`)}
           >
             {SECTIONS.map((item) => (
-              <option key={item.id} value={item.id}>{item.label}</option>
+              <option key={item.id} value={item.id}>{t(`settings.${item.key}.label`)}</option>
             ))}
           </select>
         </label>
-        <h1 className="text-2xl font-medium tracking-tight">{section.label}</h1>
-        <p className="mt-2 text-sm text-neutral-400">{section.description}</p>
+        <h1 className="text-2xl font-medium tracking-tight">{sectionLabel}</h1>
+        <p className="mt-2 text-sm text-neutral-400">{sectionDescription}</p>
         <div className="mt-8">{body}</div>
         <div className="mt-10 border-t border-line pt-6">
           <button type="button" className="text-sm text-neutral-400" onClick={() => setResetOpen(true)}>
-            기본 설정으로 초기화
+            {t('settings.reset')}
           </button>
         </div>
       </div>
       {resetOpen ? (
         <ConfirmDialog
-          title="설정을 기본값으로 되돌릴까요?"
-          body="사용자가 만든 일정이나 기록은 삭제되지 않습니다."
-          confirmLabel="초기화"
+          title={t('settings.resetTitle')}
+          body={t('settings.resetBody')}
+          confirmLabel={t('settings.resetConfirm')}
           onCancel={() => setResetOpen(false)}
           onConfirm={() => {
             resetPreferences()

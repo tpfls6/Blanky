@@ -1,0 +1,6 @@
+command: npx supabase test db
+local: supabase start applied 20261027140000_user_pages_collections.sql
+rls_owner.sql: ok (14/14) after switching off tests.create_supabase_user
+other files in the same command: google_calendar_peer FAIL, personal_calendars FAIL, theme_packages FAIL
+those three were already failing and were not changed in this run
+verdict: owner isolation PASS. full supabase test db suite FAIL for unrelated files.

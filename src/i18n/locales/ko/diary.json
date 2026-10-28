@@ -1,0 +1,13 @@
+{
+  "title": "일기",
+  "mood": "오늘의 기분",
+  "weather": "오늘의 날씨",
+  "body": "기록 본문",
+  "placeholder": "오늘 있었던 일이나 생각을 자유롭게 기록해보세요.",
+  "chars": "{{count}}자",
+  "emptyTitle": "오늘의 한 줄을 남겨보세요",
+  "emptyBody": "완벽한 문장이 아니어도 괜찮아요.",
+  "emptyHint": "하루의 순간과 생각을 편하게 적어두세요.",
+  "newEntry": "새 기록",
+  "thisMonth": "이 달 전체"
+}

@@ -1,0 +1,8 @@
+reviewer: gpt-5.5-medium 987ab7f2-3a32-43a2-a195-6e6b7c57f4d4
+action: append-only trail corrections. no overwrite of prior logs.
+
+kanban: scripts/workspace-builder-test.mjs dispatches DragEvent dragstart/dragover/drop with DataTransfer. It is not a pointer drag. result.json extra.afterReload still shows the card in the 완료 column after reload.
+unit: .audit/runs/workspace-builder-views/unit.txt has pass 20 fail 0. the reviewer was not given that file.
+migration applied: column-query.txt now has the local information_schema row. terminals/903767.txt is not a committed artifact.
+unrelated suite FAIL: 7400a8e rls.txt is NOT RUN. this run cannot prove those three files failed before today.
+upsert/types: src/services/pages/index.ts:65 sends collections. packages/api/src/database.generated.ts:296 Row.collections is Json.

@@ -1,0 +1,13 @@
+{
+  "title": "Diary",
+  "mood": "Today's mood",
+  "weather": "Today's weather",
+  "body": "Entry body",
+  "placeholder": "Write freely about what happened or what you thought today.",
+  "chars": "{{count}} characters",
+  "emptyTitle": "Leave a line for today",
+  "emptyBody": "It does not have to be a perfect sentence.",
+  "emptyHint": "Note the day's moments and thoughts at your own pace.",
+  "newEntry": "New entry",
+  "thisMonth": "Whole month"
+}

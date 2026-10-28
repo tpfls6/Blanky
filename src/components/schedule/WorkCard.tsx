@@ -28,7 +28,7 @@ export function WorkCard({ snapshot, before, deleted = false }: { snapshot: Work
     {before && <div className="mt-3 border-t border-line pt-3"><p>변경 전: {describe(before)}</p><p>변경 후: {describe(snapshot)}</p></div>}
     {live && !deleted && <div className="mt-3 flex gap-2"><button data-theme-slot="button" className="chip" disabled={busy} onClick={() => setEditing(!editing)}>수정 / 상세</button>
       {live.kind === 'task' && <button data-theme-slot="button" className="chip" disabled={busy} onClick={() => void act({...live, status: live.status === 'done' ? 'todo' : 'done'})}>완료 / 취소</button>}
-      <button data-theme-slot="button" className="chip" disabled={busy} onClick={async () => { if(await confirm(live.title+' 항목을 삭제할까요?')) void act(null) }}>삭제</button></div>}
+      <button data-theme-slot="button" className="chip" disabled={busy} onClick={async () => { if(await confirm(live.title+' 항목을 삭제할까요? 휴지통에서 복구할 수 있습니다.')) void act(null) }}>삭제</button></div>}
     {editing && live && <form className="mt-3 space-y-2" onSubmit={e => { e.preventDefault(); const values=new FormData(e.currentTarget); const start=String(values.get('start')); void act({...live,title:String(values.get('title')).trim(),date:String(values.get('date')), ...(start ? placedTimes(live,start) : {startTime:null,endTime:null}),allDay:live.kind === 'event' && !start}) }}>
       <label className="block">제목 <input data-theme-slot="input" required name="title" defaultValue={live.title} className="border border-line p-1" /></label>
       <label className="block">날짜 <input data-theme-slot="input" required name="date" type="date" defaultValue={live.date} /></label>

@@ -2,6 +2,8 @@ import { mergeCategories } from '../utils/mergeCategories.ts'
 import { getDiaryRecords, saveDiaryRecord, deleteDiaryRecord, hasSyncedDiary } from '../services/diary/index.ts'
 import { loadWork, saveWork, workFromSchedule, type Activity } from '../services/schedule/workStore.ts'
 import type { Schedule } from '@blanky/types'
+import type { ScheduleBatchResult } from '@blanky/api'
+import { isGoogleOriginWork } from '../services/calendarSync/origin.ts'
 import { getScheduleRepository } from '../services/schedule/index.ts'
 import { isSupabaseConfigured } from '../services/supabase/client.ts'
 import type { WorkItem } from '../types/work.ts'
@@ -9,7 +11,13 @@ import { withPersonalCalendar } from '../services/calendar/local.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { freshLibrary } from '../data/freshLibrary.ts'
 import { cloneBlock, coerceRecordType, selfCheckRecords, structureKey, type CustomRecordType } from '../features/records/schema.ts'
-import { normalizeLayouts, type PageBlock, type PageId } from '../features/pages/layout.ts'
+import { forkCollections, snapshotCollections } from '../features/workspace/templates.ts'
+import { DEFAULT_SWATCH } from '../constants/swatches.ts'
+import { cloneBlocks, createPage, normalizePages, touchPage, type BuilderBlock, type UserPage } from '../features/builder/schema.ts'
+import { pageTypeMarker, type PageTemplateKind } from '../features/pages/templates.ts'
+import { listUserPages } from '../services/pages/index.ts'
+import { getAllCustomRecords, getCustomRecordTypes } from '../services/records/index.ts'
+import { normalizeLayouts, normalizePageGaps, type PageBlock, type PageId } from '../features/pages/layout.ts'
 import {
   type Book,
   type BookStatus,
@@ -25,8 +33,10 @@ import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
 import { LibraryContext, type LibraryValue } from './useLibrary.ts'
 import { selfCheckAccount } from '../utils/account.ts'
 import { applyCapture, selfCheckEntries } from '../utils/entries.ts'
+import { asBookTrash, asCustomRecord, asDiary, asMemo, asWork, parseTrash, toTrash, withTrash } from '../utils/trash.ts'
 import { categoryKind, createWorkItem, selfCheckWork } from '../utils/work.ts'
 import { applyAccent, clearAccent } from '../theme/accent.ts'
+import { applyDocumentLocale, guestOrBrowserLocale, touchDeviceLocale, writeGuestLocale } from '../i18n/storage.ts'
 import { defaultPreferences, loadPreferences, normalizePreferences, pullPreferences, pushPreferences, savePreferences, syncNav } from '../services/preferences/index.ts'
 import { libraryKey } from './storage.ts'
 import {
@@ -36,6 +46,8 @@ import {
   mirrorCategoryUpdate,
   mirrorRecordDelete,
   mirrorRecordSave,
+  mirrorPageDelete,
+  mirrorPageSave,
   mirrorRecordTypeDelete,
   mirrorRecordTypeSave,
 } from '../services/mirror.ts'
@@ -86,7 +98,7 @@ function loadLibrary(userId: string): LibraryData {
 function loadStoredLibrary(userId: string): LibraryData {
   try {
     const raw = localStorage.getItem(libraryKey(userId))
-    if (!raw) return freshLibrary()
+    if (!raw) return withFirstLocale(freshLibrary())
     const data = JSON.parse(raw) as Partial<LibraryData>
     if (!Array.isArray(data.items) || !data.settings || !Array.isArray(data.categories)) return freshLibrary()
     const recordTypes = Array.isArray(data.recordTypes) ? data.recordTypes.flatMap((item) => {
@@ -114,12 +126,23 @@ function loadStoredLibrary(userId: string): LibraryData {
         const next = normalizeRecord(item)
         return next ? [next] : []
       }) : [],
+      trash: Array.isArray(data.trash) ? data.trash.flatMap((item) => {
+        const next = parseTrash(item)
+        return next ? [next] : []
+      }) : [],
       settings,
       pageLayouts: normalizeLayouts(data.pageLayouts),
+      pageGaps: normalizePageGaps(data.pageGaps),
+      customPages: normalizePages(data.customPages),
+      pageTemplates: normalizePages(data.pageTemplates),
     }
   } catch {
-    return freshLibrary()
+    return withFirstLocale(freshLibrary())
   }
+}
+
+function withFirstLocale(data: LibraryData): LibraryData {
+  return { ...data, settings: { ...data.settings, locale: guestOrBrowserLocale() } }
 }
 
 function prefersDark() {
@@ -130,6 +153,26 @@ function applyAppearance(settings: Settings) {
   const dark = settings.theme === 'dark' || (settings.theme === 'system' && prefersDark())
   document.documentElement.classList.toggle('dark', dark)
   applyAccent(settings.accent, dark)
+  applyDocumentLocale(settings.locale)
+}
+
+function dropWorkItems(current: LibraryData, removed: WorkItem[], source: Activity['source']): LibraryData {
+  const ids = new Set(removed.map(item => item.id))
+  const activities = removed.map(before => ({
+    id: crypto.randomUUID(),
+    entityId: before.id,
+    before,
+    after: null,
+    action: 'deleted' as const,
+    source,
+    createdAt: new Date().toISOString(),
+  }))
+  return {
+    ...current,
+    items: current.items.filter(item => !ids.has(item.id)),
+    activities: [...activities, ...(current.activities ?? [])],
+    trash: removed.reduce((trash, item) => withTrash({ trash }, toTrash('item', item, item.title)), current.trash),
+  }
 }
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
@@ -147,9 +190,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     if (!userId) {
       document.documentElement.classList.remove('dark')
       clearAccent()
+      applyDocumentLocale(guestOrBrowserLocale())
       return
     }
     applyAppearance(data.settings)
+    touchDeviceLocale(userId, data.settings.locale)
+    writeGuestLocale(data.settings.locale)
   }, [userId, data.settings])
 
   const [diaryError, setDiaryError] = useState('')
@@ -206,7 +252,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       await deleteDiaryRecord(userId, id)
       if (diaryUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
       setData(current => {
-        const next = { ...current, diaries: current.diaries.filter(row => row.id !== id) }
+        const entry = current.diaries.find(row => row.id === id)
+        const next = {
+          ...current,
+          diaries: current.diaries.filter(row => row.id !== id),
+          trash: entry ? withTrash(current, toTrash('diary', entry, entry.title?.trim() || entry.body.slice(0, 40) || '일기')) : current.trash,
+        }
         localStorage.setItem(libraryKey(userId), JSON.stringify(next))
         return next
       })
@@ -266,13 +317,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       else if (before && isSupabaseConfigured && remoteIds.current.has(before.id)) await getScheduleRepository().remove(before.id)
       if (activeUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
       if (saved && isSupabaseConfigured) remoteIds.current.add(saved.id)
+      if (!saved && before) remoteIds.current.delete(before.id)
       const activity: Activity = { id: crypto.randomUUID(), entityId: saved?.id ?? before!.id, before, after: saved,
         action: !before ? 'created' : !saved ? 'deleted' : saved.status === 'done' && before.status !== 'done' ? 'completed' : 'updated', source, createdAt: new Date().toISOString() }
       setData(current => {
         const merged = mergeCategories(current.categories, categories)
         return { ...current, categories: merged.categories,
           items: [...current.items.filter(item => item.id !== before?.id && item.id !== saved?.id), ...(saved ? [saved] : [])].map(merged.remap),
-          memos: current.memos.map(merged.remap), activities: [activity, ...(current.activities ?? [])] }
+          memos: current.memos.map(merged.remap), activities: [activity, ...(current.activities ?? [])],
+          trash: !saved && before ? withTrash(current, toTrash('item', before, before.title)) : current.trash }
       })
       setWorkError('')
       return saved
@@ -280,6 +333,55 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     workQueue.current = operation
     return operation
   }, [userId, data.categories, data.personalCalendar?.id])
+
+  const applyWorkBatch = useCallback((input: { key: string; deletes: WorkItem[]; source?: Activity['source'] }): Promise<ScheduleBatchResult> => {
+    const operation = workQueue.current.catch(() => undefined).then(async () => {
+      await ready.current
+      if (!workLoaded.current) throw new Error('서버 데이터를 먼저 불러와야 합니다.')
+      if (!userId || activeUser.current !== userId) throw new Error('로그인이 필요합니다.')
+      const unique = [...new Map(input.deletes.map(item => [item.id, item])).values()]
+      const source = input.source ?? 'ai_chat'
+      if (!unique.length) return { status: 'unchanged' as const, deletedIds: [], google: 'idle' as const }
+      if (unique.some(isGoogleOriginWork)) throw new Error('Google에서 가져온 일정은 원본을 지우지 않았어요.')
+      const remote = unique.filter(item => remoteIds.current.has(item.id))
+      if (isSupabaseConfigured && remote.length && remote.length !== unique.length) {
+        throw new Error('로컬과 서버 일정을 한 번에 변경할 수 없습니다.')
+      }
+      let result: ScheduleBatchResult
+      if (isSupabaseConfigured && remote.length === unique.length) {
+        result = await getScheduleRepository().applyBatch(input.key, unique.map(item => item.id))
+        if (activeUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
+        for (const id of result.deletedIds) remoteIds.current.delete(id)
+      } else {
+        result = { status: 'applied', deletedIds: unique.map(item => item.id), google: 'idle' }
+      }
+      let rejected = false
+      setData(current => {
+        const gone = unique.filter(item => result.deletedIds.includes(item.id))
+        if (gone.some(item => !current.items.some(row => row.id === item.id))) {
+          if (!isSupabaseConfigured) {
+            rejected = true
+            return current
+          }
+        }
+        const live = gone.filter(item => current.items.some(row => row.id === item.id))
+        return live.length ? dropWorkItems(current, live, source) : current
+      })
+      if (rejected) throw new Error('일정 변경에 실패하여 기존 일정이 유지되었습니다.')
+      setWorkError('')
+      if (typeof window !== 'undefined') {
+        ;(window as Window & { __blankyLastBatch?: ScheduleBatchResult }).__blankyLastBatch = result
+      }
+      return result
+    })
+    workQueue.current = operation
+    return operation
+  }, [userId])
+  useEffect(() => {
+    const host = window as Window & { __blankyApplyWorkBatch?: typeof applyWorkBatch }
+    host.__blankyApplyWorkBatch = applyWorkBatch
+    return () => { delete host.__blankyApplyWorkBatch }
+  }, [applyWorkBatch])
 
   const adoptPlannerSchedules = useCallback((rows: Schedule[]) => {
     if(!userId||activeUser.current!==userId||rows.some(row=>row.userId!==userId))throw new Error('로그인 사용자가 변경되었어요.')
@@ -413,7 +515,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeMemo = useCallback((id: string) => {
-    setData((current) => ({ ...current, memos: current.memos.filter((memo) => memo.id !== id) }))
+    setData((current) => {
+      const memo = current.memos.find((item) => item.id === id)
+      return {
+        ...current,
+        memos: current.memos.filter((item) => item.id !== id),
+        trash: memo ? withTrash(current, toTrash('memo', memo, memo.title)) : current.trash,
+      }
+    })
   }, [])
 
   const addBook = useCallback((book: Omit<Book, 'id' | 'createdAt'>) => {
@@ -433,11 +542,16 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeBook = useCallback((id: string) => {
-    setData((current) => ({
-      ...current,
-      books: current.books.filter((book) => book.id !== id),
-      logs: current.logs.filter((log) => log.bookId !== id),
-    }))
+    setData((current) => {
+      const book = current.books.find((item) => item.id === id)
+      const logs = current.logs.filter((log) => log.bookId === id)
+      return {
+        ...current,
+        books: current.books.filter((item) => item.id !== id),
+        logs: current.logs.filter((log) => log.bookId !== id),
+        trash: book ? withTrash(current, toTrash('book', { id: book.id, book, logs }, book.title)) : current.trash,
+      }
+    })
   }, [])
 
   const addLog = useCallback((bookId: string, log: { date: string; page: number | null; note: string }) => {
@@ -626,8 +740,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     mirrorRecordTypeDelete(id)
   }, [])
 
-  const addRecord = useCallback((typeId: string, input: { title: string; values: Record<string, FieldValue> }) => {
-    const id = crypto.randomUUID()
+  const addRecord = useCallback((typeId: string, input: { id?: string; title: string; values: Record<string, FieldValue> }) => {
+    const id = input.id ?? crypto.randomUUID()
     const createdAt = new Date().toISOString()
     const templateVersion = data.recordTypes.find((item) => item.id === typeId)?.version ?? 1
     const title = input.title.trim() || '제목 없음'
@@ -673,20 +787,337 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeRecord = useCallback((id: string) => {
-    setData((current) => ({ ...current, records: current.records.filter((item) => item.id !== id) }))
+    setData((current) => {
+      const record = current.records.find((item) => item.id === id)
+      return {
+        ...current,
+        records: current.records.filter((item) => item.id !== id),
+        trash: record ? withTrash(current, toTrash('record', record, record.title)) : current.trash,
+      }
+    })
     mirrorRecordDelete(id)
+  }, [])
+
+  const restoreTrash = useCallback(async (id: string) => {
+    const row = data.trash.find((item) => item.id === id)
+    if (!row) return
+    if (row.kind === 'diary') {
+      const entry = asDiary(row.payload)
+      if (!entry) return
+      await commitDiary(entry)
+      setData((current) => ({ ...current, trash: current.trash.filter((item) => item.id !== id) }))
+      return
+    }
+    if (row.kind === 'item') {
+      const item = asWork(row.payload)
+      if (!item) return
+      await commitWork(null, item)
+      setData((current) => ({ ...current, trash: current.trash.filter((item) => item.id !== id) }))
+      return
+    }
+    setData((current) => {
+      const next = current.trash.filter((item) => item.id !== id)
+      if (row.kind === 'memo') {
+        const memo = asMemo(row.payload)
+        if (!memo || current.memos.some((item) => item.id === memo.id)) return { ...current, trash: next }
+        return { ...current, trash: next, memos: [memo, ...current.memos] }
+      }
+      if (row.kind === 'record') {
+        const record = asCustomRecord(row.payload)
+        if (!record || current.records.some((item) => item.id === record.id)) return { ...current, trash: next }
+        mirrorRecordSave({ id: record.id, typeId: record.typeId, title: record.title, values: record.values, templateVersion: record.templateVersion }, true)
+        return { ...current, trash: next, records: [record, ...current.records] }
+      }
+      if (row.kind === 'book') {
+        const bundle = asBookTrash(row.payload)
+        if (!bundle || current.books.some((item) => item.id === bundle.book.id)) return { ...current, trash: next }
+        return { ...current, trash: next, books: [bundle.book, ...current.books], logs: [...bundle.logs, ...current.logs] }
+      }
+      return { ...current, trash: next }
+    })
+  }, [commitDiary, commitWork, data.trash])
+
+  const purgeTrash = useCallback((id: string) => {
+    setData((current) => ({ ...current, trash: current.trash.filter((item) => item.id !== id) }))
+  }, [])
+
+  const emptyTrash = useCallback(() => {
+    setData((current) => ({ ...current, trash: [] }))
   }, [])
 
   const setPageLayout = useCallback((pageId: PageId, blocks: PageBlock[]) => {
     setData((current) => ({ ...current, pageLayouts: { ...current.pageLayouts, [pageId]: blocks } }))
   }, [])
 
+  const setPageGap = useCallback((pageId: PageId, gap: number) => {
+    setData((current) => ({ ...current, pageGaps: { ...current.pageGaps, [pageId]: gap } }))
+  }, [])
+
   const resetPageLayout = useCallback((pageId: PageId) => {
     setData((current) => {
       const pageLayouts = { ...current.pageLayouts }
+      const pageGaps = { ...current.pageGaps }
       delete pageLayouts[pageId]
-      return { ...current, pageLayouts }
+      delete pageGaps[pageId]
+      return { ...current, pageLayouts, pageGaps }
     })
+  }, [])
+
+  useEffect(() => {
+    if (!userId || !isSupabaseConfigured) return
+    let cancel = false
+    void Promise.all([listUserPages('page'), listUserPages('template'), getCustomRecordTypes(), getAllCustomRecords()]).then(([pages, templates, types, remoteRecords]) => {
+      if (cancel) return
+      setData((current) => {
+        const merge = (local: UserPage[], remote: UserPage[]) => {
+          const map = new Map(local.map((item) => [item.id, item]))
+          for (const row of remote) {
+            const existing = map.get(row.id)
+            if (!existing || row.updatedAt >= existing.updatedAt) map.set(row.id, row)
+          }
+          return [...map.values()].sort((a, b) => a.sort - b.sort || a.createdAt.localeCompare(b.createdAt))
+        }
+        const customPages = merge(current.customPages, pages)
+        const pageTemplates = merge(current.pageTemplates, templates)
+        for (const page of customPages) {
+          const remote = pages.find((item) => item.id === page.id)
+          if (!remote || page.updatedAt > remote.updatedAt) mirrorPageSave(page, 'page')
+        }
+        for (const page of pageTemplates) {
+          const remote = templates.find((item) => item.id === page.id)
+          if (!remote || page.updatedAt > remote.updatedAt) mirrorPageSave(page, 'template')
+        }
+        const recordMap = new Map(current.recordTypes.map((item) => [item.id, item]))
+        for (const page of [...customPages, ...pageTemplates]) {
+          for (const item of page.collections ?? []) {
+            const next = coerceRecordType(item)
+            if (next && !recordMap.has(next.id)) recordMap.set(next.id, next)
+          }
+        }
+        for (const item of types) {
+          const next = coerceRecordType({
+            id: item.id,
+            name: item.name,
+            icon: item.icon,
+            color: item.color,
+            description: item.description,
+            schemaVersion: item.schemaVersion,
+            version: item.version,
+            blocks: item.blocks,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })
+          if (next) recordMap.set(next.id, next)
+        }
+        const records = new Map(current.records.map((item) => [item.id, item]))
+        for (const item of remoteRecords) {
+          records.set(item.id, {
+            id: item.id,
+            typeId: item.recordTypeId,
+            title: item.title,
+            values: item.values as Record<string, FieldValue>,
+            templateVersion: item.templateVersion,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })
+        }
+        return { ...current, customPages, pageTemplates, recordTypes: [...recordMap.values()], records: [...records.values()] }
+      })
+    }).catch(() => undefined)
+    return () => {
+      cancel = true
+    }
+  }, [userId])
+
+  const addUserPage = useCallback((input: { name?: string; icon?: string; blocks?: BuilderBlock[]; template?: PageTemplateKind; fieldLabels?: Record<string, string> }) => {
+    const page = createPage(input.name ?? '새 페이지', input.icon ?? 'StickyNote', input.blocks ?? [], data.customPages.length)
+    page.template = input.template ?? null
+    page.fieldLabels = input.fieldLabels ?? {}
+    if (input.template) page.blocks = []
+    const recordType: CustomRecordType | null = input.template
+      ? {
+          id: page.id,
+          name: page.name,
+          icon: page.icon,
+          color: DEFAULT_SWATCH,
+          description: pageTypeMarker(input.template),
+          schemaVersion: 1,
+          version: 1,
+          blocks: [],
+          createdAt: page.createdAt,
+          updatedAt: page.updatedAt,
+        }
+      : null
+    setData((current) => ({
+      ...current,
+      customPages: [...current.customPages, { ...page, sort: current.customPages.length }],
+      recordTypes: recordType ? [...current.recordTypes, recordType] : current.recordTypes,
+    }))
+    if (recordType) mirrorRecordTypeSave(recordType)
+    mirrorPageSave({ ...page, sort: data.customPages.length })
+    return page.id
+  }, [data.customPages.length])
+
+  const updateUserPage = useCallback((id: string, patch: Partial<Pick<UserPage, 'name' | 'icon' | 'description' | 'sort' | 'blocks' | 'template' | 'fieldLabels'>>) => {
+    const saved: { value: UserPage | null } = { value: null }
+    setData((current) => ({
+      ...current,
+      customPages: current.customPages.map((item) => {
+        if (item.id !== id) return item
+        const next = touchPage(item, patch)
+        saved.value = next
+        return next
+      }),
+    }))
+    if (saved.value) {
+      mirrorPageSave(saved.value)
+      if (saved.value.template) {
+        const type = data.recordTypes.find((item) => item.id === id)
+        if (!type) {
+          const recordType: CustomRecordType = {
+            id,
+            name: saved.value.name,
+            icon: saved.value.icon,
+            color: DEFAULT_SWATCH,
+            description: pageTypeMarker(saved.value.template),
+            schemaVersion: 1,
+            version: 1,
+            blocks: [],
+            createdAt: saved.value.createdAt,
+            updatedAt: saved.value.updatedAt,
+          }
+          setData((current) => ({ ...current, recordTypes: [...current.recordTypes, recordType] }))
+          mirrorRecordTypeSave(recordType)
+        } else if (patch.name !== undefined || patch.icon !== undefined) {
+          updateRecordType(id, { name: saved.value.name, icon: saved.value.icon })
+        }
+      }
+    }
+  }, [data.recordTypes, updateRecordType])
+
+  const duplicateUserPage = useCallback((id: string) => {
+    const source = data.customPages.find((item) => item.id === id)
+    if (!source) return null
+    const forked = source.template ? { blocks: [] as BuilderBlock[], collections: [] as CustomRecordType[] } : forkCollections(source.blocks, data.recordTypes)
+    const copy = createPage(`${source.name} 복사본`, source.icon, forked.blocks, data.customPages.length)
+    copy.description = source.description
+    copy.template = source.template
+    copy.fieldLabels = { ...source.fieldLabels }
+    if (source.template) copy.blocks = []
+    const pageType: CustomRecordType | null = source.template
+      ? {
+          id: copy.id,
+          name: copy.name,
+          icon: copy.icon,
+          color: DEFAULT_SWATCH,
+          description: pageTypeMarker(source.template),
+          schemaVersion: 1,
+          version: 1,
+          blocks: [],
+          createdAt: copy.createdAt,
+          updatedAt: copy.updatedAt,
+        }
+      : null
+    setData((current) => ({
+      ...current,
+      recordTypes: [...current.recordTypes, ...forked.collections, ...(pageType ? [pageType] : [])],
+      customPages: [...current.customPages, copy],
+      settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...forked.collections.map((item) => item.id)]) },
+    }))
+    for (const item of forked.collections) mirrorRecordTypeSave(item)
+    if (pageType) mirrorRecordTypeSave(pageType)
+    mirrorPageSave(copy)
+    return copy.id
+  }, [data.customPages, data.recordTypes])
+
+  const removeUserPage = useCallback((id: string) => {
+    setData((current) => ({
+      ...current,
+      customPages: current.customPages.filter((item) => item.id !== id),
+      recordTypes: current.recordTypes.filter((item) => item.id !== id),
+      records: current.records.filter((item) => item.typeId !== id),
+    }))
+    mirrorPageDelete(id)
+    mirrorRecordTypeDelete(id)
+  }, [])
+
+  const moveUserPage = useCallback((id: string, delta: -1 | 1) => {
+    setData((current) => {
+      const index = current.customPages.findIndex((item) => item.id === id)
+      const nextIndex = index + delta
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.customPages.length) return current
+      const list = current.customPages.slice()
+      const [item] = list.splice(index, 1)
+      list.splice(nextIndex, 0, item)
+      const customPages = list.map((page, sort) => {
+        const next = page.sort === sort ? page : touchPage(page, { sort })
+        if (next !== page) mirrorPageSave(next)
+        return next
+      })
+      return { ...current, customPages }
+    })
+  }, [])
+
+  const reorderUserPages = useCallback((ordered: UserPage[]) => {
+    setData((current) => {
+      const ids = new Set(ordered.map((item) => item.id))
+      if (ordered.length !== current.customPages.length || current.customPages.some((item) => !ids.has(item.id))) return current
+      const customPages = ordered.map((page, sort) => {
+        const next = page.sort === sort ? page : touchPage(page, { sort })
+        if (next !== page) mirrorPageSave(next)
+        return next
+      })
+      return { ...current, customPages }
+    })
+  }, [])
+
+  const savePageTemplate = useCallback((pageId: string, name?: string) => {
+    const source = data.customPages.find((item) => item.id === pageId)
+    if (!source) return null
+    const collections = snapshotCollections(source.blocks, data.recordTypes)
+    const template = { ...createPage(name?.trim() || source.name, source.icon, cloneBlocks(source.blocks), data.pageTemplates.length), collections }
+    setData((current) => ({ ...current, pageTemplates: [...current.pageTemplates, template] }))
+    mirrorPageSave(template, 'template')
+    return template.id
+  }, [data.customPages, data.pageTemplates.length, data.recordTypes])
+
+  const addPageFromTemplate = useCallback((template: { name: string; icon: string; blocks: BuilderBlock[]; collections?: CustomRecordType[] }) => {
+    const forked = forkCollections(template.blocks, data.recordTypes, template.collections ?? [])
+    const page = createPage(template.name, template.icon, forked.blocks, data.customPages.length)
+    setData((current) => ({
+      ...current,
+      recordTypes: [...current.recordTypes, ...forked.collections],
+      customPages: [...current.customPages, page],
+      settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...forked.collections.map((item) => item.id)]) },
+    }))
+    for (const item of forked.collections) mirrorRecordTypeSave(item)
+    mirrorPageSave(page)
+    return page.id
+  }, [data.customPages.length, data.recordTypes])
+
+  const adoptInstalledPage = useCallback((input: { page: UserPage; collections: CustomRecordType[]; records: CustomRecord[] }, persist = true) => {
+    setData((current) => {
+      if (current.customPages.some((item) => item.id === input.page.id)) return current
+      const page = { ...input.page, sort: current.customPages.length }
+      return {
+        ...current,
+        recordTypes: [...current.recordTypes, ...input.collections.filter((item) => !current.recordTypes.some((row) => row.id === item.id))],
+        records: [...input.records.filter((item) => !current.records.some((row) => row.id === item.id)), ...current.records],
+        customPages: [...current.customPages, page],
+        settings: { ...current.settings, nav: syncNav(current.settings.nav, [...current.recordTypes.map((item) => item.id), ...input.collections.map((item) => item.id)]) },
+      }
+    })
+    if (persist) {
+      for (const item of input.collections) mirrorRecordTypeSave(item)
+      for (const item of input.records) mirrorRecordSave({ id: item.id, typeId: item.typeId, title: item.title, values: item.values, templateVersion: item.templateVersion }, true)
+      mirrorPageSave(input.page)
+    }
+    return input.page.id
+  }, [])
+
+  const removePageTemplate = useCallback((id: string) => {
+    setData((current) => ({ ...current, pageTemplates: current.pageTemplates.filter((item) => item.id !== id) }))
+    mirrorPageDelete(id)
   }, [])
 
   const value: LibraryValue = {
@@ -696,6 +1127,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     diaryError,
     diaryLoading,
     commitWork,
+    applyWorkBatch,
     adoptPlannerSchedules,
     refreshWork,
     workError,
@@ -727,8 +1159,22 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     addRecord,
     updateRecord,
     removeRecord,
+    restoreTrash,
+    purgeTrash,
+    emptyTrash,
     setPageLayout,
+    setPageGap,
     resetPageLayout,
+    addUserPage,
+    updateUserPage,
+    duplicateUserPage,
+    removeUserPage,
+    moveUserPage,
+    reorderUserPages,
+    savePageTemplate,
+    addPageFromTemplate,
+    adoptInstalledPage,
+    removePageTemplate,
   }
 
   return <LibraryContext.Provider value={value}>{children}</LibraryContext.Provider>

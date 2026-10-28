@@ -221,8 +221,12 @@ export function selfCheckEntries(): void {
     logs: [],
     recordTypes: [],
     records: [],
+    trash: [],
     settings: DEFAULT_SETTINGS,
     pageLayouts: {},
+    pageGaps: {},
+    customPages: [],
+    pageTemplates: [],
   }
   const schedule = applyCapture(base, '내일 오후 3시 병원 예약', 'auto', now)
   const event = schedule.items[0]

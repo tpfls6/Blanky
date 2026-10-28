@@ -5,7 +5,7 @@ import { parseCalendarAction } from './action.ts'
 import { createCalendarSyncClient } from './client.ts'
 import { readCalendarFunctionEnv } from './env.ts'
 import { CalendarSyncError } from './errors.ts'
-import { consentUrl } from './oauth.ts'
+import { consentUrl, GOOGLE_CALENDAR_SETTINGS_PATH } from './oauth.ts'
 
 test('missing Google Calendar secrets are GOOGLE_ENV_MISSING 503', () => {
   const missing = readCalendarFunctionEnv((key) => {
@@ -35,6 +35,10 @@ test('invalid command is INVALID_COMMAND', () => {
   assert.deepEqual(parseCalendarAction({ type: 'status' }), { type: 'status' })
 })
 
+test('OAuth return path is the Google Calendar settings page', () => {
+  assert.equal(GOOGLE_CALENDAR_SETTINGS_PATH, '/settings/google-calendar')
+})
+
 test('consent URL uses the provided client id and does not invent one', () => {
   const clientId = 'from-env-not-a-builtin'
   const url = new URL(consentUrl({
@@ -57,5 +61,26 @@ test('client surfaces CalendarError codes from invoke', async () => {
   } as unknown as SupabaseClient
   await assert.rejects(createCalendarSyncClient(client).status(), (error: unknown) => (
     error instanceof CalendarSyncError && error.code === 'GOOGLE_ENV_MISSING'
+  ))
+})
+
+test('client maps gateway NOT_FOUND to GOOGLE_FN_MISSING', async () => {
+  const client = {
+    functions: {
+      async invoke() {
+        return {
+          data: null,
+          error: {
+            message: 'Edge Function returned a non-2xx status code',
+            context: {
+              json: async () => ({ code: 'NOT_FOUND', message: 'Requested function was not found' }),
+            },
+          },
+        }
+      },
+    },
+  } as unknown as SupabaseClient
+  await assert.rejects(createCalendarSyncClient(client).status(), (error: unknown) => (
+    error instanceof CalendarSyncError && error.code === 'GOOGLE_FN_MISSING'
   ))
 })

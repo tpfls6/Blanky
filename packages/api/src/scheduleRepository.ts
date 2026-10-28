@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './database.generated.ts'
 import { AppError, mapDbError } from './errors.ts'
+import { mapBatchError, parseScheduleBatchResult, type ScheduleBatchResult } from './scheduleBatch.ts'
 import { isCalendarDate } from '../../types/src/aiSchema.ts'
 import { normalizeRepeatDays } from '../../types/src/recurrence.ts'
 import type {
@@ -153,6 +154,7 @@ export type ScheduleRepository = {
   create: (userId: string, draft: ScheduleDraft) => Promise<Schedule>
   update: (id: string, draft: ScheduleDraft) => Promise<Schedule>
   remove: (id: string) => Promise<void>
+  applyBatch: (key: string, deletes: string[]) => Promise<ScheduleBatchResult>
   listChanges: (scheduleId?: string) => Promise<ScheduleChange[]>
 }
 
@@ -230,6 +232,12 @@ export function createScheduleRepository(
     async remove(id) {
       const { error } = await client.from('schedules').delete().eq('id', id)
       if (error) throw mapDbError(error)
+    },
+
+    async applyBatch(key, deletes) {
+      const { data, error } = await client.rpc('apply_schedule_batch', { p_key: key, p_deletes: deletes })
+      if (error) throw mapBatchError(error)
+      return parseScheduleBatchResult(data)
     },
 
     async listChanges(scheduleId) {
