@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import { BLOCK_TYPES } from '../src/features/records/schema.ts'
 import { encoder, LIMITS, toBase64 } from '../src/theme/package/limits.ts'
@@ -66,6 +69,28 @@ function fixture(overrides: Record<string, unknown> = {}) {
     ...overrides,
   }
 }
+
+test('examples/workout-record.blankytpl passes the package validator with visible fields', () => {
+  const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../examples/workout-record.blankytpl'), 'utf8')
+  const pkg = validatePackage(JSON.parse(source))
+  assert.equal(pkg.manifest.id, 'workout-record')
+  assert.equal(pkg.manifest.pageType, 'record')
+  assert.equal(pkg.snapshot?.blocks.length, 3)
+  assert.equal(pkg.snapshot?.blocks.some((block) => block.type === 'heading' && block.props.text === '운동 기록'), true)
+  assert.equal(pkg.snapshot?.blocks.some((block) => block.type === 'collection' && block.props.collectionId === 'col-workout'), true)
+  const fields = pkg.snapshot?.collections[0]?.blocks ?? []
+  const labels = fields.map((block) => block.props.label)
+  assert.equal(fields.some((block) => block.type === 'title' && block.fieldKey === 'exercise'), true)
+  assert.deepEqual(
+    ['운동 종목', '날짜', '세트', '횟수', '중량', '메모'].every((label) => labels.includes(label)),
+    true,
+  )
+  assert.equal(fields.find((block) => block.fieldKey === 'sets')?.type, 'number')
+  assert.equal(fields.find((block) => block.fieldKey === 'reps')?.props.unit, '회')
+  assert.equal(fields.find((block) => block.fieldKey === 'weight')?.props.unit, 'kg')
+  assert.equal(fields.find((block) => block.fieldKey === 'memo')?.type, 'longText')
+  assert.ok((pkg.snapshot?.blocks.length ?? 0) > 0)
+})
 
 test('template filenames include .blankytpl and json', () => {
   assert.equal(isTemplatePackageFile('Workout.blankytpl'), true)

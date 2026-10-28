@@ -98,41 +98,6 @@ async function upload(label, file) {
 const owner = '44444444-4444-4444-8444-444444444444'
 const outDir = resolve('.tmp/template-package-tests')
 await mkdir(outDir, { recursive: true })
-const collection = {
-  id: 'col-workout',
-  name: '운동',
-  icon: 'Dumbbell',
-  color: '#3C8664',
-  description: '운동 기록',
-  blocks: [
-    { id: 'title', type: 'title', fieldKey: 'title', props: { label: '운동명', required: true } },
-    { id: 'minutes', type: 'number', fieldKey: 'minutes', props: { label: '시간', unit: '분' } },
-  ],
-}
-const fixture = {
-  formatVersion: 1,
-  kind: 'blanky.template-package',
-  id: 'workout-file',
-  name: '파일 운동',
-  description: '가져온 운동 기록',
-  author: 'tester',
-  version: '1.0.0',
-  pageType: 'record',
-  icon: 'Dumbbell',
-  snapshot: {
-    version: 1,
-    title: '파일 운동',
-    icon: 'Dumbbell',
-    description: '가져온 운동 기록',
-    blocks: [
-      { id: 'h', type: 'heading', props: { level: 1, text: '파일 운동', span: 3 } },
-      { id: 'c', type: 'collection', props: { collectionId: collection.id, view: 'table', text: '운동', span: 3 } },
-    ],
-    collections: [collection],
-    samples: [],
-    guide: '',
-  },
-}
 const diary = {
   formatVersion: 1,
   kind: 'blanky.template-package',
@@ -145,10 +110,9 @@ const diary = {
   icon: 'BookOpen',
   fieldLabels: { mood: '오늘의 컨디션' },
 }
-const packagePath = join(outDir, 'Workout.blankytpl')
+const packagePath = resolve('examples/workout-record.blankytpl')
 const diaryPath = join(outDir, 'Diary.blankytpl')
 const badPath = join(outDir, 'Bad.blankytpl')
-await writeFile(packagePath, JSON.stringify(fixture, null, 2))
 await writeFile(diaryPath, JSON.stringify(diary, null, 2))
 await writeFile(badPath, '<script>alert(1)</script>')
 const screenshot = async (name) => {
@@ -176,26 +140,28 @@ try {
 
   await upload('.blankytpl 파일 가져오기', packagePath)
   await wait('!!document.querySelector(".theme-import-review")', 'package review')
-  assert.match(await evaluate('document.querySelector(".theme-import-review").innerText'), /파일 운동/)
-  assert.match(await evaluate('document.querySelector(".theme-import-review").innerText'), /tester/)
+  assert.match(await evaluate('document.querySelector(".theme-import-review").innerText'), /운동 기록/)
+  assert.match(await evaluate('document.querySelector(".theme-import-review").innerText'), /blanky/)
   await screenshot('import-review')
   await button('템플릿 추가')
-  await wait('document.body.innerText.includes("내 템플릿에 저장") || document.body.innerText.includes("파일 운동")', 'installed')
+  await wait('document.body.innerText.includes("내 템플릿에 저장") || document.body.innerText.includes("운동 기록")', 'installed')
   await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "기록 만들기")', 'create record button')
 
   await upload('.blankytpl 파일 가져오기', packagePath)
   await wait('document.body.innerText.includes("이미 설치된 템플릿")', 'conflict')
   await screenshot('import-conflict')
   await button('별도 저장')
-  await wait('[...document.querySelectorAll("li")].filter(li => li.innerText.includes("파일 운동")).length >= 2', 'copy saved')
+  await wait('[...document.querySelectorAll("li")].filter(li => li.innerText.includes("운동 기록")).length >= 2', 'copy saved')
 
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim() === "기록 만들기").click()')
   await wait('location.pathname.startsWith("/records/")', 'record page')
   await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "추가")', 'add record')
   await button('추가')
-  await wait('document.querySelector("input[placeholder=\\"제목을 입력하세요\\"]")', 'title field')
-  await fill('input[placeholder="제목을 입력하세요"]', '스쿼트')
-  await fill('input[type="number"]', '40')
+  await wait('document.querySelector("input[placeholder=\\"스쿼트\\"]")', 'title field')
+  await wait('document.body.innerText.includes("세트") && document.body.innerText.includes("횟수") && document.body.innerText.includes("중량") && document.body.innerText.includes("메모")', 'workout fields')
+  await fill('input[placeholder="스쿼트"]', '스쿼트')
+  await evaluate('[...document.querySelectorAll("input[type=\\"number\\"]")].forEach((el, i) => { const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value"); proto.set.call(el, String([4, 8, 60][i] ?? 1)); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); })')
+  await evaluate('(()=>{const el=document.querySelector("textarea"); const proto=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value"); proto.set.call(el,"무릎이 살짝 아팠음"); el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true}));})()')
   await button('저장')
   await wait('document.body.innerText.includes("스쿼트")', 'saved row')
   const typeId = await evaluate('location.pathname.split("/")[2]')
@@ -206,7 +172,7 @@ try {
   await wait('!!document.querySelector(".theme-dropzone")', 'back to custom')
   const before = await evaluate('JSON.parse(localStorage.getItem("blanky.library.' + owner + '")).records.filter(r => r.title === "스쿼트").length')
   assert.equal(before, 1)
-  await evaluate('[...document.querySelectorAll("li")].find(li => li.innerText.includes("파일 운동") && !li.innerText.includes("복사본")).querySelector("button:last-of-type").click()')
+  await evaluate('[...document.querySelectorAll("li")].find(li => li.innerText.includes("운동 기록") && !li.innerText.includes("복사본")).querySelector("button:last-of-type").click()')
   await wait('!!document.querySelector(".app-confirm-action")', 'delete confirm')
   await evaluate('document.querySelector(".app-confirm-action").click()')
   await pause(400)
