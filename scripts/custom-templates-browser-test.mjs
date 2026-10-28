@@ -114,12 +114,14 @@ try {
     const side = document.getElementById('app-sidebar')
     const btn = document.getElementById('app-sidebar-toggle')
     const logo = document.querySelector('.sidebar-brand').firstElementChild
+    const main = document.querySelector('main')
     const bs = getComputedStyle(btn)
     const ss = getComputedStyle(side)
     const br = btn.getBoundingClientRect()
     const sr = side.getBoundingClientRect()
     return {
       sideRight: sr.right,
+      mainLeft: main.getBoundingClientRect().left,
       logoRight: logo.getBoundingClientRect().right,
       btnLeft: br.left,
       btnRight: br.right,
@@ -136,6 +138,7 @@ try {
     }
   })()`)
   assert.ok(layout.sideRight > 100, 'sidebar starts pinned, right=' + layout.sideRight)
+  assert.ok(layout.mainLeft > 100, 'pinned main starts past sidebar, left=' + layout.mainLeft)
   assert.equal(layout.transform, 'none')
   assert.equal(layout.left, '0px')
   assert.ok(layout.btnLeft > layout.logoRight, 'toggle is to the right of logo')
@@ -176,7 +179,7 @@ try {
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 500, y: 200 })
   await pause(900)
   assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin keeps sidebar open')
-  assert.ok((await evaluate('document.querySelector("main").getBoundingClientRect().left')) < 8, 'pin does not shift main')
+  assert.ok((await evaluate('document.querySelector("main").getBoundingClientRect().left')) > 100, 'pin shifts main past sidebar')
   await evaluate('document.getElementById("app-sidebar-toggle").click()')
   await pause(360)
   assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) < 8, 'unpin closes sidebar')
