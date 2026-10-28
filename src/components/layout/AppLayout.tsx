@@ -10,9 +10,9 @@ export function AppLayout() {
   const peek = usePeekNav()
 
   return (
-    <div className="theme-app-layout flex min-h-screen text-neutral-900">
+    <div className="theme-app-layout flex h-dvh min-w-0 overflow-hidden text-neutral-900">
       <Sidebar open={peek.open} pinned={peek.pinned} onToggle={peek.toggle} />
-      <main data-theme-slot="page" className="flex min-h-screen min-w-0 flex-1 flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
+      <main data-theme-slot="page" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0">
         {workError && <p role="alert" className="mx-6 mt-4 text-sm text-red-500">{workError}</p>}
         <ThemePreviewBar />
         <Outlet />

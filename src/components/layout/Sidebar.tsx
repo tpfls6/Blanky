@@ -71,7 +71,7 @@ export function Sidebar({
           <span className="sr-only">{open ? t('custom.closeMenu') : t('custom.openMenu')}</span>
         </button>
       </div>
-      <nav className="mt-6 flex min-w-0 flex-1 flex-col gap-0.5" aria-label={t('nav.main')}>
+      <nav className="mt-6 flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto" aria-label={t('nav.main')}>
         {core.map((item) => (
           <NavRow key={item.id} id={item.id} to={item.to} end={item.end} icon={item.icon} label={chromeNavLabel(item.id, t, item.label)} color={item.color} />
         ))}
