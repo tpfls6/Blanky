@@ -1,10 +1,10 @@
-.reading-page { max-width: 1180px; margin: auto; color: var(--fg); background: var(--blanky-reading-page-background,var(--bg)); }
+.reading-page { max-width: 1180px; margin: auto; color: var(--fg); background: var(--blanky-reading-page-background, transparent); }
 .reading-heading,.reading-list-heading,.reading-modal header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; }
 .reading-heading h1 { font-size:28px; font-weight:600; letter-spacing:-.04em; }
 .reading-heading p,.reading-muted,.reading-book-card p { color:var(--muted); font-size:13px; }
 .reading-heading p { margin-top:6px; }
 .reading-layout { display:grid; grid-template-columns:210px minmax(0,1fr); gap:36px; margin-top:28px; }
-.reading-sidebar { background:var(--blanky-reading-sidebar-background,var(--blanky-sidebar-background,var(--surface))); align-self:start; padding-right:16px; border-right:1px solid var(--line); }
+.reading-sidebar { background:var(--blanky-reading-sidebar-background, transparent); align-self:start; padding-right:16px; border-right:1px solid var(--line); }
 .reading-nav { display:flex; width:100%; align-items:center; gap:8px; text-align:left; padding:10px; border-radius:var(--radius); font-size:14px; }
 .reading-nav span:last-child { margin-left:auto; font-size:12px; }
 .reading-nav:hover,.reading-edit:hover { background:var(--hover); }
@@ -47,7 +47,7 @@
 .reading-result .reading-book-cover { width:78px; flex-shrink:0; }
 .reading-result h3 { font-weight:500; font-size:15px; }
 .reading-result p { font-size:13px; margin:6px 0; }
-.reading-detail { background:var(--blanky-reading-detail-background,var(--bg)); }
+.reading-detail { background:var(--blanky-reading-detail-background, transparent); }
 .reading-back { font-size:13px; color:var(--muted); }
 .reading-detail-heading { display:flex; gap:26px; margin:24px 0; }
 .reading-detail-heading .reading-book-cover { width:136px; flex-shrink:0; }

@@ -48,7 +48,7 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
       render={(block) =>
         block.type === 'page-body' ? (
     <div className="memo-layout grid w-full gap-8 md:grid-cols-[260px_minmax(0,1fr)]">
-      <div className={selected ? 'hidden md:block' : 'block'}>
+      <div className={selected ? 'hidden min-h-0 md:flex md:flex-col' : 'flex min-h-0 flex-col'}>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-medium tracking-tight">Memo</h1>
           <button data-theme-slot="button-primary"
@@ -63,11 +63,12 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
             메모 작성
           </button>
         </div>
+        <div className="memo-browse">
         <input data-theme-slot="input"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="검색"
-          className="field mt-6 w-full"
+          className="field w-full"
         />
         <nav className="memo-folders" aria-label="메모 카테고리 폴더">
           {[{ id: 'all', name: '전체 메모' }, { id: 'none', name: '미분류' }].map(item => <button type="button" key={item.id} className="memo-folder" aria-current={activeFolder === item.id ? 'page' : undefined} onClick={() => chooseFolder(item.id)}>
@@ -118,6 +119,7 @@ export function MemoPage({ editing = false }: { editing?: boolean }) {
             </li>
           ))}
         </ul>
+        </div>
       </div>
       <div className={selected ? 'memo-editor-column block' : 'memo-editor-column hidden md:block'}>
         {selected ? (
