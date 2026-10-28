@@ -408,7 +408,7 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl items-start gap-8 px-6 py-8 md:px-10 lg:gap-14">
-      <nav aria-label={t('settings.menu')} className="sticky top-8 hidden w-48 shrink-0 lg:block">
+      <nav aria-label={t('settings.menu')} className="sticky top-8 hidden w-48 shrink-0 overflow-hidden rounded-md border border-line bg-surface px-3 py-4 lg:block">
         <p className="px-3 pb-3 text-sm font-medium tracking-tight">{t('settings.title')}</p>
         <div className="flex flex-col gap-0.5">
           {SECTIONS.map((item) => {
@@ -422,7 +422,7 @@ export function SettingsPage() {
           })}
         </div>
       </nav>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-line bg-surface px-6 py-6">
         <label className="mb-6 block lg:hidden">
           <span className="sr-only">{t('settings.menu')}</span>
           <select

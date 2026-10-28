@@ -26,10 +26,11 @@ export function TrashPage() {
         ) : null}
       </div>
       <p className="mt-2 text-sm text-neutral-400">삭제한 항목을 복구하거나 완전히 지울 수 있습니다.</p>
+      <div className="mt-6 overflow-hidden rounded-md border border-line bg-surface px-4">
       {trash.length === 0 ? <EmptyState>휴지통이 비어 있습니다.</EmptyState> : null}
-      <ul className="mt-6">
+      <ul>
         {trash.map((row) => (
-          <li key={row.id} className="flex items-start justify-between gap-3 border-t border-line py-3">
+          <li key={row.id} className="flex items-start justify-between gap-3 border-t border-line py-3 first:border-t-0">
             <div className="min-w-0">
               <p className="truncate text-sm">{row.title}</p>
               <p className="mt-1 text-xs text-neutral-400">{trashKindLabel(row)} · {row.deletedAt.slice(0, 10)}</p>
@@ -51,6 +52,7 @@ export function TrashPage() {
           </li>
         ))}
       </ul>
+      </div>
     </div>
   )
 }
