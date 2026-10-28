@@ -1,15 +1,12 @@
-import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ROUTES } from '../../constants/routes.ts'
+import { useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import type { UserPage as UserPageModel } from '../../features/builder/schema.ts'
 import { packDiary, packMemo, packReading, recordsForPage, unpackDiary, unpackMemo, unpackReading } from '../../features/pages/pageRecords.ts'
 import { DEFAULT_FIELD_LABELS, type PageTemplateKind } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
-import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
-import { PageSettings } from '../Custom/PageSettings.tsx'
 import { DiaryWorkspace } from '../Diary/DiaryPage.tsx'
 import { MemoPage } from '../Memo/MemoPage.tsx'
 import { ReadingCatalog } from '../Reading/ReadingCatalog.tsx'
@@ -146,13 +143,10 @@ function Body({ page }: { page: UserPageModel }) {
 
 export function UserPage() {
   const { pageId } = useParams()
-  const navigate = useNavigate()
-  const confirm = useConfirm()
   const { t } = useI18n()
-  const { customPages, records, removeUserPage } = useLibrary()
+  const { customPages } = useLibrary()
   const page = customPages.find((item) => item.id === pageId)
-  const ready = useMemo(() => page, [page])
-  if (!ready) {
+  if (!page) {
     return (
       <div className="px-6 py-10">
         <p className="text-sm text-neutral-500">{t('builder.missing')}</p>
@@ -162,28 +156,7 @@ export function UserPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <p className="text-xs text-neutral-400">{ready.template ? t(`custom.kind.${ready.template}`) : t('custom.legacy')}</p>
-        <button
-          type="button"
-          className="chip ml-auto"
-          onClick={async () => {
-            if (await confirm(t('custom.deleteBody', { name: ready.name, count: recordsForPage(records, ready.id).length }), { title: t('custom.deleteTitle', { name: ready.name }) })) {
-              removeUserPage(ready.id)
-              navigate(ROUTES.home)
-            }
-          }}
-        >
-          {t('delete')}
-        </button>
-      </div>
-      <details className="mb-6 rounded-md border border-line bg-surface p-3">
-        <summary className="cursor-pointer text-sm font-medium">{t('custom.pageSettings')}</summary>
-        <div className="mt-3">
-          <PageSettings page={ready} />
-        </div>
-      </details>
-      <Body page={ready} />
+      <Body page={page} />
     </div>
   )
 }
