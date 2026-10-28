@@ -6,8 +6,10 @@ import { packageFeatures, kindLabels } from '../../theme/package/features.ts';
 import { themeKindOf } from '../../theme/package/slots.ts';
 import { useConfirm } from '../../state/useConfirm.ts';
 import { useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { TemplateStore } from '../Store/TemplateStore.tsx';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { TemplateCard, useStore } from '../Store/TemplateStore.tsx';
+import { ROUTES } from '../../constants/routes.ts';
+import { useI18n } from '../../i18n/useI18n.ts';
 import { BUILTIN_THEMES, type BlankyTheme } from '@blanky/types';
 import { useTheme } from '../../theme/context.ts';
 import { ThemeImport, ThemeExportButton } from './PackageControls.tsx';
@@ -17,14 +19,38 @@ import { ThemePreview } from './ThemePreview.tsx';
 const price = (t: BlankyTheme) => t.pricingType === 'free' ? '무료' : '₩' + t.price.toLocaleString();
 function ThemeCard({ theme }: {
     theme: BlankyTheme;
-}) { return <article><Link to={'/store/themes/' + theme.id} className="block"><div className="theme-swatch" style={{ background: theme.config.colors.background, color: theme.config.colors.textPrimary }}>{theme.thumbnailUrl ? <img src={theme.thumbnailUrl} alt={theme.name} className="h-full w-full object-cover"/> : <><div style={{ background: theme.config.sidebar.selectedBackground }}/><div><span style={{ background: theme.config.colors.primary }}/><span style={{ background: theme.config.schedule.background }}/><span style={{ background: theme.config.colors.surface }}/></div></>}</div><h2 className="mt-3 font-medium">{theme.name}</h2><span className="text-xs">{kindLabels[themeKindOf(theme)]} · {theme.package ? '패키지' : '색상'}</span></Link><Link className="text-sm text-neutral-500" to={'/creator/' + (theme.creatorId ?? 'blanky')}>{theme.creatorName}</Link><p className="mt-1 text-sm">{price(theme)} <span className="text-neutral-400">· {theme.ratingCount ? '★ ' + theme.ratingAverage.toFixed(1) : '평점 없음'} · {theme.downloadCount} 다운로드</span></p></article>; }
-export function ThemeStore() { const { themes, error, loading } = useTheme(); const [query, setQuery] = useState(''); const [tab, setTab] = useState('추천'); const shown = themes.filter(t => t.visibility === 'public' && (tab !== '무료' || t.pricingType === 'free') && (tab !== '유료' || t.pricingType === 'paid') && (t.name + ' ' + t.description + ' ' + t.tags.join(' ')).toLowerCase().includes(query.toLowerCase())).sort((a, b) => tab === '인기' ? b.downloadCount - a.downloadCount : tab === '신규' ? b.createdAt.localeCompare(a.createdAt) : Number(a.creatorId !== null) - Number(b.creatorId !== null)); return <section data-theme-protected className="theme-page"><header className="flex flex-wrap justify-between gap-3"><div><h1>테마 스토어</h1><p className="text-sm text-neutral-500">당신의 하루를 취향에 맞게.</p></div><div className="flex gap-2"><Link className="btn btn-line" to="/settings/themes">내 테마</Link><Link className="btn btn-primary" to="/customize/theme">테마 만들기</Link></div></header><StoreTabs current="themes" /><input className="field my-5 w-full max-w-lg" aria-label="테마 검색" placeholder="이름, 설명, 태그 검색" value={query} onChange={e => setQuery(e.target.value)}/><div className="mb-6 flex flex-wrap gap-4">{['추천', '인기', '신규', '무료', '유료'].map(v => <button key={v} className={tab === v ? 'tab tab-on' : 'tab'} onClick={() => setTab(v)}>{v}</button>)}<Link className="tab" to="/settings/themes">내 테마</Link></div>{error && <p role="alert">{error}</p>}{loading ? <p role="status">테마를 불러오는 중…</p> : <div className="theme-grid">{shown.map(t => <ThemeCard key={t.id} theme={t}/>)}{!shown.length && <p>검색 결과가 없습니다.</p>}</div>}</section>; }
-function StoreTabs({ current }: { current: 'themes' | 'templates' }) {
-  return <div className="mt-6 flex gap-3"><Link className={current === 'themes' ? 'chip chip-on' : 'chip'} to="/store">테마</Link><Link className={current === 'templates' ? 'chip chip-on' : 'chip'} to="/store?tab=templates">템플릿</Link></div>
+}) {
+  const { t } = useI18n()
+  return <article><Link to={'/store/themes/' + theme.id} className="block"><div className="theme-swatch" style={{ background: theme.config.colors.background, color: theme.config.colors.textPrimary }}>{theme.thumbnailUrl ? <img src={theme.thumbnailUrl} alt={theme.name} className="h-full w-full object-cover"/> : <><div style={{ background: theme.config.sidebar.selectedBackground }}/><div><span style={{ background: theme.config.colors.primary }}/><span style={{ background: theme.config.schedule.background }}/><span style={{ background: theme.config.colors.surface }}/></div></>}</div><h2 className="mt-3 font-medium">{theme.name}</h2><span className="text-xs">{t('templates.themes')} · {kindLabels[themeKindOf(theme)]} · {theme.package ? '패키지' : '색상'}</span></Link><Link className="text-sm text-neutral-500" to={'/creator/' + (theme.creatorId ?? 'blanky')}>{theme.creatorName}</Link><p className="mt-1 text-sm">{price(theme)} <span className="text-neutral-400">· {theme.ratingCount ? '★ ' + theme.ratingAverage.toFixed(1) : '평점 없음'} · {theme.downloadCount} 다운로드</span></p></article>;
+}
+function matches(query: string, name: string, description: string, tags: string[]) {
+  const text = query.trim().toLowerCase()
+  return !text || (name + ' ' + description + ' ' + tags.join(' ')).toLowerCase().includes(text)
+}
+export function ThemeStore() {
+  const { t } = useI18n()
+  const { themes, error, loading } = useTheme()
+  const { state, error: templateError, loading: templateLoading } = useStore()
+  const [query, setQuery] = useState('')
+  const [tab, setTab] = useState<'recommended' | 'popular' | 'new'>('recommended')
+  const themeRows = themes.filter((item) => item.visibility === 'public' && matches(query, item.name, item.description, item.tags)).map((item) => ({
+    key: 'theme-' + item.id,
+    builtin: item.creatorId === null,
+    score: item.downloadCount,
+    at: item.createdAt,
+    node: <ThemeCard theme={item} />,
+  }))
+  const templateRows = state.listings.filter((item) => item.status === 'published' && matches(query, item.name, item.description, item.tags)).map((item) => ({
+    key: 'template-' + item.id,
+    builtin: item.creatorId === null,
+    score: item.installCount,
+    at: item.createdAt,
+    node: <TemplateCard listing={item} />,
+  }))
+  const shown = [...themeRows, ...templateRows].sort((a, b) => tab === 'popular' ? b.score - a.score : tab === 'new' ? b.at.localeCompare(a.at) : Number(!a.builtin) - Number(!b.builtin))
+  return <section data-theme-protected className="theme-page"><header className="flex flex-wrap justify-between gap-3"><div><h1>{t('themes.store')}</h1><p className="text-sm text-neutral-500">{t('themes.storeTagline')}</p></div><div className="flex gap-2"><Link className="btn btn-line" to={ROUTES.myThemes}>{t('themes.myThemes')}</Link><Link className="btn btn-line" to={ROUTES.templatePublish}>{t('templates.publish')}</Link><Link className="btn btn-primary" to={ROUTES.themeEditor}>{t('themes.createTheme')}</Link></div></header><input className="field my-5 w-full max-w-lg" aria-label={t('templates.search')} placeholder={t('templates.search')} value={query} onChange={(e) => setQuery(e.target.value)} /><div className="mb-6 flex flex-wrap gap-4">{([['recommended', t('themes.recommended')], ['popular', t('themes.popular')], ['new', t('themes.new')]] as const).map(([id, label]) => <button key={id} className={tab === id ? 'tab tab-on' : 'tab'} onClick={() => setTab(id)}>{label}</button>)}</div>{(error || templateError) && <p role="alert">{error || templateError}</p>}{(loading || templateLoading) && !shown.length ? <p role="status">{t('themes.loading')}</p> : <div className="theme-grid">{shown.map((row) => <div key={row.key}>{row.node}</div>)}{!shown.length && <p>{t('templates.empty')}</p>}</div>}</section>;
 }
 export function StorePage() {
-  const [params] = useSearchParams()
-  if (params.get('tab') === 'templates') return <TemplateStore />
   return <ThemeStore />
 }
 export function ThemeDetailPage() {

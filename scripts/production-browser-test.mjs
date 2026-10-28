@@ -88,7 +88,7 @@ try {
  await navigate(base+'/schedule');await wait('document.body.textContent.includes("Drag task")','built Schedule route');
  await navigate(base+'/settings/planning');await wait('document.querySelector("section[aria-label]")','built settings route');
  await navigate(base+'/diary');await wait('document.querySelector(".diary-page")','built Diary route');
- await navigate(base+'/store');await wait('document.body.textContent.includes("테마 스토어")','built Theme route');
+ await navigate(base+'/store');await wait('document.body.textContent.includes("스토어")','built Theme route');
  await navigate(base+'/reading');await wait('document.querySelector("button[aria-label]")','built Reading route');
  await click('button[aria-label="새 책장"]');await button('📚 아이콘 선택').catch(()=>evaluate('[...document.querySelectorAll("button")].find(el=>el.textContent.includes("아이콘 선택")).click()'));
  await button('아이콘');await wait('document.querySelector(".reading-icon-results svg")','full lazy icon catalog');

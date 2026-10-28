@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { TemplatePreview } from '../Custom/TemplatePreview.tsx'
 import { ROUTES } from '../../constants/routes.ts'
@@ -17,7 +17,6 @@ import {
   publishTemplate,
   reportTemplate,
   reviewTemplate,
-  searchTemplates,
   sharePath,
   toggleFavorite,
   updateListing,
@@ -28,7 +27,8 @@ function categoryLabel(t: (key: string) => string, id: string) {
   return t('templates.cat.' + id)
 }
 
-function TemplateCard({ listing }: { listing: TemplateListing }) {
+export function TemplateCard({ listing }: { listing: TemplateListing }) {
+  const { t } = useI18n()
   return (
     <article>
       <Link to={ROUTES.templateDetail(listing.id)} className="block">
@@ -45,7 +45,7 @@ function TemplateCard({ listing }: { listing: TemplateListing }) {
           )}
         </div>
         <h2 className="mt-3 font-medium">{listing.name}</h2>
-        <p className="text-xs text-neutral-500">{listing.creatorName} · {listing.category}</p>
+        <p className="text-xs text-neutral-500">{t('templates.templates')} · {listing.creatorName}</p>
         <p className="mt-1 text-sm">{listing.description}</p>
         <p className="mt-1 text-xs text-neutral-400">{listing.installCount} · {listing.tags.slice(0, 3).join(' · ')}</p>
       </Link>
@@ -53,82 +53,19 @@ function TemplateCard({ listing }: { listing: TemplateListing }) {
   )
 }
 
-function useStore() {
+export function useStore() {
   const { user } = useSession()
   const [state, setState] = useState<TemplateLibrary>({ listings: officialListings(), installed: [], favorites: [], admin: false })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
     void loadTemplates(user.id).then(setState).catch((err: Error) => setError(err.message)).finally(() => setLoading(false))
   }, [user])
   return { user, state, setState, error, loading, refresh: () => user && loadTemplates(user.id).then(setState) }
-}
-
-export function TemplateStore() {
-  const { t } = useI18n()
-  const { user, state, error, loading } = useStore()
-  const [params, setParams] = useSearchParams()
-  const [query, setQuery] = useState(params.get('q') ?? '')
-  const [items, setItems] = useState<TemplateListing[]>(state.listings)
-  const tab = params.get('sort') ?? 'featured'
-  const category = params.get('category') ?? ''
-  const view = params.get('view') ?? 'browse'
-
-  useEffect(() => {
-    if (!user) return
-    void searchTemplates(user.id, { query, category, sort: tab === 'popular' ? 'popular' : tab === 'new' ? 'new' : 'featured' }).then(setItems).catch(() => setItems(state.listings))
-  }, [user, query, category, tab, state.listings])
-
-  const shown = useMemo(() => {
-    if (view === 'mine') return state.listings.filter((item) => item.creatorId === user?.id)
-    if (view === 'installed') return state.listings.filter((item) => state.installed.some((row) => row.listingId === item.id))
-    if (view === 'favorites') return items.filter((item) => state.favorites.includes(item.id))
-    return items.filter((item) => item.status === 'published')
-  }, [view, items, state, user])
-
-  return (
-    <section data-theme-protected className="theme-page">
-      <header className="flex flex-wrap justify-between gap-3">
-        <div>
-          <h1>{t('templates.store')}</h1>
-          <p className="text-sm text-neutral-500">{t('templates.tagline')}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link className="btn btn-line" to="/store/templates/library">{t('templates.library')}</Link>
-          <Link className="btn btn-primary" to={ROUTES.templatePublish}>{t('templates.publish')}</Link>
-        </div>
-      </header>
-      <div className="mt-6 flex gap-3">
-        <Link className="chip" to="/store">{t('templates.themes')}</Link>
-        <span className="chip chip-on">{t('templates.templates')}</span>
-      </div>
-      <input className="field my-5 w-full max-w-lg" aria-label={t('templates.search')} placeholder={t('templates.search')} value={query} onChange={(event) => setQuery(event.target.value)} />
-      <div className="mb-4 flex flex-wrap gap-2">
-        {TEMPLATE_CATEGORIES.map((id) => (
-          <button key={id} type="button" className={category === id ? 'chip chip-on' : 'chip'} onClick={() => setParams((current) => { const next = new URLSearchParams(current); if (category === id) next.delete('category'); else next.set('category', id); return next })}>
-            {categoryLabel(t, id)}
-          </button>
-        ))}
-      </div>
-      <div className="mb-6 flex flex-wrap gap-4">
-        {[['featured', t('templates.featured')], ['popular', t('templates.popular')], ['new', t('templates.new')], ['favorites', t('templates.favorites')], ['mine', t('templates.mine')], ['installed', t('templates.installed')]].map(([id, label]) => (
-          <button key={id} type="button" className={(id === 'favorites' || id === 'mine' || id === 'installed' ? view : tab) === id ? 'tab tab-on' : 'tab'} onClick={() => setParams((current) => { const next = new URLSearchParams(current); if (id === 'favorites' || id === 'mine' || id === 'installed') next.set('view', id); else { next.delete('view'); next.set('sort', id) } return next })}>{label}</button>
-        ))}
-      </div>
-      {error ? <p role="alert">{error}</p> : null}
-      {loading ? (
-        <div className="theme-grid" aria-busy="true">
-          {[0, 1, 2].map((item) => <div key={item} className="theme-swatch animate-pulse bg-neutral-100" />)}
-        </div>
-      ) : (
-        <div className="theme-grid">
-          {shown.map((item) => <TemplateCard key={item.id} listing={item} />)}
-          {!shown.length ? <p>{t('templates.empty')}</p> : null}
-        </div>
-      )}
-    </section>
-  )
 }
 
 export function TemplateDetailPage() {
@@ -155,7 +92,7 @@ export function TemplateDetailPage() {
 
   return (
     <section data-theme-protected className="theme-page">
-      <Link className="text-sm" to={ROUTES.storeTemplates}>{t('templates.back')}</Link>
+      <Link className="text-sm" to={ROUTES.store}>{t('templates.back')}</Link>
       <div className="theme-editor mt-6">
         <div>
           {listing.thumbnailUrl ? <img className="mb-4 w-full rounded-xl" src={listing.thumbnailUrl} alt="" /> : null}
