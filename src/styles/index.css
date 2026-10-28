@@ -606,22 +606,27 @@ html.dark .border-neutral-300 {
   box-shadow: var(--shadow);
 }
 
+.page-wizard .template-card:hover,
+.page-wizard .template-card:focus-visible,
+.page-wizard .template-card[aria-pressed='true'] {
+  transform: none;
+}
+
 .template-preview-slot {
-  min-height: 12rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .template-preview {
-  overflow: hidden;
-  max-height: 22rem;
+  height: 100%;
+  overflow: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
 }
 
 .template-preview-inner {
-  transform: scale(0.72);
-  transform-origin: top left;
-  width: 138.9%;
+  min-height: 100%;
   pointer-events: none;
 }
 

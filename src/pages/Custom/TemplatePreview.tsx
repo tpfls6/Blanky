@@ -52,9 +52,18 @@ function sampleReading(): PageReadingItem {
   }
 }
 
-export function TemplatePreview({ kind }: { kind: PageTemplateKind }) {
+export function TemplatePreview({
+  kind,
+  heading,
+  labels,
+}: {
+  kind: PageTemplateKind
+  heading?: string
+  labels?: Record<string, string>
+}) {
   const { t } = useI18n()
-  const heading = t(`custom.kind.${kind}`)
+  const title = heading ?? t(`custom.kind.${kind}`)
+  const fields = labels ?? DEFAULT_FIELD_LABELS[kind]
   return (
     <div className="template-preview" aria-hidden="true">
       <div className="template-preview-inner pointer-events-none">
@@ -63,9 +72,9 @@ export function TemplatePreview({ kind }: { kind: PageTemplateKind }) {
             userId="preview"
             pageKey="preview"
             canvas={false}
-            heading={heading}
+            heading={title}
             tagline=""
-            labels={DEFAULT_FIELD_LABELS.diary}
+            labels={fields}
             entries={[sampleDiary()]}
             loading={false}
             error=""
@@ -75,8 +84,8 @@ export function TemplatePreview({ kind }: { kind: PageTemplateKind }) {
         ) : null}
         {kind === 'reading' ? (
           <ReadingCatalog
-            heading={heading}
-            labels={DEFAULT_FIELD_LABELS.reading}
+            heading={title}
+            labels={fields}
             items={[sampleReading()]}
             busy={false}
             error=""
@@ -87,8 +96,8 @@ export function TemplatePreview({ kind }: { kind: PageTemplateKind }) {
         {kind === 'memo' ? (
           <MemoPage
             source={{
-              heading,
-              labels: DEFAULT_FIELD_LABELS.memo,
+              heading: title,
+              labels: fields,
               memos: [sampleMemo()],
               add: () => 'preview-memo',
               save: () => undefined,
