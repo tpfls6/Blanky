@@ -111,6 +111,7 @@
     "importFailed": "Could not import the template.",
     "importSaved": "Saved to My templates.",
     "importReview": "Review before installing",
+    "importEmptyBody": "This template has nothing to display.",
     "importMeta": "Author: {{author}} · Version: {{version}}",
     "unknownAuthor": "Unknown",
     "importConflict": "This template is already installed. Installed v{{installed}} / file v{{incoming}}",

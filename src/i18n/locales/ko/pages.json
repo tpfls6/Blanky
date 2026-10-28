@@ -111,6 +111,7 @@
     "importFailed": "템플릿 가져오기에 실패했습니다.",
     "importSaved": "내 템플릿에 저장했습니다.",
     "importReview": "템플릿 설치 전 확인",
+    "importEmptyBody": "표시할 내용이 없는 템플릿입니다",
     "importMeta": "제작자: {{author}} · 버전: {{version}}",
     "unknownAuthor": "알 수 없음",
     "importConflict": "이미 설치된 템플릿입니다. 설치됨 v{{installed}} / 파일 v{{incoming}}",

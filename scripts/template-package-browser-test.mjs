@@ -113,8 +113,20 @@ const diary = {
 const packagePath = resolve('examples/workout-record.blankytpl')
 const diaryPath = join(outDir, 'Diary.blankytpl')
 const badPath = join(outDir, 'Bad.blankytpl')
+const emptyPath = join(outDir, 'Empty.blankytpl')
 await writeFile(diaryPath, JSON.stringify(diary, null, 2))
 await writeFile(badPath, '<script>alert(1)</script>')
+await writeFile(emptyPath, JSON.stringify({
+  formatVersion: 1,
+  kind: 'blanky.template-package',
+  id: 'empty-record',
+  name: '빈 기록',
+  author: 'tester',
+  version: '1.0.0',
+  pageType: 'record',
+  icon: 'Dumbbell',
+  snapshot: { title: '빈 기록', blocks: [], collections: [] },
+}, null, 2))
 const screenshot = async (name) => {
   const result = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true })
   await writeFile(join(outDir, name + '.png'), Buffer.from(result.data, 'base64'))
@@ -138,6 +150,14 @@ try {
   await wait('document.body.innerText.includes("HTML") || document.body.innerText.includes("JSON") || document.body.innerText.includes("실패")', 'bad file')
   await screenshot('bad-file')
 
+  await upload('.blankytpl 파일 가져오기', emptyPath)
+  await wait('!!document.querySelector(".theme-import-review")', 'empty review')
+  assert.match(await evaluate('document.querySelector(".theme-import-review").innerText'), /표시할 내용이 없는 템플릿입니다/)
+  assert.match(await evaluate('document.querySelector(".theme-import-review").innerText'), /템플릿 추가/)
+  await screenshot('empty-body')
+  await button('취소')
+  await wait('!document.querySelector(".theme-import-review")', 'empty cancelled')
+
   await upload('.blankytpl 파일 가져오기', packagePath)
   await wait('!!document.querySelector(".theme-import-review")', 'package review')
   assert.match(await evaluate('document.querySelector(".theme-import-review").innerText'), /운동 기록/)
@@ -146,6 +166,13 @@ try {
   await button('템플릿 추가')
   await wait('document.body.innerText.includes("내 템플릿에 저장") || document.body.innerText.includes("운동 기록")', 'installed')
   await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "기록 만들기")', 'create record button')
+
+  await evaluate('[...document.querySelectorAll("li")].find(li => li.innerText.includes("운동 기록") && !li.innerText.includes("복사본")).querySelector("button")?.click()')
+  await wait('location.pathname.startsWith("/pages/")', 'created page')
+  await wait('document.body.innerText.includes("운동 기록") && document.body.innerText.includes("세트")', 'page collection')
+  await screenshot('created-page')
+  await navigate(base + '/custom')
+  await wait('!!document.querySelector(".theme-dropzone")', 'custom after page')
 
   await upload('.blankytpl 파일 가져오기', packagePath)
   await wait('document.body.innerText.includes("이미 설치된 템플릿")', 'conflict')

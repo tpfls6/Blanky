@@ -2,6 +2,16 @@
 
 Blanky는 `.blankytpl`(또는 `.json`) 파일로 페이지·기록 템플릿을 가져옵니다. 이 문서는 저장소의 검증·설치·렌더링 코드를 기준으로 한 규격입니다. 필드 이름이나 블록 종류를 추측하지 말고, 아래 타입과 예제를 그대로 쓰세요.
 
+## 지금 사용할 수 있는 곳
+
+| 위치 | `.blankytpl` 가져오기 |
+| --- | --- |
+| 배포 앱 | 아직 없습니다. 이 기능을 배포하지 않았습니다. |
+| GitHub `main` | 아직 없습니다. 문서·엔진이 이 PR 브랜치에만 있습니다. |
+| 브랜치 `feat/blankytpl-package` | 로컬에서 `npm run dev`로 실행하면 커스텀 화면에서 가져올 수 있습니다. |
+
+예제 파일은 병합 전에 [브랜치 raw](https://github.com/tpfls6/Blanky/raw/feat/blankytpl-package/examples/workout-record.blankytpl)에서 받으세요.
+
 - 예제 파일: [`examples/workout-record.blankytpl`](../examples/workout-record.blankytpl)
 - 검증기: `src/template/package/TemplateValidator.ts`
 - 페이지 블록: `src/features/builder/schema.ts`
@@ -15,7 +25,7 @@ Blanky는 `.blankytpl`(또는 `.json`) 파일로 페이지·기록 템플릿을 
 4. 앱에서 **커스텀** 화면 → **`.blankytpl` 파일 가져오기**로 파일을 올립니다.
 5. 미리보기를 확인한 뒤 **템플릿 추가** → **페이지 만들기** 또는 **기록 만들기**를 누릅니다.
 
-`blocks: []`와 `collections: []`만 있으면 가져오기는 성공하지만 본문이 비어 보입니다. 페이지에 보일 블록과, 기록에 입력할 필드를 각각 넣어야 합니다.
+`blocks: []`와 `collections: []`만 있으면 가져오기는 성공합니다. 미리보기에는 “표시할 내용이 없는 템플릿입니다”가 나오고, **템플릿 추가**는 그대로 할 수 있습니다. 페이지에 보일 블록과 기록에 입력할 필드를 각각 넣어야 본문이 보입니다.
 
 ## 패키지 전체 규격
 
@@ -364,7 +374,8 @@ snapshot.collections[].blocks → 기록 입력 폼 (Record Block)
 
 | 원인 | 결과 |
 | --- | --- |
-| `snapshot.blocks`가 `[]` | 미리보기 공백. 페이지 만들면 빈 텍스트 한 칸. |
+| `blocks`와 `collections`가 모두 비어 있음 | 가져오기는 성공. 미리보기에 “표시할 내용이 없는 템플릿입니다”. **템플릿 추가**는 가능. |
+| `snapshot.blocks`만 `[]` | 페이지 본문 없음. 컬렉션이 있으면 **기록 만들기**는 가능. |
 | 페이지 블록에 `id` 없음 | 그 블록 삭제. |
 | 페이지에 기록 필드 타입(`title`, `number` …)을 넣음 | 페이지 엔진이 몰라서 삭제. |
 | `collections`가 비어 있음 | **기록 만들기** 버튼이 없음. 입력 폼도 없음. |

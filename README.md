@@ -85,13 +85,17 @@ Expected Output:
 
 ## 커스텀 템플릿 만들기
 
-Blanky는 `.blankytpl` JSON 파일로 페이지·기록 템플릿을 가져올 수 있습니다. `blocks`가 비어 있으면 가져오기는 되지만 본문이 보이지 않으므로, 예제의 블록 구조를 기준으로 수정하세요.
+Blanky는 `.blankytpl` JSON 파일로 페이지·기록 템플릿을 가져올 수 있습니다.
+
+**이 기능은 아직 `main`과 배포 앱에 없습니다.** 커스텀 화면에서 파일을 가져오려면 [이 PR 브랜치](https://github.com/tpfls6/Blanky/tree/feat/blankytpl-package)를 로컬에서 실행해야 합니다. 병합·배포 후에야 배포 URL에서 예제를 가져올 수 있습니다.
+
+`blocks`와 `collections`가 모두 비어 있으면 가져오기는 되지만, 미리보기에 “표시할 내용이 없는 템플릿입니다”가 나옵니다. 예제의 블록 구조를 기준으로 수정하세요.
 
 1. [템플릿 패키지 가이드](docs/template-package-guide.md)에서 패키지 규격과 블록 JSON 예제를 확인합니다.
-2. [운동 기록 예제](examples/workout-record.blankytpl)를 다운로드하거나 복사합니다. ([raw 파일](https://github.com/tpfls6/Blanky/raw/main/examples/workout-record.blankytpl))
+2. [운동 기록 예제](examples/workout-record.blankytpl)를 복사합니다. 병합 전에는 [브랜치 raw 파일](https://github.com/tpfls6/Blanky/raw/feat/blankytpl-package/examples/workout-record.blankytpl)을 받으세요. (`main` raw는 아직 이 파일이 없습니다.)
 3. `id`, `name`, `snapshot.blocks`, `snapshot.collections`을 수정합니다.
 4. 확장자를 `.blankytpl`로 저장합니다.
-5. 앱의 **커스텀** 화면에서 파일을 가져옵니다.
+5. 이 브랜치로 띄운 앱의 **커스텀** 화면에서 파일을 가져옵니다.
 
 문서나 예제를 고치려면 가이드의 [GitHub에서 수정·기여하기](docs/template-package-guide.md#github에서-수정기여하기)를 참고하세요. 저장소에 별도의 기여 가이드 파일은 아직 없습니다.
 

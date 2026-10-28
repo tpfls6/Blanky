@@ -12,7 +12,7 @@ import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
 import { deleteTemplatePackage, listTemplatePackages, putTemplatePackage } from '../../services/templates/localPackages.ts'
-import { compareSemver, isTemplatePackageFile, type InstalledTemplatePackage, type TemplatePackage } from '../../template/package/schema.ts'
+import { compareSemver, isTemplatePackageFile, snapshotHasContent, type InstalledTemplatePackage, type TemplatePackage } from '../../template/package/schema.ts'
 import { downloadTemplate, exportTemplatePackage, importTemplatePackages } from '../../template/package/TemplateLoader.ts'
 import { systemPageType } from '../../template/package/TemplateValidator.ts'
 import { TemplatePreview } from './TemplatePreview.tsx'
@@ -186,6 +186,7 @@ function ImportReview({
 }
 
 function PackagePreview({ pkg }: { pkg: TemplatePackage }) {
+  const { t } = useI18n()
   const kind = systemPageType(pkg.manifest.pageType)
   const image = previewSrc(pkg)
   return (
@@ -193,13 +194,15 @@ function PackagePreview({ pkg }: { pkg: TemplatePackage }) {
       {image ? <img src={image} alt="" className="mb-3 max-h-40 rounded-md object-contain" /> : null}
       {kind ? (
         <TemplatePreview kind={kind} heading={pkg.manifest.name} labels={pkg.manifest.fieldLabels ?? DEFAULT_FIELD_LABELS[kind]} />
-      ) : pkg.snapshot ? (
+      ) : snapshotHasContent(pkg.snapshot) && pkg.snapshot ? (
         <TemplatePreviewProvider snapshot={pkg.snapshot}>
           <div className="rounded-md border border-line p-3">
             <PageBuilder blocks={pkg.snapshot.blocks} editing={false} onChange={() => undefined} />
           </div>
         </TemplatePreviewProvider>
-      ) : null}
+      ) : (
+        <p role="status" className="text-sm text-neutral-500">{t('custom.importEmptyBody')}</p>
+      )}
     </div>
   )
 }

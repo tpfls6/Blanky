@@ -40,6 +40,10 @@ export type TemplatePackage = {
   files: Record<string, TemplateAsset>
 }
 
+export function snapshotHasContent(snapshot: TemplateSnapshot | null | undefined): boolean {
+  return !!snapshot && (snapshot.blocks.length > 0 || snapshot.collections.length > 0)
+}
+
 export type InstalledTemplatePackage = TemplatePackage & {
   installedId: string
   installedAt: string
