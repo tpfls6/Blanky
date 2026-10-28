@@ -1,4 +1,5 @@
 .reading-page { max-width: 1180px; margin: auto; color: var(--fg); background: var(--blanky-reading-page-background, transparent); }
+[data-theme-slot="page"]:has(.reading-page) { background-color: transparent; background-image: none; }
 .reading-heading,.reading-list-heading,.reading-modal header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px; }
 .reading-heading h1 { font-size:28px; font-weight:600; letter-spacing:-.04em; }
 .reading-heading p,.reading-muted,.reading-book-card p { color:var(--muted); font-size:13px; }
