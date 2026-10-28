@@ -3,20 +3,14 @@ import { useEffect, useRef, useState } from 'react'
 const HIDE_MS = 220
 const EDGE = 16
 
-export function usePeekNav(enabled: boolean) {
-  const [open, setOpen] = useState(false)
-  const [pinned, setPinned] = useState(false)
+export function usePeekNav() {
+  const [open, setOpen] = useState(true)
+  const [pinned, setPinned] = useState(true)
   const hideRef = useRef(0)
   const pinnedRef = useRef(false)
   pinnedRef.current = pinned
 
   useEffect(() => {
-    setOpen(false)
-    setPinned(false)
-  }, [enabled])
-
-  useEffect(() => {
-    if (!enabled) return
     const fine = window.matchMedia('(hover: hover) and (pointer: fine)')
     const show = () => {
       window.clearTimeout(hideRef.current)
@@ -45,10 +39,9 @@ export function usePeekNav(enabled: boolean) {
       window.removeEventListener('mousemove', onMove)
       window.clearTimeout(hideRef.current)
     }
-  }, [enabled])
+  }, [])
 
   useEffect(() => {
-    if (!enabled) return
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       setPinned(false)
@@ -56,7 +49,7 @@ export function usePeekNav(enabled: boolean) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [enabled])
+  }, [])
 
   const toggle = () => {
     setPinned((value) => {
@@ -66,5 +59,5 @@ export function usePeekNav(enabled: boolean) {
     })
   }
 
-  return { open: !enabled || open || pinned, pinned, toggle }
+  return { open: open || pinned, pinned, toggle }
 }

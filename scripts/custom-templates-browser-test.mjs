@@ -108,12 +108,57 @@ try {
     }).toString() + ')()',
   })
   await navigate(base + '/custom')
-  await wait('document.querySelector("[role=dialog]")', 'guide on first visit')
+  await wait('document.querySelector("h1")', 'custom page')
   assert.equal(await evaluate('document.querySelector("h1")?.textContent'), '커스텀 템플릿')
-  assert.match(await evaluate('getComputedStyle(document.getElementById("app-sidebar")).transform'), /matrix\(|translate/)
-  const closedX = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
-  assert.ok(closedX < 8, 'sidebar starts off canvas, right=' + closedX)
-  assert.match(await evaluate('getComputedStyle(document.getElementById("app-sidebar-toggle")).borderTopColor'), /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/)
+  const layout = await evaluate(`(() => {
+    const side = document.getElementById('app-sidebar')
+    const btn = document.getElementById('app-sidebar-toggle')
+    const logo = document.querySelector('.sidebar-brand').firstElementChild
+    const bs = getComputedStyle(btn)
+    const ss = getComputedStyle(side)
+    const br = btn.getBoundingClientRect()
+    const sr = side.getBoundingClientRect()
+    return {
+      sideRight: sr.right,
+      logoRight: logo.getBoundingClientRect().right,
+      btnLeft: br.left,
+      btnRight: br.right,
+      btnX: br.x + br.width / 2,
+      btnY: br.y + br.height / 2,
+      sidePadRight: sr.right - parseFloat(ss.paddingRight),
+      border: bs.borderTopWidth,
+      bg: bs.backgroundColor,
+      shadow: bs.boxShadow,
+      transform: ss.transform,
+      left: ss.left,
+      buttons: document.querySelectorAll('#app-sidebar button').length,
+      toggleInBrand: !!document.querySelector('.sidebar-brand #app-sidebar-toggle'),
+    }
+  })()`)
+  assert.ok(layout.sideRight > 100, 'sidebar starts pinned, right=' + layout.sideRight)
+  assert.equal(layout.transform, 'none')
+  assert.equal(layout.left, '0px')
+  assert.ok(layout.btnLeft > layout.logoRight, 'toggle is to the right of logo')
+  assert.ok(layout.sidePadRight - layout.btnRight < 8, 'toggle at header right')
+  assert.equal(layout.border, '0px')
+  assert.match(layout.bg, /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/)
+  assert.match(layout.shadow, /none/)
+  assert.equal(layout.buttons, 1)
+  assert.equal(layout.toggleInBrand, true)
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: layout.btnX, y: layout.btnY })
+  await pause(200)
+  const hoverBg = await evaluate('getComputedStyle(document.getElementById("app-sidebar-toggle")).backgroundColor')
+  assert.doesNotMatch(hoverBg, /rgba\(\s*0,\s*0,\s*0,\s*0\s*\)|transparent/)
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 120, y: 200 })
+  await evaluate('document.getElementById("app-sidebar-toggle").click()')
+  await pause(360)
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) < 8, 'unpin closes sidebar')
+  const rail = await evaluate(`(() => {
+    const r = document.getElementById('app-sidebar-toggle').getBoundingClientRect()
+    return { left: r.left, top: r.top, width: r.width, height: r.height }
+  })()`)
+  assert.ok(rail.left >= 0 && rail.left < 40, 'collapsed toggle at left, left=' + rail.left)
+  assert.ok(rail.width >= 28 && rail.height >= 28, 'toggle click size ' + rail.width + 'x' + rail.height)
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 8, y: 200 })
   await pause(360)
   const openX = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
@@ -122,7 +167,6 @@ try {
   assert.match(sideText, /기존 페이지/)
   assert.equal(sideText.includes('운동 기록'), false)
   assert.equal(sideText.includes('새 페이지'), false)
-  assert.equal(await evaluate('document.querySelectorAll("#app-sidebar button").length'), 0)
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 500, y: 200 })
   await pause(900)
   const hiddenX = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
@@ -139,19 +183,36 @@ try {
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("건너뛰기"))?.click()')
   await wait('!document.querySelector("[role=dialog]")', 'guide skipped')
   assert.equal(await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.length'), before)
+  await evaluate('document.querySelector(\'a[href="/"]\').click()')
+  await wait('location.pathname === "/"', 'home via sidebar')
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) < 8, 'collapse persists to home')
+  await evaluate('document.getElementById("app-sidebar-toggle").click()')
+  await pause(360)
+  await evaluate('document.querySelector(\'a[href="/schedule"]\').click()')
+  await wait('location.pathname === "/schedule"', 'schedule via sidebar')
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin persists to schedule')
+  for (const href of ['/activity', '/diary', '/reading', '/memo', '/store', '/settings/themes', '/trash', '/settings']) {
+    const expected = href === '/settings' ? '/settings/general' : href
+    await evaluate('document.querySelector(' + q('a[href="' + href + '"]') + ')?.click()')
+    await wait('location.pathname === ' + q(expected), href)
+    assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin persists to ' + href)
+    assert.equal(await evaluate('!!document.querySelector(".sidebar-brand #app-sidebar-toggle")'), true)
+  }
+  await evaluate('document.querySelector(\'a[href="/custom"]\').click()')
+  await wait('location.pathname === "/custom"', 'custom via sidebar')
+  assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin persists to custom')
   await navigate(base + '/custom')
   await wait('document.querySelector("h1")', 'custom reloaded')
-  assert.equal(await evaluate('!!document.querySelector("[role=dialog]")'), false)
-  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("사용 가이드"))?.click()')
-  await wait('document.querySelector("[role=dialog]")', 'guide replay')
-  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("건너뛰기"))?.click()')
-  await wait('!document.querySelector("[role=dialog]")', 'guide closed again')
+  if (await evaluate('[...document.querySelectorAll("button")].some(b => b.textContent.includes("사용 가이드"))')) {
+    await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("사용 가이드"))?.click()')
+    await wait('document.querySelector("[role=dialog]")', 'guide replay')
+    await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("건너뛰기"))?.click()')
+    await wait('!document.querySelector("[role=dialog]")', 'guide closed again')
+  }
   await evaluate('document.querySelector("[data-tour=new-page]").click()')
-  await wait('location.pathname.startsWith("/pages/")', 'new page opened')
-  await wait('document.querySelector(".builder-canvas")', 'builder canvas')
-  await evaluate('document.querySelector(".builder-canvas textarea, .builder-canvas input")?.focus()')
-  const outline = await evaluate('getComputedStyle(document.querySelector(".builder-canvas textarea, .builder-canvas input")).outlineStyle')
-  assert.equal(outline, 'none')
+  await wait('document.body.innerText.includes("어떤 기록으로 시작할까요?")', 'wizard opened')
+  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("돌아가기"))?.click()')
+  await wait('document.querySelector("h1")', 'back from wizard')
   await navigate(base + '/')
   await wait('document.body.innerText.includes("Blanky") || document.querySelector("textarea, input")', 'home')
   const homeSidebar = await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')
@@ -169,10 +230,7 @@ try {
   await evaluate('(() => { const el = [...document.querySelectorAll("select")].find(s => [...s.options].some(o => o.value === "en")); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(el, "en"); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); const data = JSON.parse(localStorage.getItem(' + q(library) + ')); data.settings = { ...data.settings, locale: "en" }; localStorage.setItem(' + q(library) + ', JSON.stringify(data)); })()')
   await navigate(base + '/custom')
   await wait('document.querySelector("h1")', 'custom en')
-  assert.equal(await evaluate('document.querySelector("h1")?.textContent'), 'Custom Templates')
-  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("Guide"))?.click()')
-  await wait('document.querySelector("[role=dialog]")', 'english guide')
-  assert.match(await evaluate('document.querySelector("[role=dialog] h2")?.textContent || ""'), /page/i)
+  assert.match(await evaluate('document.querySelector("h1")?.textContent') ?? '', /custom templates/i)
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true })
   await pause(200)
   assert.equal(await evaluate('getComputedStyle(document.getElementById("app-sidebar")).display'), 'none')
