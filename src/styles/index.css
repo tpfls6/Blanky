@@ -709,7 +709,8 @@ html.dark .border-neutral-300 {
 .blanky-themed.blanky-themed :is(.bg-white,.bg-neutral-50,.bg-neutral-100){background:var(--surface)}
 .blanky-themed :is(h1,h2,h3){font-family:var(--blanky-typography-heading-font)}
 .blanky-themed .panel{background:var(--blanky-card-background);border-color:var(--blanky-card-border-color);border-radius:var(--blanky-card-border-radius);box-shadow:var(--blanky-card-shadow);opacity:var(--blanky-card-opacity)}
-.blanky-themed .theme-sidebar{background:var(--blanky-sidebar-background);color:var(--blanky-sidebar-text-color)}
+.theme-sidebar { background: var(--blanky-sidebar-background, var(--surface)); }
+.blanky-themed .theme-sidebar{background:var(--blanky-sidebar-background, var(--surface));color:var(--blanky-sidebar-text-color)}
 .blanky-themed .theme-sidebar .nav-link{color:var(--blanky-sidebar-text-color)}
 .blanky-themed .theme-sidebar .nav-link svg{color:var(--blanky-sidebar-icon-color)}
 .blanky-themed :is(.field, [data-theme-slot="input"]){background-color:color-mix(in srgb,var(--blanky-surface) 92%,transparent);color:var(--fg)}

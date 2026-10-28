@@ -8,7 +8,7 @@
 .diary-tabs { display: flex; gap: 24px; padding: 22px 22px 0; border-bottom: 1px solid var(--line); }
 .diary-list-tools { padding: 20px 20px 10px; }
 .diary-search { display: flex; align-items: center; gap: 8px; padding: 9px 11px; background: var(--hover); color: var(--muted); border-radius: var(--radius); }
-.diary-search input { min-width: 0; flex: 1; background: transparent; font-size: 13px; color: var(--fg); outline: none; }
+.diary-page .diary-search input[data-theme-slot='input'] { min-width: 0; flex: 1; font-size: 13px; color: var(--fg); background: transparent; background-color: transparent; border: 0; outline: none; box-shadow: none; }
 .diary-search:focus-within { box-shadow: 0 0 0 2px var(--accent-border); }
 .diary-new { margin-top: 12px; width: 100%; }
 .diary-list-caption { display: flex; justify-content: space-between; padding: 12px 22px; font-size: 11px; color: var(--faint); }
