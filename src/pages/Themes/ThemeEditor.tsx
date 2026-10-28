@@ -100,7 +100,7 @@ function ThemeEditor({ original }: { original?: BlankyTheme }) {
                 </div>
                 <p role="status" className="mt-3">{action.message}</p>
             </div>
-            <ThemePreview theme={draft} />
+            <ThemePreview theme={draft} fill />
         </div> : <ThemeImport variant="dropzone" />}
     </section>;
 }
