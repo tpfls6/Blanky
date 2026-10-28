@@ -10,6 +10,7 @@ import {
   TEMPLATE_PACKAGE_KIND,
   compareSemver,
   isTemplatePackageFile,
+  snapshotHasContent,
 } from '../src/template/package/schema.ts'
 import {
   exportTemplatePackage,
@@ -90,6 +91,25 @@ test('examples/workout-record.blankytpl passes the package validator with visibl
   assert.equal(fields.find((block) => block.fieldKey === 'weight')?.props.unit, 'kg')
   assert.equal(fields.find((block) => block.fieldKey === 'memo')?.type, 'longText')
   assert.ok((pkg.snapshot?.blocks.length ?? 0) > 0)
+})
+
+test('empty blocks and collections still import but have no visible content', () => {
+  const pkg = validatePackage({
+    formatVersion: 1,
+    kind: TEMPLATE_PACKAGE_KIND,
+    id: 'empty-record',
+    name: '빈 기록',
+    author: 'tester',
+    version: '1.0.0',
+    pageType: 'record',
+    icon: 'Dumbbell',
+    snapshot: { title: '빈 기록', blocks: [], collections: [] },
+  })
+  assert.equal(pkg.manifest.id, 'empty-record')
+  assert.equal(pkg.snapshot?.blocks.length, 0)
+  assert.equal(pkg.snapshot?.collections.length, 0)
+  assert.equal(snapshotHasContent(pkg.snapshot), false)
+  assert.equal(snapshotHasContent(validatePackage(fixture()).snapshot), true)
 })
 
 test('template filenames include .blankytpl and json', () => {
