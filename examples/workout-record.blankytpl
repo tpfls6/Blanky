@@ -1,0 +1,129 @@
+{
+  "formatVersion": 1,
+  "kind": "blanky.template-package",
+  "id": "workout-record",
+  "name": "운동 기록",
+  "description": "운동 종목, 세트, 횟수, 중량, 메모를 남기는 기록 템플릿입니다.",
+  "author": "blanky",
+  "version": "1.0.0",
+  "pageType": "record",
+  "icon": "Dumbbell",
+  "snapshot": {
+    "version": 1,
+    "title": "운동 기록",
+    "icon": "Dumbbell",
+    "description": "운동 종목, 세트, 횟수, 중량, 메모를 남기는 기록 템플릿입니다.",
+    "blocks": [
+      {
+        "id": "heading-workout",
+        "type": "heading",
+        "props": {
+          "level": 1,
+          "text": "운동 기록",
+          "span": 3
+        }
+      },
+      {
+        "id": "intro-workout",
+        "type": "text",
+        "props": {
+          "text": "한 줄은 한 종목입니다. 세트, 횟수, 중량을 숫자로 남기고 메모에 컨디션을 적습니다.",
+          "span": 3
+        }
+      },
+      {
+        "id": "collection-workout",
+        "type": "collection",
+        "props": {
+          "collectionId": "col-workout",
+          "view": "table",
+          "text": "운동 기록",
+          "span": 3
+        }
+      }
+    ],
+    "collections": [
+      {
+        "id": "col-workout",
+        "name": "운동 기록",
+        "icon": "Dumbbell",
+        "color": "#3C8664",
+        "description": "세트·횟수·중량을 남기는 운동 기록",
+        "blocks": [
+          {
+            "id": "field-title",
+            "type": "title",
+            "fieldKey": "exercise",
+            "props": {
+              "label": "운동 종목",
+              "placeholder": "스쿼트",
+              "required": true
+            }
+          },
+          {
+            "id": "field-date",
+            "type": "date",
+            "fieldKey": "date",
+            "props": {
+              "label": "날짜"
+            }
+          },
+          {
+            "id": "field-sets",
+            "type": "number",
+            "fieldKey": "sets",
+            "props": {
+              "label": "세트",
+              "unit": "세트",
+              "min": 0
+            }
+          },
+          {
+            "id": "field-reps",
+            "type": "number",
+            "fieldKey": "reps",
+            "props": {
+              "label": "횟수",
+              "unit": "회",
+              "min": 0
+            }
+          },
+          {
+            "id": "field-weight",
+            "type": "number",
+            "fieldKey": "weight",
+            "props": {
+              "label": "중량",
+              "unit": "kg",
+              "min": 0
+            }
+          },
+          {
+            "id": "field-memo",
+            "type": "longText",
+            "fieldKey": "memo",
+            "props": {
+              "label": "메모",
+              "placeholder": "컨디션이나 특이사항을 적어 주세요"
+            }
+          }
+        ]
+      }
+    ],
+    "samples": [
+      {
+        "collectionId": "col-workout",
+        "title": "스쿼트",
+        "values": {
+          "exercise": "스쿼트",
+          "date": "2026-10-28",
+          "sets": 4,
+          "reps": 8,
+          "weight": 60,
+          "memo": "마지막 세트는 조금 힘들었음"
+        }
+      }
+    ],
+    "guide": "한 기록은 한 종목입니다. 세트별 행을 반복하는 표는 없고, 세트·횟수·중량은 숫자 필드입니다."
+  }
+}
