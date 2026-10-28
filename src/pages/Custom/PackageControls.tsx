@@ -5,7 +5,6 @@ import { IconView } from '../../constants/icons.ts'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import { forkSnapshot } from '../../features/marketplace/install.ts'
 import { TemplatePreviewProvider } from '../../features/marketplace/preview.tsx'
-import { cloneBlock } from '../../features/records/schema.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { DEFAULT_FIELD_LABELS } from '../../features/pages/templates.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
@@ -13,7 +12,7 @@ import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
 import { deleteTemplatePackage, listTemplatePackages, putTemplatePackage } from '../../services/templates/localPackages.ts'
 import { compareSemver, isTemplatePackageFile, snapshotHasContent, type InstalledTemplatePackage, type TemplatePackage } from '../../template/package/schema.ts'
-import { downloadTemplate, exportTemplatePackage, importTemplatePackages } from '../../template/package/TemplateLoader.ts'
+import { importTemplatePackages } from '../../template/package/TemplateLoader.ts'
 import { systemPageType } from '../../template/package/TemplateValidator.ts'
 import { TemplatePreview } from './TemplatePreview.tsx'
 
@@ -212,79 +211,69 @@ function PackagePreview({ pkg }: { pkg: TemplatePackage }) {
 function InstalledList({ items, hideEmpty, onRemove }: { items: InstalledTemplatePackage[]; hideEmpty?: boolean; onRemove: (item: InstalledTemplatePackage) => void }) {
   const { t } = useI18n()
   const navigate = useNavigate()
-  const { addUserPage, addRecordType, adoptInstalledPage } = useLibrary()
+  const { addUserPage, adoptInstalledPage } = useLibrary()
 
-  const createPage = (item: InstalledTemplatePackage) => {
+  const materialize = (item: InstalledTemplatePackage) => {
     const kind = systemPageType(item.manifest.pageType)
     if (kind) {
-      navigate(ROUTES.page(addUserPage({
+      return addUserPage({
         template: kind,
         name: item.manifest.name,
         icon: item.manifest.icon,
         fieldLabels: item.manifest.fieldLabels ?? { ...DEFAULT_FIELD_LABELS[kind] },
-      })))
-      return
+      })
     }
     if (!item.snapshot) return
     const built = forkSnapshot(item.snapshot)
     adoptInstalledPage({ ...built, records: [] })
-    navigate(ROUTES.page(built.page.id))
-  }
-
-  const createRecord = (item: InstalledTemplatePackage) => {
-    const collection = item.snapshot?.collections[0]
-    if (!collection) return
-    const id = addRecordType({
-      name: collection.name,
-      icon: collection.icon,
-      color: collection.color,
-      description: collection.description,
-      blocks: collection.blocks.map(cloneBlock),
-    })
-    if (id) navigate(ROUTES.record(id))
+    return built.page.id
   }
 
   if (!items.length) return hideEmpty ? null : <p className="mt-6 text-sm text-neutral-400">{t('custom.emptyTemplates')}</p>
 
   return (
     <section className="mt-8">
-      <h2 className="mb-4 font-medium">{t('custom.myTemplates')}</h2>
-      <div className="theme-grid">
+      <h2 className="mb-2 font-medium">{t('custom.myTemplates')}</h2>
+      <div className="divide-y divide-line">
         {items.map((item) => (
-          <article key={item.installedId}>
-            <div className="theme-swatch" style={{ background: '#f6f6f5' }}>
-              <div style={{ background: '#d9d4cc' }} />
-              <div>
-                <span style={{ background: '#8a847c' }} />
-                <span style={{ background: '#eeeae4' }} />
-                <span style={{ background: '#fff' }} />
+            <article key={item.installedId} className="py-8">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex min-w-0 items-start gap-2">
+                  <IconView name={item.manifest.icon} className="mt-0.5 size-4 shrink-0 text-neutral-400" />
+                  <div className="min-w-0">
+                    <h2 className="truncate font-medium">{item.manifest.name}</h2>
+                    <p className="truncate text-xs text-neutral-400">
+                      {t('custom.pageType.' + item.manifest.pageType)} · v{item.manifest.version}
+                      {item.manifest.author ? ' · ' + item.manifest.author : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    className="btn btn-line"
+                    onClick={() => {
+                      const pageId = materialize(item)
+                      if (pageId) navigate(ROUTES.page(pageId))
+                    }}
+                  >
+                    {t('custom.createPage')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      const pageId = materialize(item)
+                      if (pageId) navigate(ROUTES.templatePublish + '?id=' + pageId)
+                    }}
+                  >
+                    {t('templates.publish')}
+                  </button>
+                  <button type="button" className="btn btn-ghost" onClick={() => onRemove(item)}>{t('delete')}</button>
+                </div>
               </div>
-            </div>
-            <div className="mt-3 flex items-start gap-2">
-              <IconView name={item.manifest.icon} className="mt-0.5 size-4 shrink-0 text-neutral-400" />
-              <div className="min-w-0">
-                <h2 className="truncate font-medium">{item.manifest.name}</h2>
-                <p className="truncate text-xs text-neutral-400">
-                  {t('custom.pageType.' + item.manifest.pageType)} · v{item.manifest.version}
-                  {item.manifest.author ? ' · ' + item.manifest.author : ''}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-1">
-              <button type="button" className="btn btn-line" onClick={() => createPage(item)}>{t('custom.createPage')}</button>
-              {item.snapshot?.collections.length ? (
-                <button type="button" className="btn btn-ghost" onClick={() => createRecord(item)}>{t('custom.createRecord')}</button>
-              ) : null}
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => void exportTemplatePackage(item).then((blob) => downloadTemplate(blob, item.manifest.name))}
-              >
-                {t('custom.exportFile')}
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onRemove(item)}>{t('delete')}</button>
-            </div>
-          </article>
+              <PackagePreview pkg={item} />
+            </article>
         ))}
       </div>
     </section>

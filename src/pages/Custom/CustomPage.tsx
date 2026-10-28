@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { LayoutTemplate, PanelsTopLeft, Plus, Trash2 } from 'lucide-react'
+import { LayoutTemplate, PanelsTopLeft, Plus } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { PAGE_GAP_OPTIONS, PAGE_IDS, type PageId } from '../../features/pages/layout.ts'
 import { recordsForPage } from '../../features/pages/pageRecords.ts'
 import { type PageTemplateKind } from '../../features/pages/templates.ts'
+import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -15,18 +16,12 @@ import { MemoPage } from '../Memo/MemoPage.tsx'
 import { ReadingPage } from '../Reading/ReadingPage.tsx'
 import { CreatePageWizard } from './CreatePageWizard.tsx'
 import { TemplateImport } from './PackageControls.tsx'
-import { PageSettings } from './PageSettings.tsx'
+import { TemplatePreview } from './TemplatePreview.tsx'
 
 const TABS = [
   { id: 'templates', key: 'custom.tabTemplates', icon: LayoutTemplate },
   { id: 'layout', key: 'custom.tabLayout', icon: PanelsTopLeft },
 ] as const
-
-const SWATCH: Record<PageTemplateKind, { bg: string; side: string; a: string; b: string; c: string }> = {
-  diary: { bg: '#f7f1ea', side: '#d9b99b', a: '#c9845c', b: '#f3e7dc', c: '#fff' },
-  reading: { bg: '#eef2f8', side: '#9db0d0', a: '#3a62b0', b: '#f1f4fb', c: '#fff' },
-  memo: { bg: '#f6f4e8', side: '#d4c98a', a: '#c4a35a', b: '#faf6e8', c: '#fff' },
-}
 
 function matches(query: string, page: { name: string; description?: string }) {
   const text = query.trim().toLowerCase()
@@ -34,25 +29,10 @@ function matches(query: string, page: { name: string; description?: string }) {
   return page.name.toLowerCase().includes(text) || (page.description ?? '').toLowerCase().includes(text)
 }
 
-function KindSwatch({ kind }: { kind: PageTemplateKind | null }) {
-  const colors = SWATCH[kind ?? 'memo']
-  return (
-    <div className="theme-swatch" style={{ background: colors.bg }}>
-      <div style={{ background: colors.side }} />
-      <div>
-        <span style={{ background: colors.a }} />
-        <span style={{ background: colors.b }} />
-        <span style={{ background: colors.c }} />
-      </div>
-    </div>
-  )
-}
-
-function PageCard({ page }: { page: UserPage }) {
+function PageRow({ page }: { page: UserPage }) {
   const { t } = useI18n()
   const confirm = useConfirm()
   const { records, removeUserPage } = useLibrary()
-  const [open, setOpen] = useState(false)
 
   const remove = async () => {
     const count = recordsForPage(records, page.id).length
@@ -63,22 +43,25 @@ function PageCard({ page }: { page: UserPage }) {
   }
 
   return (
-    <article>
-      <Link to={ROUTES.page(page.id)} className="block">
-        <KindSwatch kind={page.template} />
-        <h2 className="mt-3 font-medium">{page.name}</h2>
-        <span className="text-xs text-neutral-500">{page.template ? t(`custom.kind.${page.template}`) : t('custom.userTemplate')}</span>
-      </Link>
-      <div className="mt-3 flex flex-wrap gap-1">
-        <Link className="btn btn-ghost" to={ROUTES.templatePublish + '?id=' + page.id}>{t('templates.publish')}</Link>
-        <button type="button" className="btn btn-ghost" onClick={() => setOpen((current) => !current)}>
-          {t('custom.pageSettings')}
-        </button>
-        <button type="button" className="icon-btn" aria-label={t('delete')} onClick={() => void remove()}>
-          <Trash2 className="size-3.5" strokeWidth={1.5} />
-        </button>
+    <article className="py-8">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2 className="font-medium">{page.name}</h2>
+          <p className="text-xs text-neutral-400">{page.template ? t(`custom.kind.${page.template}`) : t('custom.userTemplate')}</p>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          <Link className="btn btn-line" to={ROUTES.page(page.id)}>{t('custom.createPage')}</Link>
+          <Link className="btn btn-ghost" to={ROUTES.templatePublish + '?id=' + page.id}>{t('templates.publish')}</Link>
+          <button type="button" className="btn btn-ghost" onClick={() => void remove()}>{t('delete')}</button>
+        </div>
       </div>
-      {open ? <div className="mt-3"><PageSettings page={page} /></div> : null}
+      <div className="mt-4 min-h-80 overflow-hidden">
+        {page.template ? (
+          <TemplatePreview kind={page.template} heading={page.name} labels={page.fieldLabels} />
+        ) : (
+          <PageBuilder blocks={page.blocks} editing={false} onChange={() => undefined} />
+        )}
+      </div>
     </article>
   )
 }
@@ -237,16 +220,16 @@ export function CustomPage() {
             </div>
             {group === 'basic' ? (
               basicPages.length ? (
-                <div className="theme-grid">
-                  {basicPages.map((page) => <PageCard key={page.id} page={page} />)}
+                <div className="divide-y divide-line">
+                  {basicPages.map((page) => <PageRow key={page.id} page={page} />)}
                 </div>
               ) : <p className="mt-3 text-sm text-neutral-400">{t('custom.emptyPages')}</p>
             ) : (
               <>
                 <TemplateImport dropzone={false} hideEmpty={customOnly.length > 0} />
                 {customOnly.length ? (
-                  <div className="theme-grid mt-8">
-                    {customOnly.map((page) => <PageCard key={page.id} page={page} />)}
+                  <div className="mt-8 divide-y divide-line">
+                    {customOnly.map((page) => <PageRow key={page.id} page={page} />)}
                   </div>
                 ) : null}
               </>

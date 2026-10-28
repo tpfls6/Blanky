@@ -124,7 +124,7 @@
     "addTemplate": "템플릿 추가",
     "replaceTemplate": "교체",
     "saveCopy": "별도 저장",
-    "createPage": "페이지 만들기",
+    "createPage": "페이지 생성하기",
     "createRecord": "기록 만들기",
     "exportFile": "파일로 내보내기",
     "deletePackageTitle": "{{name}} 템플릿 삭제",
