@@ -83,6 +83,18 @@ Expected Output:
 
 향후 색상 팔레트 편집, 이미지·캐릭터·아이콘 변경, 테마 패키지 설치 및 공유 기능으로 확장할 계획입니다.
 
+## 커스텀 템플릿 만들기
+
+Blanky는 `.blankytpl` JSON 파일로 페이지·기록 템플릿을 가져올 수 있습니다. `blocks`가 비어 있으면 가져오기는 되지만 본문이 보이지 않으므로, 예제의 블록 구조를 기준으로 수정하세요.
+
+1. [템플릿 패키지 가이드](docs/template-package-guide.md)에서 패키지 규격과 블록 JSON 예제를 확인합니다.
+2. [운동 기록 예제](examples/workout-record.blankytpl)를 다운로드하거나 복사합니다. ([raw 파일](https://github.com/tpfls6/Blanky/raw/main/examples/workout-record.blankytpl))
+3. `id`, `name`, `snapshot.blocks`, `snapshot.collections`을 수정합니다.
+4. 확장자를 `.blankytpl`로 저장합니다.
+5. 앱의 **커스텀** 화면에서 파일을 가져옵니다.
+
+문서나 예제를 고치려면 가이드의 [GitHub에서 수정·기여하기](docs/template-package-guide.md#github에서-수정기여하기)를 참고하세요. 저장소에 별도의 기여 가이드 파일은 아직 없습니다.
+
 ## 4. Tech Stack
 
 | Layer | Technology |
