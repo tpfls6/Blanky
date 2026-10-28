@@ -880,9 +880,6 @@ html.dark .border-neutral-300 {
 .peek-sidebar[data-open='true'] {
   left: 0;
   pointer-events: auto;
-}
-
-.peek-sidebar[data-open='true'][data-pinned='false'] {
   box-shadow: var(--shadow);
 }
 

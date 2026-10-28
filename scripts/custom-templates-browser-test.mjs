@@ -176,6 +176,7 @@ try {
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 500, y: 200 })
   await pause(900)
   assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'pin keeps sidebar open')
+  assert.ok((await evaluate('document.querySelector("main").getBoundingClientRect().left')) < 8, 'pin does not shift main')
   await evaluate('document.getElementById("app-sidebar-toggle").click()')
   await pause(360)
   assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) < 8, 'unpin closes sidebar')
