@@ -53,7 +53,7 @@ export function ActivityPage() {
           const snapshot = row.after ?? row.before
           const open = view === 'detail' || openId === row.id
           const metadata = new Date(row.createdAt).toLocaleTimeString(localeTag(locale), { hour: '2-digit', minute: '2-digit' }) + ' · ' + (row.source === 'ai_chat' ? t('source.ai') : t('source.manual')) + ' · ' + ACTION[row.action]
-          return <li key={row.id} className={view === 'summary' ? 'rounded-xl border border-line bg-hover' : 'pb-3'}>
+          return <li key={row.id} className={view === 'summary' ? 'rounded-xl border border-line bg-surface hover:bg-hover' : 'pb-3'}>
             {view === 'summary' ? <button type="button" aria-expanded={open} aria-controls={'activity-record-' + row.id} className="flex w-full items-center gap-3 rounded-xl p-4 text-left" onClick={() => setOpenId(open ? null : row.id)}>
               <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{snapshot?.title || t('activity.previous')}</p><p className="mt-1 truncate text-xs text-neutral-400">{metadata}{snapshot ? ' · ' + snapshot.date + (snapshot.startTime ? ' ' + snapshot.startTime : '') : ''}</p>{snapshot?.description && <p className="mt-2 line-clamp-1 text-sm text-neutral-500">{snapshot.description}</p>}</div>
               <ChevronDown aria-hidden="true" className={'size-4 shrink-0 text-neutral-400 transition-transform ' + (open ? 'rotate-180' : '')} />

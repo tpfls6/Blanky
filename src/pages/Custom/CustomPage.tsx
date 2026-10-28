@@ -78,12 +78,12 @@ function TemplateList({
     return <p className="mt-3 text-sm text-neutral-400">{t('custom.emptyPages')}</p>
   }
   if (!dragging) {
-    return <div className="mt-3">{filtered.map((page) => <div key={page.id}>{row(page)}</div>)}</div>
+    return <div className="mt-3 overflow-hidden rounded-md border border-line bg-surface">{filtered.map((page) => <div key={page.id}>{row(page)}</div>)}</div>
   }
   return (
     <Sortable
       items={pages}
-      className="mt-3"
+      className="mt-3 overflow-hidden rounded-md border border-line bg-surface"
       onReorder={reorderUserPages}
       render={row}
     />
@@ -145,7 +145,7 @@ function LayoutPanel() {
         </button>
       </div>
       {notice ? <p className="mt-2 text-sm text-neutral-500" role="status">{notice}</p> : null}
-      <div className="mt-4 overflow-hidden rounded-md border border-line">
+      <div className="mt-4 overflow-hidden rounded-md border border-line bg-surface">
         {layoutPage === 'schedule' ? <DailyBoard editing /> : null}
         {layoutPage === 'diary' ? <DiaryPage editing /> : null}
         {layoutPage === 'reading' ? <ReadingPage editing /> : null}

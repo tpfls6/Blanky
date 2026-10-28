@@ -114,7 +114,7 @@ function Body({ page }: { page: UserPageModel }) {
   const [pick, setPick] = useState(!page.template)
   if (!page.template && pick) {
     return (
-      <div className="rounded-md border border-line p-4">
+      <div className="rounded-md border border-line bg-surface p-4">
         <p className="text-sm">{t('custom.legacyPick')}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {(['diary', 'reading', 'memo'] as PageTemplateKind[]).map((kind) => (
@@ -173,7 +173,7 @@ export function UserPage() {
           {t('delete')}
         </button>
       </div>
-      <details className="mb-6 rounded-md border border-line p-3">
+      <details className="mb-6 rounded-md border border-line bg-surface p-3">
         <summary className="cursor-pointer text-sm font-medium">{t('custom.pageSettings')}</summary>
         <div className="mt-3">
           <PageSettings page={ready} />

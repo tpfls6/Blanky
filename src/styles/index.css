@@ -586,6 +586,7 @@ html.dark .border-neutral-300 {
 }
 
 .template-card {
+  background: var(--surface);
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
 }
 
@@ -798,7 +799,8 @@ html.dark .border-neutral-300 {
 
 .activity-search-clear:hover { background: var(--hover); color: var(--fg); }
 
-.blanky-themed .theme-card{background:var(--blanky-card-background);border-color:var(--blanky-card-border-color);border-radius:var(--blanky-card-border-radius);box-shadow:var(--blanky-card-shadow);opacity:var(--blanky-card-opacity)}
+.theme-card { background: var(--blanky-card-background, var(--surface)); }
+.blanky-themed .theme-card{background:var(--blanky-card-background, var(--surface));border-color:var(--blanky-card-border-color);border-radius:var(--blanky-card-border-radius);box-shadow:var(--blanky-card-shadow);opacity:var(--blanky-card-opacity)}
 .blanky-themed .theme-plan :is(.text-neutral-900,.text-neutral-800,.text-neutral-700,.text-neutral-600,.text-neutral-500,.text-neutral-400,.text-neutral-300){color:inherit}
 .blanky-themed.blanky-themed .check{border-color:var(--line)}
 .blanky-themed.blanky-themed .check-on{border-color:var(--blanky-task-checkbox-color)}
