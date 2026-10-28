@@ -23,7 +23,7 @@ function previewSrc(pkg: TemplatePackage): string | null {
   return file ? 'data:' + file.mime + ';base64,' + file.data : null
 }
 
-export function TemplateImport() {
+export function TemplateImport({ list = true }: { list?: boolean }) {
   const { t } = useI18n()
   const { user } = useSession()
   const confirm = useConfirm()
@@ -120,7 +120,7 @@ export function TemplateImport() {
           onCancel={() => setPending((current) => current.filter((item) => item !== pkg))}
         />
       ))}
-      <InstalledList items={installed} onRemove={(item) => void remove(item)} />
+      {list ? <InstalledList items={installed} onRemove={(item) => void remove(item)} /> : null}
     </div>
   )
 }
@@ -246,37 +246,45 @@ function InstalledList({ items, onRemove }: { items: InstalledTemplatePackage[];
 
   return (
     <section className="mt-8">
-      <h2 className="text-sm font-medium">{t('custom.myTemplates')}</h2>
-      <ul className="mt-3 overflow-hidden rounded-md border border-line bg-surface">
+      <h2 className="mb-4 font-medium">{t('custom.myTemplates')}</h2>
+      <div className="theme-grid">
         {items.map((item) => (
-          <li key={item.installedId} className="border-b border-line px-3 py-3 last:border-b-0">
-            <div className="flex items-center gap-3">
-              <IconView name={item.manifest.icon} className="size-4 shrink-0 text-neutral-400" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{item.manifest.name}</p>
+          <article key={item.installedId}>
+            <div className="theme-swatch" style={{ background: '#f6f6f5' }}>
+              <div style={{ background: '#d9d4cc' }} />
+              <div>
+                <span style={{ background: '#8a847c' }} />
+                <span style={{ background: '#eeeae4' }} />
+                <span style={{ background: '#fff' }} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-start gap-2">
+              <IconView name={item.manifest.icon} className="mt-0.5 size-4 shrink-0 text-neutral-400" />
+              <div className="min-w-0">
+                <h2 className="truncate font-medium">{item.manifest.name}</h2>
                 <p className="truncate text-xs text-neutral-400">
                   {t('custom.pageType.' + item.manifest.pageType)} · v{item.manifest.version}
                   {item.manifest.author ? ' · ' + item.manifest.author : ''}
                 </p>
               </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-1">
-              <button type="button" className="chip" onClick={() => createPage(item)}>{t('custom.createPage')}</button>
+            <div className="mt-3 flex flex-wrap gap-1">
+              <button type="button" className="btn btn-line" onClick={() => createPage(item)}>{t('custom.createPage')}</button>
               {item.snapshot?.collections.length ? (
-                <button type="button" className="chip" onClick={() => createRecord(item)}>{t('custom.createRecord')}</button>
+                <button type="button" className="btn btn-ghost" onClick={() => createRecord(item)}>{t('custom.createRecord')}</button>
               ) : null}
               <button
                 type="button"
-                className="chip"
+                className="btn btn-ghost"
                 onClick={() => void exportTemplatePackage(item).then((blob) => downloadTemplate(blob, item.manifest.name))}
               >
                 {t('custom.exportFile')}
               </button>
-              <button type="button" className="chip" onClick={() => onRemove(item)}>{t('delete')}</button>
+              <button type="button" className="btn btn-ghost" onClick={() => onRemove(item)}>{t('delete')}</button>
             </div>
-          </li>
+          </article>
         ))}
-      </ul>
+      </div>
     </section>
   )
 }

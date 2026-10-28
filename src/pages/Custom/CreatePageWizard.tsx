@@ -3,9 +3,11 @@ import { IconPicker } from '../../components/common/IconPicker.tsx'
 import {
   DEFAULT_FIELD_LABELS,
   FIELD_KEYS,
+  PAGE_TEMPLATES,
   type PageTemplateKind,
 } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
+import { TemplateImport } from './PackageControls.tsx'
 import { TemplatePreview } from './TemplatePreview.tsx'
 
 const ICONS: Record<PageTemplateKind, string> = {
@@ -14,22 +16,23 @@ const ICONS: Record<PageTemplateKind, string> = {
   memo: 'StickyNote',
 }
 
-const KINDS = ['diary', 'reading', 'memo'] as const
-
 export function CreatePageWizard({
+  initial,
   onCancel,
   onCreate,
 }: {
+  initial?: PageTemplateKind
   onCancel: () => void
   onCreate: (input: { template: PageTemplateKind; name: string; icon: string; fieldLabels: Record<string, string> }) => void
 }) {
   const { t } = useI18n()
+  const [pane, setPane] = useState<'basic' | 'custom'>('basic')
   const [step, setStep] = useState(0)
-  const [template, setTemplate] = useState<PageTemplateKind>('diary')
-  const [preview, setPreview] = useState<PageTemplateKind>('diary')
-  const [name, setName] = useState('')
-  const [icon, setIcon] = useState(ICONS.diary)
-  const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({ ...DEFAULT_FIELD_LABELS.diary })
+  const [template, setTemplate] = useState<PageTemplateKind>(initial ?? 'diary')
+  const [preview, setPreview] = useState<PageTemplateKind>(initial ?? 'diary')
+  const [name, setName] = useState(initial ? t(`custom.kind.${initial}`) : '')
+  const [icon, setIcon] = useState(ICONS[initial ?? 'diary'])
+  const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({ ...DEFAULT_FIELD_LABELS[initial ?? 'diary'] })
   const keys = FIELD_KEYS[template]
   const shown = preview
   const previewName = step === 0 ? t(`custom.kind.${shown}`) : name.trim() || t(`custom.kind.${template}`)
@@ -46,24 +49,25 @@ export function CreatePageWizard({
   }
 
   return (
-    <div className="page-wizard flex min-h-0 flex-1 flex-col px-4 py-3 md:px-6">
-      <header className="flex items-center gap-3">
+    <section className="theme-page theme-customizer page-wizard">
+      <header className="theme-editor-heading">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] text-neutral-400">{t('custom.progress', { current: step + 1, total: 4 })}</p>
-          <h1 className="truncate text-sm font-medium">{title}</h1>
+          {pane === 'basic' ? <p className="text-[11px] text-neutral-400">{t('custom.progress', { current: step + 1, total: 4 })}</p> : null}
+          <h1 className="truncate">{pane === 'custom' ? t('custom.groupCustom') : title}</h1>
         </div>
         <div className="flex shrink-0 gap-2">
-          <button type="button" className="btn btn-ghost" onClick={() => (step === 0 ? onCancel() : setStep((value) => value - 1))}>
-            {step === 0 ? t('custom.goBack') : t('custom.back')}
+          <button type="button" className="btn btn-ghost" onClick={() => (pane === 'custom' || step === 0 ? onCancel() : setStep((value) => value - 1))}>
+            {pane === 'custom' || step === 0 ? t('custom.goBack') : t('custom.back')}
           </button>
-          {step < 3 ? (
+          {pane === 'basic' && step < 3 ? (
             <button type="button" className="btn btn-primary" onClick={() => {
               if (step === 0 && preview !== template) select(preview)
               setStep((value) => value + 1)
             }}>
               {t('custom.next')}
             </button>
-          ) : (
+          ) : null}
+          {pane === 'basic' && step >= 3 ? (
             <button
               type="button"
               className="btn btn-primary"
@@ -71,50 +75,62 @@ export function CreatePageWizard({
             >
               {t('custom.create')}
             </button>
-          )}
+          ) : null}
         </div>
       </header>
-      {step === 0 ? (
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {KINDS.map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              aria-pressed={template === kind}
-              className="template-card flex min-w-0 flex-col gap-0.5 rounded-md px-2.5 py-2 text-left"
-              onMouseEnter={() => setPreview(kind)}
-              onFocus={() => setPreview(kind)}
-              onClick={() => select(kind)}
-            >
-              <span className="truncate text-sm font-medium">{t(`custom.kind.${kind}`)}</span>
-              <span className="truncate text-[11px] text-neutral-400">{t(`custom.kindHint.${kind}`)}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {step === 1 ? (
-        <div className="mt-3 flex items-center gap-3">
-          <IconPicker value={icon} onChange={setIcon} />
-          <input value={name} onChange={(event) => setName(event.target.value)} className="field min-w-0 flex-1" aria-label={t('custom.pageName')} placeholder={t(`custom.kind.${template}`)} />
-        </div>
-      ) : null}
-      {step === 2 ? (
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {keys.map((key) => (
-            <label key={key} className="block text-xs">
-              <span className="text-neutral-400">{defaults[key as keyof typeof defaults]}</span>
-              <input
-                value={fieldLabels[key] ?? ''}
-                onChange={(event) => setFieldLabels((current) => ({ ...current, [key]: event.target.value }))}
-                className="field mt-1 w-full"
-              />
-            </label>
-          ))}
-        </div>
-      ) : null}
-      <div className="template-preview-slot mt-3" aria-live="polite">
-        <TemplatePreview key={shown} kind={shown} heading={previewName} labels={previewLabels} />
+      <div className="theme-editor-tabs" role="tablist" aria-label={t('custom.newPage')}>
+        <button type="button" role="tab" aria-selected={pane === 'basic'} className={pane === 'basic' ? 'tab tab-on' : 'tab'} onClick={() => setPane('basic')}>
+          {t('custom.groupBasic')}
+        </button>
+        <button type="button" role="tab" aria-selected={pane === 'custom'} className={pane === 'custom' ? 'tab tab-on' : 'tab'} onClick={() => setPane('custom')}>
+          {t('custom.groupCustom')}
+        </button>
       </div>
-    </div>
+      {pane === 'custom' ? <TemplateImport list={false} /> : (
+        <>
+          {step === 0 ? (
+            <div className="grid grid-cols-3 gap-2 px-6">
+              {PAGE_TEMPLATES.map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  aria-pressed={template === kind}
+                  className="template-card flex min-w-0 flex-col gap-0.5 rounded-md px-2.5 py-2 text-left"
+                  onMouseEnter={() => setPreview(kind)}
+                  onFocus={() => setPreview(kind)}
+                  onClick={() => select(kind)}
+                >
+                  <span className="truncate text-sm font-medium">{t(`custom.kind.${kind}`)}</span>
+                  <span className="truncate text-[11px] text-neutral-400">{t(`custom.kindHint.${kind}`)}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {step === 1 ? (
+            <div className="flex items-center gap-3 px-6">
+              <IconPicker value={icon} onChange={setIcon} />
+              <input value={name} onChange={(event) => setName(event.target.value)} className="field min-w-0 flex-1" aria-label={t('custom.pageName')} placeholder={t(`custom.kind.${template}`)} />
+            </div>
+          ) : null}
+          {step === 2 ? (
+            <div className="grid gap-2 px-6 sm:grid-cols-2">
+              {keys.map((key) => (
+                <label key={key} className="block text-xs">
+                  <span className="text-neutral-400">{defaults[key as keyof typeof defaults]}</span>
+                  <input
+                    value={fieldLabels[key] ?? ''}
+                    onChange={(event) => setFieldLabels((current) => ({ ...current, [key]: event.target.value }))}
+                    className="field mt-1 w-full"
+                  />
+                </label>
+              ))}
+            </div>
+          ) : null}
+          <div className="template-preview-slot" aria-live="polite">
+            <TemplatePreview key={shown} kind={shown} heading={previewName} labels={previewLabels} />
+          </div>
+        </>
+      )}
+    </section>
   )
 }

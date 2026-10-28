@@ -621,11 +621,20 @@ html.dark .border-neutral-300 {
   min-height: 0;
 }
 
+.page-wizard.theme-customizer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.page-wizard.theme-customizer .template-preview {
+  min-height: calc(100dvh - 14rem);
+}
+
 .template-preview {
   height: 100%;
   overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border: 0;
   background: var(--surface);
 }
 

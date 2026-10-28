@@ -103,6 +103,8 @@
     "layoutsHint": "Change the block layout of Schedule, Diary, Reading, and Memo.",
     "tabTemplates": "Custom templates",
     "tabLayout": "App layout",
+    "groupBasic": "Basic",
+    "groupCustom": "Custom",
     "templatesHint": "Create diary, catalog, or memo pages, or import a .blankytpl file.",
     "importTitle": "Import a .blankytpl file",
     "importHint": "Drop a file here or choose one.",

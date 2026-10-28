@@ -103,6 +103,8 @@
     "layoutsHint": "일정, 일기, 독서, 메모 화면의 블록 배치를 바꿉니다.",
     "tabTemplates": "커스텀 템플릿",
     "tabLayout": "앱 레이아웃",
+    "groupBasic": "기본",
+    "groupCustom": "커스텀",
     "templatesHint": "일기형, 독서형, 메모형으로 기록 페이지를 만들거나 .blankytpl 파일을 가져옵니다.",
     "importTitle": ".blankytpl 파일 가져오기",
     "importHint": "파일을 끌어다 놓거나 선택하세요.",
