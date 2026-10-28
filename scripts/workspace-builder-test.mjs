@@ -159,6 +159,7 @@ async function createPage(kind, name, labels) {
   await clickText('페이지 만들기')
   await wait('location.pathname.startsWith("/pages/")', name + ' route')
   await wait('document.querySelector("h1")?.textContent.trim()===' + q(name), name + ' heading')
+  await wait('document.getElementById("app-sidebar").innerText.includes(' + q(name) + ')', name + ' sidebar')
   const id = await evaluate('location.pathname.split("/")[2]')
   log('created ' + kind + ' ' + name + ' ' + id)
   return id

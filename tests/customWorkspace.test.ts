@@ -4,7 +4,7 @@ import { isCustomWorkspace, ROUTES } from '../src/constants/routes.ts'
 import { translate } from '../src/i18n/translate.ts'
 import { builtinTemplates, remapCollections } from '../src/features/workspace/templates.ts'
 import { cloneBlocks } from '../src/features/builder/schema.ts'
-import { visibleNav, isRecordNav } from '../src/constants/navigation.ts'
+import { visibleNav, isRecordNav, pageNav } from '../src/constants/navigation.ts'
 import { DEFAULT_NAV, DEFAULT_SETTINGS } from '../src/types/records.ts'
 import {
   DEFAULT_PAGE_GAP,
@@ -36,6 +36,10 @@ test('nav label follows locale without changing the route', () => {
   assert.equal(translate('en', 'custom.title'), 'Custom Templates')
   assert.equal(translate('ko', 'custom.tabTemplates'), '커스텀 템플릿')
   assert.equal(translate('ko', 'custom.tabLayout'), '앱 레이아웃')
+  assert.equal(translate('ko', 'custom.groupBasic'), '기본')
+  assert.equal(translate('ko', 'custom.groupCustom'), '커스텀')
+  assert.equal(translate('en', 'custom.groupBasic'), 'Basic')
+  assert.equal(translate('en', 'custom.groupCustom'), 'Custom')
   assert.equal(translate('ko', 'custom.goBack'), '돌아가기')
   assert.equal(translate('en', 'custom.goBack'), 'Go back')
   assert.match(translate('ko', 'custom.deleteTitle', { name: '여행' }), /여행/)
@@ -57,6 +61,9 @@ test('sidebar nav keeps builtins and drops custom record pages', () => {
   assert.equal(isRecordNav('workout-record'), false)
   assert.equal(visibleNav([{ id: 'memo', visible: false }, { id: 'home', visible: true }]).map((item) => item.id).join(','), 'home')
   assert.equal(items.some((item) => item.to.startsWith('/pages/')), false)
+  const pages = pageNav([{ id: 'workout-page', name: '운동 기록', icon: 'Dumbbell' }])
+  assert.deepEqual(pages.map((item) => item.to), ['/pages/workout-page'])
+  assert.equal(pages[0]?.label, '운동 기록')
 })
 
 test('starter collections remap without sharing ids', () => {

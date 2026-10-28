@@ -1,7 +1,7 @@
 import { BrandLogo } from '../common/BrandLogo.tsx'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { NavLink, useLocation } from 'react-router-dom'
-import { chromeNavLabel, isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, visibleNav } from '../../constants/navigation.ts'
+import { chromeNavLabel, isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, pageNav, visibleNav } from '../../constants/navigation.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
@@ -31,11 +31,12 @@ function NavRow({
 
 export function Sidebar() {
   const { pathname } = useLocation()
-  const { settings } = useLibrary()
+  const { settings, customPages } = useLibrary()
   const { t } = useI18n()
   const items = visibleNav(settings.nav)
   const core = items.filter((item) => !isRecordNav(item.id))
   const records = items.filter((item) => isRecordNav(item.id))
+  const pages = pageNav(customPages)
 
   return (
     <aside
@@ -49,6 +50,10 @@ export function Sidebar() {
       <nav className="mt-6 flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto" aria-label={t('nav.main')}>
         {core.map((item) => (
           <NavRow key={item.id} id={item.id} to={item.to} end={item.end} icon={item.icon} label={chromeNavLabel(item.id, t, item.label)} color={item.color} />
+        ))}
+        {pages.length > 0 ? <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.pages')}</p> : null}
+        {pages.map((item) => (
+          <NavRow key={item.id} id={item.id} to={item.to} icon={item.icon} label={item.label} />
         ))}
         {records.length > 0 ? <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.records')}</p> : null}
         {records.map((item) => (

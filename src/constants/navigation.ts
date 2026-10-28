@@ -1,5 +1,6 @@
 import { Store, Palette, History, BookOpen, CalendarDays, House, Library, Settings, SlidersHorizontal, StickyNote, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { iconByName } from './icons.ts'
 import { ROUTES } from './routes.ts'
 import type { CustomRecordType, NavPref } from '../types/records.ts'
 
@@ -59,6 +60,15 @@ export function visibleNav(nav: readonly NavPref[]): NavItem[] {
     const builtin = BUILTIN.find((item) => item.id === pref.id)
     return builtin ? [builtin] : []
   })
+}
+
+export function pageNav(pages: readonly { id: string; name: string; icon: string }[]): NavItem[] {
+  return pages.map((page) => ({
+    id: page.id,
+    label: page.name,
+    to: ROUTES.page(page.id),
+    icon: iconByName(page.icon),
+  }))
 }
 
 export function isRecordNav(id: string): boolean {
