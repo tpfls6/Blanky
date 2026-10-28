@@ -87,7 +87,7 @@ export function MiniCalendar({ selected, weekStartsOn, events, tasks, items = []
                   : cell.inMonth
                     ? 'text-neutral-800 hover:bg-hover'
                     : 'text-neutral-300 hover:bg-hover',
-                active && isToday ? 'shadow-[inset_0_0_0_2px_var(--bg)]' : '',
+                active && isToday ? 'shadow-[inset_0_0_0_2px_var(--blanky-card-background,var(--surface))]' : '',
                 !active && isToday ? 'cal-today' : '',
               ].join(' ')}
             >

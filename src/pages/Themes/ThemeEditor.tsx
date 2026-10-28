@@ -18,7 +18,7 @@ const COLOR_FIELDS: { group: 'colors' | 'sidebar'; key: string; label: string }[
     { group: 'colors', key: 'accent', label: '강조 색상' },
 ];
 const LINKED: Record<string, string[]> = {
-    surface: ['card.background', 'schedule.background', 'task.background'],
+    surface: ['card.background', 'schedule.background', 'task.background', 'calendar.background'],
     primary: ['calendar.todayColor', 'calendar.selectedColor', 'task.checkboxColor', 'sidebar.selectedBackground'],
     textPrimary: ['schedule.textColor', 'sidebar.textColor', 'calendar.weekdayColor'],
     textSecondary: ['sidebar.iconColor'],

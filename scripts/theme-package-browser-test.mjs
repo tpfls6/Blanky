@@ -89,8 +89,7 @@ try {
  assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=sidebar]")).display!=="none"'),true)
  assert.equal(await evaluate('document.querySelector(".theme-preview").inert'),true)
  await evaluate('document.querySelector(".color-choice").open=true');
- assert.equal(await evaluate('document.querySelectorAll(".color-choice[open] input[type=color]").length'),1)
- assert.equal(await evaluate('document.querySelectorAll(".color-choice[open] .color-rgb input[type=range]").length'),3)
+ assert.equal(await evaluate('!!document.querySelector(".color-choice[open] .color-sv") && document.querySelectorAll(".color-choice[open] .color-rgb input").length===3 && !document.querySelector(".color-choice[open] input[type=color]") && !document.querySelector(".color-choice[open] input[type=range]")'),true)
  await evaluate('document.body.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true}))')
  assert.equal(await evaluate('document.querySelector(".color-choice").open'),false)
  await evaluate('document.querySelector(".color-choice").open=true');
