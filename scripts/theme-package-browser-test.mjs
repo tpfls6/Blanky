@@ -89,11 +89,17 @@ try {
  assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-preview [data-theme-slot=sidebar]")).display!=="none"'),true)
  assert.equal(await evaluate('document.querySelector(".theme-preview").inert'),true)
  await evaluate('document.querySelector(".color-choice").open=true');
+ assert.equal(await evaluate('document.querySelectorAll(".color-choice[open] .color-rgb input[type=range]").length'),3)
+ await evaluate('document.body.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true}))')
+ assert.equal(await evaluate('document.querySelector(".color-choice").open'),false)
+ await evaluate('document.querySelector(".color-choice").open=true');
  await fill('[aria-label="배경색 HEX"]','#e4edf9');
  await wait('document.querySelector(".theme-preview").style.getPropertyValue("--bg")==="#e4edf9"','HEX live preview');
+ assert.notEqual(await evaluate('document.querySelector(".theme-preview").style.getPropertyValue("--blanky-calendar-background")'),'#e4edf9')
  assert.equal(await active(),previous);
  await evaluate('[...document.querySelectorAll(".theme-preview-tabs button")].find(b=>b.textContent.trim()==="일정").click()')
  await wait('!!document.querySelector(".theme-preview-page .diary-page, .theme-preview-page [data-theme-slot=page-header], .theme-preview-page .reading-page, .theme-preview-page")','page preview mounted')
+ assert.notEqual(await evaluate('getComputedStyle(document.querySelector(".theme-preview .composer-line")).backgroundColor'),'rgb(228, 237, 249)')
  const previewPath=await evaluate('location.pathname')
  await evaluate('document.querySelector(".theme-preview a, .theme-preview button")?.click()')
  assert.equal(await evaluate('location.pathname'),previewPath)

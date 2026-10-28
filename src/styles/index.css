@@ -648,7 +648,7 @@ html.dark .border-neutral-300 {
 .composer-line {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--bg);
+  background: var(--surface);
   padding: 0.3rem 0.45rem 0.3rem 0.75rem;
   transition: border-color 180ms ease, box-shadow 180ms ease;
 }
@@ -723,7 +723,8 @@ html.dark .border-neutral-300 {
 .blanky-themed .theme-sidebar{background:var(--blanky-sidebar-background, var(--surface));color:var(--blanky-sidebar-text-color)}
 .blanky-themed .theme-sidebar .nav-link{color:var(--blanky-sidebar-text-color)}
 .blanky-themed .theme-sidebar .nav-link svg{color:var(--blanky-sidebar-icon-color)}
-.blanky-themed :is(.field, [data-theme-slot="input"]){background-color:color-mix(in srgb,var(--blanky-surface) 92%,transparent);color:var(--fg)}
+.blanky-themed :is(.field, [data-theme-slot="input"]){background-color:var(--blanky-surface);color:var(--fg)}
+.blanky-themed .composer-line{background:var(--blanky-surface, var(--surface))}
 @media (hover:hover){
 .blanky-themed .theme-sidebar .nav-link:hover{background:var(--blanky-sidebar-hover-color)}
 .blanky-themed .theme-calendar button[data-selected=false]:hover{background:var(--blanky-calendar-hover-color)}
@@ -861,6 +862,9 @@ html.dark .border-neutral-300 {
 .theme-editor-stack .color-popover { left: 50%; transform: translateX(-50%); }
 .theme-editor-stack .color-choice:first-child .color-popover { left: 0; transform: none; }
 .theme-editor-stack .color-choice:nth-last-child(-n+2) .color-popover { left: auto; right: 0; transform: none; }
+.color-rgb { display: grid; gap: 8px; }
+.color-rgb label { display: grid; grid-template-columns: 12px minmax(0, 1fr) 2em; align-items: center; gap: 8px; font-size: 11px; color: #737373; }
+.color-rgb input[type=range] { width: 100%; accent-color: #555; }
 .theme-editor-preview { display: flex; min-height: 0; flex: 1; flex-direction: column; }
 .theme-editor-stack .theme-editor-preview .theme-preview { flex: 1; display: grid; grid-template-columns: 13rem minmax(0, 1fr); border: 0; border-radius: 0; width: 100%; max-width: none; min-height: calc(100dvh - 13rem); pointer-events: none; }
 .theme-preview-fill, .theme-preview-fill .theme-preview, .theme-preview-fill .theme-preview-page { width: 100%; max-width: none; }
