@@ -9,7 +9,7 @@ export const ROUTES = {
   custom: '/custom',
   trash: '/trash',
   store: '/store',
-  storeTemplates: '/store',
+  storeTemplates: '/store?tab=templates',
   themeEditor: '/customize/theme',
   myThemes: '/settings/themes',
   themeDetail: (id: string) => '/store/themes/' + id,

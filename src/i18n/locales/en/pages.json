@@ -269,7 +269,7 @@
     "title": "Trash"
   },
   "themes": {
-    "store": "Store",
+    "store": "Theme store",
     "storeTagline": "Shape your day to your taste.",
     "myThemes": "My Themes",
     "createTheme": "Create theme",
@@ -299,7 +299,7 @@
     "importTheme": "Import theme"
   },
   "templates": {
-    "store": "Store",
+    "store": "Template store",
     "tagline": "Share pages you built, and install templates as your own pages.",
     "themes": "Themes",
     "templates": "Templates",

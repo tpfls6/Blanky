@@ -269,7 +269,7 @@
     "title": "휴지통"
   },
   "themes": {
-    "store": "스토어",
+    "store": "테마 스토어",
     "storeTagline": "당신의 하루를 취향에 맞게.",
     "myThemes": "내 테마",
     "createTheme": "테마 만들기",
@@ -299,7 +299,7 @@
     "importTheme": "테마 가져오기"
   },
   "templates": {
-    "store": "스토어",
+    "store": "템플릿 스토어",
     "tagline": "직접 만든 페이지를 공유하고, 필요한 템플릿을 내 페이지에 설치하세요.",
     "themes": "테마",
     "templates": "템플릿",
