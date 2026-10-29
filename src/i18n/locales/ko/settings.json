@@ -7,11 +7,39 @@
   "resetConfirm": "초기화",
   "general": {
     "label": "일반",
-    "description": "앱에서 사용할 언어를 선택합니다.",
+    "description": "언어, 화면, 탐색을 한곳에서 설정합니다.",
     "language": "언어 설정",
     "languageHint": "앱에서 사용할 언어 선택",
     "korean": "한국어",
-    "english": "English"
+    "english": "English",
+    "languageSection": "언어 및 지역",
+    "languageSectionHint": "앱에서 사용할 언어를 선택합니다.",
+    "appearanceSection": "화면 설정",
+    "appearanceSectionHint": "앱의 화면과 포인트 색상을 설정합니다.",
+    "navigationSection": "탐색 설정",
+    "navigationSectionHint": "사이드바 메뉴 순서와 표시를 바꿉니다."
+  },
+  "ai": {
+    "label": "AI",
+    "description": "AI Planner와 자연어 입력·분석을 설정합니다.",
+    "plannerTab": "AI Planner",
+    "inputTab": "입력 및 분석",
+    "plannerTitle": "AI Planner",
+    "plannerHint": "작업 시간과 개인화 추천을 설정합니다.",
+    "inputTitle": "자연어 입력 및 분석",
+    "inputHint": "홈 입력과 자동 분류 기본값을 설정합니다.",
+    "behaviorTitle": "AI 동작 설정",
+    "behaviorHint": "분석 후 저장 방식을 선택합니다."
+  },
+  "calendar": {
+    "label": "캘린더",
+    "description": "일정 기본값과 Google Calendar 연동을 관리합니다.",
+    "scheduleTab": "일정 설정",
+    "googleTab": "Google Calendar",
+    "scheduleTitle": "일정 기본 설정",
+    "scheduleHint": "타임라인과 알림 기본값을 설정합니다.",
+    "googleTitle": "Google Calendar 연동",
+    "googleHint": "Google Calendar 연결과 동기화를 관리합니다."
   },
   "planning": {
     "label": "AI Planner",
@@ -21,6 +49,11 @@
     "label": "계정",
     "description": "프로필과 로그인 정보를 관리합니다.",
     "profile": "프로필",
+    "profileHint": "이름과 프로필 이미지를 관리합니다.",
+    "security": "로그인 및 보안",
+    "securityHint": "비밀번호를 변경합니다.",
+    "management": "계정 관리",
+    "managementHint": "로그아웃하거나 계정을 삭제합니다.",
     "photo": "사진",
     "profileImage": "프로필 이미지",
     "name": "이름",
@@ -101,7 +134,9 @@
   },
   "categories": {
     "label": "카테고리",
-    "description": "상위·하위 카테고리와 색, 아이콘을 관리합니다."
+    "description": "상위·하위 카테고리와 색, 아이콘을 관리합니다.",
+    "listTitle": "카테고리 목록",
+    "listHint": "색상과 아이콘은 항목에서 바로 바꿀 수 있습니다."
   },
   "input": {
     "label": "입력과 AI",

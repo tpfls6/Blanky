@@ -7,11 +7,39 @@
   "resetConfirm": "Reset",
   "general": {
     "label": "General",
-    "description": "Choose the language used in the app.",
+    "description": "Set language, appearance, and navigation in one place.",
     "language": "Language",
     "languageHint": "Choose the language used in the app",
     "korean": "한국어",
-    "english": "English"
+    "english": "English",
+    "languageSection": "Language & region",
+    "languageSectionHint": "Choose the language used in the app.",
+    "appearanceSection": "Display",
+    "appearanceSectionHint": "Set the app theme and accent color.",
+    "navigationSection": "Navigation",
+    "navigationSectionHint": "Change sidebar order and visibility."
+  },
+  "ai": {
+    "label": "AI",
+    "description": "Set AI Planner and natural-language input.",
+    "plannerTab": "AI Planner",
+    "inputTab": "Input & analysis",
+    "plannerTitle": "AI Planner",
+    "plannerHint": "Set work hours and personalized suggestions.",
+    "inputTitle": "Natural-language input & analysis",
+    "inputHint": "Set Home input and auto-classification defaults.",
+    "behaviorTitle": "AI behavior",
+    "behaviorHint": "Choose how analysis results are saved."
+  },
+  "calendar": {
+    "label": "Calendar",
+    "description": "Manage schedule defaults and Google Calendar.",
+    "scheduleTab": "Schedule",
+    "googleTab": "Google Calendar",
+    "scheduleTitle": "Schedule defaults",
+    "scheduleHint": "Set timeline and notification defaults.",
+    "googleTitle": "Google Calendar",
+    "googleHint": "Manage Google Calendar connection and sync."
   },
   "planning": {
     "label": "AI Planner",
@@ -21,6 +49,11 @@
     "label": "Account",
     "description": "Manage your profile and sign-in details.",
     "profile": "Profile",
+    "profileHint": "Manage your name and profile image.",
+    "security": "Sign-in & security",
+    "securityHint": "Change your password.",
+    "management": "Account",
+    "managementHint": "Sign out or delete this account.",
     "photo": "Photo",
     "profileImage": "Profile image",
     "name": "Name",
@@ -101,7 +134,9 @@
   },
   "categories": {
     "label": "Categories",
-    "description": "Manage parent and child categories, colors, and icons."
+    "description": "Manage parent and child categories, colors, and icons.",
+    "listTitle": "Category list",
+    "listHint": "Change colors and icons directly on each item."
   },
   "input": {
     "label": "Input & AI",
