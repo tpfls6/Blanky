@@ -6,11 +6,9 @@ import { coerceSnapshot, packageSnapshot, safeHttpsUrl, SanitizeError } from '..
 import { builtinTemplates } from '../src/features/workspace/templates.ts'
 import { createPage } from '../src/features/builder/schema.ts'
 
-test('official listings cover the five starter templates', () => {
+test('official listings are the four complete notebooks', () => {
   const names = officialListings().map((item) => item.name)
-  for (const name of ['운동 관리', '영화 기록', '링크 모음', '공부 관리', '프로젝트 관리']) {
-    assert.ok(names.includes(name), name)
-  }
+  assert.deepEqual([...names].sort(), ['가계부', '공부 내용 기록', '여행 기록', '영화 기록'].sort())
   assert.ok(officialListings().every((item) => item.status === 'published' && item.creatorId === null))
 })
 
@@ -103,11 +101,11 @@ test('system page templates keep pageType through package and install', () => {
   assert.equal(again?.fieldLabels?.title, '오늘의 한줄')
 })
 
-test('workout install keeps number fields and does not share collection ids', () => {
-  const listing = officialListings().find((item) => item.name === '운동 관리')
+test('finance install keeps number fields and does not share collection ids', () => {
+  const listing = officialListings().find((item) => item.name === '가계부')
   assert.ok(listing)
   const installed = forkSnapshot(listing.snapshot)
-  const weight = installed.collections[0]?.blocks.find((block) => block.props.label === '무게')
-  assert.ok(weight?.fieldKey)
-  assert.equal(installed.records[0]?.values[weight.fieldKey], 60)
+  const amount = installed.collections[0]?.blocks.find((block) => block.props.label === '금액')
+  assert.ok(amount?.fieldKey)
+  assert.equal(installed.records[0]?.values[amount.fieldKey], 2800000)
 })

@@ -30,8 +30,8 @@ test('guide flag is off by default and is not page data', () => {
 })
 
 test('nav label follows locale without changing the route', () => {
-  assert.equal(translate('ko', 'nav.custom'), '커스텀 템플릿')
-  assert.equal(translate('en', 'nav.custom'), 'Custom Templates')
+  assert.equal(translate('ko', 'nav.custom'), '커스터마이징')
+  assert.equal(translate('en', 'nav.custom'), 'Customization')
   assert.equal(translate('ko', 'custom.title'), '커스텀 템플릿')
   assert.equal(translate('en', 'custom.title'), 'Custom Templates')
   assert.equal(translate('ko', 'custom.tabTemplates'), '커스텀 템플릿')

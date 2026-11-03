@@ -97,6 +97,7 @@ export function TemplatePreview({
           <MemoPage
             source={{
               heading: title,
+              hideCategories: true,
               labels: fields,
               memos: [sampleMemo()],
               add: () => 'preview-memo',

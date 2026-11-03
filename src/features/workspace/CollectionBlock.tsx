@@ -1,3 +1,4 @@
+import { ArrowUp, ArrowDown } from 'lucide-react'
 import { ColorDots } from '../records/properties.tsx'
 import { createBlock as createField } from '../records/registry.ts'
 import { insertBlock as insertField, moveBlock as moveField, patchBlock as patchField, removeBlock as removeField, type BlockType } from '../records/schema.ts'
@@ -6,6 +7,7 @@ import { useI18n } from '../../i18n/useI18n.ts'
 import { useTemplatePreview } from '../marketplace/preview.tsx'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { CollectionView } from './CollectionView.tsx'
+import { NotebookCollection } from './NotebookCollection.tsx'
 import type { DataView } from './model.ts'
 import { createBlock, patchBlock, type BuilderBlock } from '../builder/schema.ts'
 
@@ -31,7 +33,7 @@ export function insertCollectionBlock(name: string): BuilderBlock {
 export function CollectionBlock({ root, block, write }: { root: BuilderBlock[]; block: BuilderBlock; write: (blocks: BuilderBlock[], record?: boolean) => void }) {
   const { t } = useI18n()
   const preview = useTemplatePreview()
-  const { recordTypes, records, addRecord, updateRecord, removeRecord, addRecordType } = useLibrary()
+  const { recordTypes, records, addRecord, updateRecord, removeRecord, addRecordType, commitCollectionRecord, eraseCollectionRecord } = useLibrary()
   const type = preview?.collections.find((item) => item.id === block.props.collectionId) ?? recordTypes.find((item) => item.id === block.props.collectionId)
   if (!type) {
     return (
@@ -64,6 +66,7 @@ export function CollectionBlock({ root, block, write }: { root: BuilderBlock[]; 
       </div>
     )
   }
+  if (block.props.recordLayout) return <NotebookCollection kind={block.props.recordLayout} type={type} rows={(preview?.records ?? records).filter(item => item.typeId === type.id)} readOnly={!!preview} onAdd={input => commitCollectionRecord(type.id, null, input)} onUpdate={(id, input) => commitCollectionRecord(type.id, id, input)} onRemove={eraseCollectionRecord}/>
   return (
     <CollectionView
       type={type}
@@ -162,8 +165,8 @@ function CollectionFields({
             <div className="flex items-center gap-1">
               <input value={field.props.label ?? ''} onChange={(event) => onType(type.id, { blocks: patchField(type.blocks, field.id, { label: event.target.value }) })} className="field min-w-0 flex-1 text-xs" />
               <button type="button" className={field.props.required ? 'chip chip-on' : 'chip'} onClick={() => onType(type.id, { blocks: patchField(type.blocks, field.id, { required: !field.props.required }) })}>*</button>
-              <button type="button" className="text-xs text-neutral-400" disabled={index === 0} onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index - 1) })}>↑</button>
-              <button type="button" className="text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index + 2) })}>↓</button>
+              <button aria-label={t('builder.moveUp')} type="button" className="inline-flex size-6 shrink-0 items-center justify-center text-xs text-neutral-400" disabled={index === 0} onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index - 1) })}><ArrowUp size={14} strokeWidth={1.5} className="block shrink-0" aria-hidden="true" /></button>
+              <button aria-label={t('builder.moveDown')} type="button" className="inline-flex size-6 shrink-0 items-center justify-center text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: moveField(type.blocks, field.id, null, index + 2) })}><ArrowDown size={14} strokeWidth={1.5} className="block shrink-0" aria-hidden="true" /></button>
               <button type="button" className="text-xs text-neutral-400" onClick={() => onType(type.id, { blocks: removeField(type.blocks, field.id) })}>{t('delete')}</button>
             </div>
             {field.type === 'textField' || field.type === 'longText' || field.type === 'number' ? (

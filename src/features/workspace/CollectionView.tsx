@@ -1,3 +1,4 @@
+import { DateTimeInfo } from '../../components/common/DateTimeInfo.tsx'
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { CustomRecordRenderer } from '../records/Renderer.tsx'
@@ -150,7 +151,7 @@ export function CollectionView({
                       {field.type === 'image' && textOf(fieldValue(row, field)) ? (
                         <img src={textOf(fieldValue(row, field))} alt="" className="h-10 rounded object-cover" />
                       ) : (
-                        textOf(fieldValue(row, field)) || row.title
+                        field.type === 'date' || field.type === 'dateTime' ? <DateTimeInfo date={textOf(fieldValue(row, field)).slice(0, 10)} startTime={field.type === 'dateTime' ? textOf(fieldValue(row, field)).slice(11, 16) : undefined} /> : textOf(fieldValue(row, field)) || row.title
                       )}
                     </td>
                   ))}
@@ -175,9 +176,9 @@ export function CollectionView({
                 <div className="p-3">
                   <p className="text-sm font-medium">{row.title}</p>
                   <ul className="mt-2 space-y-1 text-xs text-neutral-500">
-                    {fields.slice(0, 4).map((field) => (
+                    {fields.filter(field => !['date', 'dateTime'].includes(field.type) || textOf(fieldValue(row, field))).slice(0, 4).map((field) => (
                       <li key={field.id}>
-                        {field.props.label}: {textOf(fieldValue(row, field)) || '—'}
+                        {field.props.label}: {field.type === 'date' || field.type === 'dateTime' ? <DateTimeInfo date={textOf(fieldValue(row, field)).slice(0, 10)} startTime={field.type === 'dateTime' ? textOf(fieldValue(row, field)).slice(11, 16) : undefined} /> : textOf(fieldValue(row, field)) || '—'}
                       </li>
                     ))}
                   </ul>

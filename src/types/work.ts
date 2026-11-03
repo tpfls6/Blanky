@@ -34,11 +34,16 @@ export type WorkItem = {
   categoryId: string | null
   priority: Priority
   status: WorkStatus
+  dueTime?: string | null
   dueDate: string | null
   endDate: string | null
   allDay: boolean
   repeat: RepeatRule
   repeatDays?: number[]
+  /** Last day the series may occur on. Absent or null repeats forever. */
+  repeatUntil?: string | null
+  /** Original row of the series this row was split from; absent for unsplit rows. */
+  seriesId?: string | null
   changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
   calendarType?: 'personal' | 'shared' | 'external'
 }
@@ -51,6 +56,7 @@ export type WorkInput = {
   startTime?: string | null
   endTime?: string | null
   duration?: number | null
+  dueTime?: string | null
   dueDate?: string | null
   endDate?: string | null
   allDay?: boolean
@@ -59,6 +65,7 @@ export type WorkInput = {
   status?: WorkStatus
   repeat?: RepeatRule
   repeatDays?: number[]
+  repeatUntil?: string | null
 }
 
 export type WorkPatch = Partial<
@@ -74,10 +81,12 @@ export type WorkPatch = Partial<
     | 'priority'
     | 'status'
     | 'kind'
+    | 'dueTime'
     | 'dueDate'
     | 'endDate'
     | 'allDay'
     | 'repeat'
     | 'repeatDays'
+    | 'repeatUntil'
   >
 >

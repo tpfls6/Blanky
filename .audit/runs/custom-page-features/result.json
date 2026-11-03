@@ -1,0 +1,17 @@
+{
+  "started": "2026-11-03T06:26:50.266Z",
+  "ended": "2026-11-03T06:27:03.732Z",
+  "ok": false,
+  "log": [
+    "started 2026-11-03T06:26:50.266Z",
+    "2026-11-03T06:26:54.946Z screenshot debug-drag.png",
+    "2026-11-03T06:26:54.948Z reading-a\n\n읽고, 기억하고, 나만의 책장에 담아요.\n\n+ 책 추가 · 검색\n\n로컬 모드 · 이 브라우저에 저장됩니다.\n\n전체\n1\n읽을 예정\n1\n읽는 중\n0\n완독\n0\n중단\n0\n내 책장\n+\n📚\nShelf renamed\n1\n⋯\n내 독서 라이브러리\n\n1권 · 최근 추가순\n\n모든 상태\n읽을 예정\n읽는 중\n완독\n중단\n모든 종류\n분류 없음\n분류 정보 불러오기\n\n책장에 추가했습니다.\n\nLegacy book\nLegacy book\n\nAuthor\n\n읽을 예정",
+    "2026-11-03T06:26:54.950Z [object Object],[object Object],[object Object],[object Object]",
+    "2026-11-03T06:27:03.732Z FAIL Timed out: book shelf membership"
+  ],
+  "errors": [],
+  "extra": {
+    "error": "Error: Timed out: book shelf membership\n    at wait (file:///C:/Users/serin/Github/Blanky/scripts/custom-page-features-browser-test.mjs:93:9)\n    at async file:///C:/Users/serin/Github/Blanky/scripts/custom-page-features-browser-test.mjs:162:3"
+  },
+  "serverTail": "오후 3:26:51 [vite] (client) Re-optimizing dependencies because vite config has changed\n  ➜  Local:   http://127.0.0.1:5219/\n오후 3:26:52 [vite] (client) [optimizer] scanning dependencies...\n"
+}

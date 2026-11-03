@@ -22,7 +22,11 @@ function cloneFields(blocks: readonly Block[], fields: Map<string, string>): Blo
       fieldKey,
       props: {
         ...block.props,
-        options: block.props.options?.map((option) => ({ ...option, id: crypto.randomUUID() })),
+        options: block.props.options?.map((option) => {
+          const id = crypto.randomUUID()
+          fields.set(option.id, id)
+          return { ...option, id }
+        }),
         items: block.props.items?.map((item) => ({ ...item, id: crypto.randomUUID() })),
       },
       children: block.children ? cloneFields(block.children, fields) : undefined,
@@ -34,7 +38,7 @@ function remapValues(values: Record<string, FieldValue>, fields: Map<string, str
   const next: Record<string, FieldValue> = {}
   for (const [key, value] of Object.entries(values)) {
     const mapped = fields.get(key)
-    if (mapped) next[mapped] = value
+    if (mapped) next[mapped] = Array.isArray(value) ? value.map(item => fields.get(item) ?? item) : typeof value === 'string' ? fields.get(value) ?? value : value
   }
   return next
 }

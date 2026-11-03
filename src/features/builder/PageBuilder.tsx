@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Copy, GripVertical, Plus, Settings, Trash2 } from 'lucide-react'
+import { ChevronRight, Copy, GripVertical, Plus, Settings, Trash2 } from 'lucide-react'
 import { Sortable } from '../../components/drag/Sortable.tsx'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { filterMenu, type InsertItem } from './catalog.ts'
@@ -363,7 +363,7 @@ function BlockView({
   return (
     <div
       data-builder-block={block.id}
-      className={['group relative rounded-md py-1 pr-2 pl-7', selected && editing ? 'bg-[color-mix(in_srgb,var(--accent-color)_8%,transparent)]' : hit ? 'bg-hover' : ''].join(' ')}
+      className={[block.props.recordLayout && !editing ? 'group relative' : 'group relative rounded-md py-1 pr-2 pl-7', selected && editing ? 'bg-[color-mix(in_srgb,var(--accent-color)_8%,transparent)]' : hit ? 'bg-hover' : ''].join(' ')}
       onClick={() => onSelect(block.id)}
     >
       {editing ? <span data-tour="drag-handle" className="pointer-events-none absolute top-2 left-0 text-neutral-300 opacity-40 lg:opacity-0 lg:group-hover:opacity-100"><GripVertical className="size-4" strokeWidth={1.5} /></span> : null}
@@ -477,7 +477,7 @@ function BlockBody({
   if (block.type === 'toggle') {
     return (
       <button type="button" onClick={onToggle} className="flex items-center gap-1 text-sm font-medium">
-        <span className="chevron text-neutral-400" style={{ transform: open ? 'rotate(90deg)' : undefined }}>›</span>
+        <ChevronRight size={14} strokeWidth={1.5} className="chevron shrink-0 text-neutral-400" style={{ transform: open ? 'rotate(90deg)' : undefined }} aria-hidden="true" />
         {editing ? <input value={text} onClick={(event) => event.stopPropagation()} onChange={(event) => write(patchBlock(root, block.id, { text: event.target.value }), false)} className="bg-transparent outline-none" /> : text || t('builder.block.toggle')}
       </button>
     )

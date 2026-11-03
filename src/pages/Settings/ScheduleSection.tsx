@@ -1,6 +1,6 @@
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
-import { TASK_DURATIONS, type ScheduleTab, type TimelineDensity } from '../../types/records.ts'
+import { TASK_DURATIONS, type CalendarView, type ScheduleTab, type TimelineDensity } from '../../types/records.ts'
 import { Choice, Group, Section, SwitchRow } from './bits.tsx'
 
 export function ScheduleSection() {
@@ -62,6 +62,17 @@ export function ScheduleSection() {
               ['comfortable', t('settings.schedule.comfortable')],
             ] as const satisfies readonly [TimelineDensity, string][]).map(([value, label]) => (
               <Choice key={value} value={value} current={settings.timelineDensity} label={label} onPick={(timelineDensity) => patch({ timelineDensity })} />
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-sm">{t('settings.schedule.calendarView')}</p>
+          <div className="mt-2 flex flex-wrap gap-1" role="radiogroup" aria-label={t('settings.schedule.calendarView')}>
+            {([
+              ['simple', t('settings.schedule.calendarSimple')],
+              ['detailed', t('settings.schedule.calendarDetailed')],
+            ] as const satisfies readonly [CalendarView, string][]).map(([value, label]) => (
+              <Choice key={value} value={value} current={settings.calendarView} label={label} onPick={(calendarView) => patch({ calendarView })} />
             ))}
           </div>
         </div>

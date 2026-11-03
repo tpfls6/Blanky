@@ -16,6 +16,7 @@ import {
   type Settings,
   type ThemeSetting,
   type TimelineDensity,
+  type CalendarView,
 } from '../../types/records.ts'
 
 /**
@@ -28,6 +29,7 @@ const LOCALES: readonly AppLocale[] = ['ko', 'en']
 const THEMES: readonly ThemeSetting[] = ['light', 'dark', 'system']
 const TABS: readonly ScheduleTab[] = ['all', 'timeline', 'tasks']
 const DENSITIES: readonly TimelineDensity[] = ['compact', 'default', 'comfortable']
+const CALENDAR_VIEWS: readonly CalendarView[] = ['simple', 'detailed']
 const HOME_INPUTS: readonly HomeInputDefault[] = ['auto', 'schedule', 'task', 'diary', 'memo', 'reading', 'last']
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -92,6 +94,7 @@ export function normalizePreferences(value: unknown): UserPreferences {
     taskDefaultDuration: duration,
     defaultEventMinutes: duration,
     timelineDensity: oneOf(raw.timelineDensity, DENSITIES, 'default'),
+    calendarView: oneOf(raw.calendarView, CALENDAR_VIEWS, 'simple'),
     homeDefaultInput: oneOf(raw.homeDefaultInput ?? raw.homeDefaultInputType, HOME_INPUTS, 'auto'),
     lastInputType: typeof raw.lastInputType === 'string' && raw.lastInputType ? raw.lastInputType : 'auto',
     autoClassify: flag(raw.autoClassify ?? raw.autoClassification, true),
@@ -100,6 +103,8 @@ export function normalizePreferences(value: unknown): UserPreferences {
     notifyEvents: flag(raw.notifyEvents, true),
     notifyTasks: flag(raw.notifyTasks, true),
     customTemplatesGuideSeen: flag(raw.customTemplatesGuideSeen, false),
+    onboardingDone: flag(raw.onboardingDone, false),
+    onboardingPages: Array.isArray(raw.onboardingPages) ? [...new Set(raw.onboardingPages.filter((id): id is string => typeof id === 'string' && Boolean(id)))] : [],
   }
 }
 
@@ -174,24 +179,21 @@ export async function pushPreferences(settings: Settings): Promise<void> {
   }
 }
 
+/** Resolves null only when there is nothing stored remotely; rejects when the server could not be read. */
 export async function pullPreferences(): Promise<UserPreferences | null> {
   if (!isSupabaseConfigured) return null
-  try {
-    const userId = await getCurrentUserId()
-    if (!userId) return null
-    const remote = await createPreferenceRepository(getSupabaseClient()).get(userId)
-    if (!remote) return null
-    const settings = settingsFromPreference(remote)
-    const device = readDeviceLocale(userId)
-    if (device && device.updatedAt > remote.updatedAt && device.locale !== settings.locale) {
-      return { ...settings, locale: device.locale }
-    }
-    writeDeviceLocale(userId, settings.locale, remote.updatedAt)
-    writeGuestLocale(settings.locale, remote.updatedAt)
-    return settings
-  } catch {
-    return null
+  const userId = await getCurrentUserId()
+  if (!userId) return null
+  const remote = await createPreferenceRepository(getSupabaseClient()).get(userId)
+  if (!remote) return null
+  const settings = settingsFromPreference(remote)
+  const device = readDeviceLocale(userId)
+  if (device && device.updatedAt > remote.updatedAt && device.locale !== settings.locale) {
+    return { ...settings, locale: device.locale }
   }
+  writeDeviceLocale(userId, settings.locale, remote.updatedAt)
+  writeGuestLocale(settings.locale, remote.updatedAt)
+  return settings
 }
 
 function selfCheckPreferences(): void {
@@ -220,6 +222,7 @@ function selfCheckPreferences(): void {
   if (defaultPreferences().autoSaveAfterClassify) throw new Error('autosave default')
   if (defaultPreferences().customTemplatesGuideSeen) throw new Error('guide default')
   if (!normalizePreferences({ customTemplatesGuideSeen: true }).customTemplatesGuideSeen) throw new Error('guide persist')
+  if (normalizePreferences({ onboardingPages: ['diary', 1, 'diary'] }).onboardingPages.join() !== 'diary') throw new Error('tour pages')
 }
 
 selfCheckPreferences()

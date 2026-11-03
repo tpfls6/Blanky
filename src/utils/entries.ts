@@ -84,7 +84,7 @@ export function applyCapture(
     const kind = resolved === 'task' ? 'task' : 'event'
     const draft = parseQuick(trimmed, now, data.categories, kind)
     const item = createWorkItem({
-      kind,
+      kind: draft.kind,
       title: draft.title,
       description: trimmed,
       date: draft.date,
@@ -92,6 +92,7 @@ export function applyCapture(
       endTime: draft.endTime,
       duration: draft.duration,
       dueDate: draft.dueDate,
+      dueTime: draft.dueTime,
       endDate: draft.endDate,
       allDay: draft.allDay,
       categoryId: draft.categoryId,
@@ -237,7 +238,7 @@ export function selfCheckEntries(): void {
     throw new Error('capture stays auto')
   }
   const task = applyCapture(base, '금요일까지 과제 제출하기', 'auto', now)
-  if (task.items[0]?.kind !== 'task' || task.items[0].date !== '2026-10-02') throw new Error('classify task')
+  if (task.items[0]?.kind !== 'task' || task.items[0].date !== '2026-10-01' || task.items[0].dueDate !== '2026-10-02') throw new Error('classify task')
   const diary = applyCapture(base, '오늘 날씨가 좋아서 기분이 좋았다', 'auto', now)
   if (diary.diaries[0]?.date !== '2026-10-01' || !diary.diaries[0].body.includes('기분이 좋았다')) {
     throw new Error('classify diary')

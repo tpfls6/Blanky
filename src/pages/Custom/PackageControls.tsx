@@ -107,7 +107,12 @@ export function TemplateImport({ list = true, dropzone = true, hideEmpty = false
           <p>{t('custom.importHint')}</p>
           <input aria-label={t('custom.importTitle')} type="file" accept=".blankytpl,.json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void open(file) }} />
         </label>
-      ) : null}
+      ) : (
+        <label className="btn btn-line theme-import-label">
+          {t('custom.importTitle')}
+          <input aria-label={t('custom.importTitle')} type="file" accept=".blankytpl,.json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void open(file) }} />
+        </label>
+      )}
       {message ? <p role={pending.length ? 'status' : 'alert'} className="mt-2 text-sm text-neutral-500">{message}</p> : null}
       {pending.map((pkg, index) => (
         <ImportReview

@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "kind": "blanky.template-package",
+  "id": "empty-record",
+  "name": "빈 기록",
+  "author": "tester",
+  "version": "1.0.0",
+  "pageType": "record",
+  "icon": "Dumbbell",
+  "snapshot": {
+    "title": "빈 기록",
+    "blocks": [],
+    "collections": []
+  }
+}

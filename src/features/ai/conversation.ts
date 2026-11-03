@@ -6,7 +6,13 @@ import type { WorkItem, WorkPatch, WorkspaceCategory } from '../../types/work.ts
 
 export type DedupeScope = { start?: string; end?: string; titles?: string[]; openEnd?: boolean }
 
-export type ConversationPending = ({ kind: 'dedupe' } & DedupeScope) | { kind: 'clarify' } | null
+export type ConflictScope = { start: string; end: string; weekday?: number; keepTitles?: string[]; dropTitles?: string[] }
+
+export type ConversationPending =
+  | ({ kind: 'dedupe' } & DedupeScope)
+  | ({ kind: 'conflicts' } & ConflictScope)
+  | { kind: 'clarify' }
+  | null
 
 export type Intent =
   | { type: 'create'; text: string }
@@ -14,7 +20,7 @@ export type Intent =
   | { type: 'update'; item: WorkItem; patch: WorkPatch }
   | { type: 'delete'; item: WorkItem }
   | ({ type: 'dedupe' } & DedupeScope)
-  | { type: 'conflicts'; start: string; end: string }
+  | ({ type: 'conflicts' } & ConflictScope)
   | { type: 'summarize'; start: string; end: string }
   | { type: 'move_incomplete'; from: string; to: string }
   | { type: 'reply'; text: string }
@@ -72,7 +78,71 @@ function keepOne(text: string) {
   return /(하나만\s*남겨|하나만\s*남기|시간대별로\s*하나만|나머진?\s*삭제|keep one|leave one)/i.test(text)
 }
 
+function weekdayOf(text: string): number | undefined {
+  const names: [RegExp, number][] = [
+    [/월요일|monday/i, 1], [/화요일|tuesday/i, 2], [/수요일|wednesday/i, 3],
+    [/목요일|thursday/i, 4], [/금요일|friday/i, 5], [/토요일|saturday/i, 6], [/일요일|sunday/i, 7],
+  ]
+  return names.find(([pattern]) => pattern.test(text))?.[1]
+}
+
+function copiesTalk(text: string) {
+  return /(두\s*개씩|두개씩|시간대별로)/.test(text)
+}
+
+function overlapTalk(text: string) {
+  return /(겹치|같은 시간|같은 시간대|overlap|conflict)/i.test(text)
+}
+
+function keepDrop(text: string, items: readonly WorkItem[]): { keepTitles?: string[]; dropTitles?: string[] } {
+  const titles = mentionedTitles(text, items)
+  const keepHit = /(.+?)만\s*남기/.exec(text)
+  const dropHit = /(.+?)(?:은|는)?\s*지워/.exec(text)
+  const keepTitles = keepHit ? titles.filter(title => keepHit[1].includes(title)) : undefined
+  const dropTitles = dropHit ? titles.filter(title => dropHit[1].includes(title) && !keepHit?.[1].includes(title)) : undefined
+  return {
+    keepTitles: keepTitles?.length ? keepTitles : undefined,
+    dropTitles: dropTitles?.length ? dropTitles : undefined,
+  }
+}
+
+function windowFrom(text: string, today: Date, pending: ConversationPending): { start: string; end: string; weekday?: number } {
+  const weekday = weekdayOf(text)
+  const after = afterDay(text, today)
+  const prior = pending && pending.kind === 'conflicts' ? pending : null
+  let start = after.start ?? prior?.start ?? formatISODate(today)
+  if (weekday) {
+    let day = parseDay(start)
+    for (let step = 0; step < 7; step++) {
+      const iso = formatISODate(day)
+      if (isoWeekdayFromDate(day) === weekday) { start = iso; break }
+      day = addDays(day, 1)
+    }
+  }
+  const end = prior?.end ?? formatISODate(addDays(parseDay(start), /앞으로/.test(text) ? 84 : 56))
+  return { start, end, weekday: weekday ?? prior?.weekday }
+}
+
+function isoWeekdayFromDate(date: Date): number {
+  return date.getDay() || 7
+}
+
+function wantsConflicts(text: string, titles: readonly string[], items: readonly WorkItem[], pending: ConversationPending): boolean {
+  if (titles.length >= 2 && copiesTalk(text) && !overlapTalk(text)) return false
+  // Conflicts are overlaps between different titles. A generic "keep one" while the named titles
+  // really have same-title copies is a duplicate cleanup, unless the user picks a title to keep.
+  const copied = titles.some(title => items.filter(item => item.title === title).length > 1)
+  if (copied && (keepOne(text) || /(중복|버그|duplicate|bug)/i.test(text)) && !keepDrop(text, items).keepTitles) return false
+  if (/(겹치|overlap|conflict)/i.test(text) && /(찾아|알려|보여|정리|find|show)/i.test(text)) return true
+  if (overlapTalk(text) && titles.length >= 2) return true
+  if (titles.length >= 2 && keepOne(text) && !copiesTalk(text)) return true
+  if (keepDrop(text, []).keepTitles || /만\s*남기고/.test(text) && /지워/.test(text)) return true
+  if (pending?.kind === 'conflicts' && /(남기|지워|삭제|그중|유지)/.test(text)) return true
+  return false
+}
+
 function wantsDedupe(text: string, pending: ConversationPending): boolean {
+  if (pending?.kind === 'conflicts') return false
   if (/(중복|duplicate)/i.test(text) && (/(삭제|지워|정리|빼|남겨|남기|remove|delete|keep|leave)/i.test(text) || /이야|입니다|예요/.test(text))) return true
   if (keepOne(text)) return true
   if (/(겹치|overlap|conflict)/i.test(text) && /(남겨|남기|삭제|지워|정리|remove|delete)/i.test(text)) return true
@@ -97,14 +167,23 @@ function dedupeFrom(text: string, items: readonly WorkItem[], today: Date, pendi
 /** Route commands; all date/time interpretation stays in the existing parser. */
 export function conversationIntent(text: string, items: WorkItem[], lastId: string | null, today: Date, categories: WorkspaceCategory[], pending: ConversationPending = null): Intent {
   const route = routeInput(text)
+  const titles = mentionedTitles(text, items)
+  if (wantsConflicts(text, titles, items, pending)) {
+    const window = windowFrom(text, today, pending)
+    const choice = keepDrop(text, items)
+    const prior = pending && pending.kind === 'conflicts' ? pending : null
+    return {
+      type: 'conflicts',
+      start: window.start,
+      end: window.end,
+      weekday: window.weekday,
+      keepTitles: choice.keepTitles ?? prior?.keepTitles,
+      dropTitles: choice.dropTitles ?? prior?.dropTitles,
+    }
+  }
   if (wantsDedupe(text, pending)) return dedupeFrom(text, items, today, pending)
   if (route.route === 'reschedule') return { type: 'reply', text: '자동 재배치는 준비 중이에요. 기존 일정은 변경하지 않았어요.' }
   if (route.route === 'planner') return { type: 'reply', text: new PlannerRequiredError().message }
-  if (/(겹치|overlap|conflict)/i.test(text) && /(찾아|알려|보여|정리|find|show)/i.test(text)) {
-    const parsed = parseScheduleText(text, { today, categories })
-    const span = weekSpan(text, parsed.draft.date ?? formatISODate(today), today)
-    return { type: 'conflicts', start: span.start, end: span.end ?? span.start }
-  }
   if (/(어제|yesterday).*(못한|안 한|미완료|unfinished|incomplete)|(못한 일).*(내일|tomorrow)/i.test(text)) {
     return { type: 'move_incomplete', from: formatISODate(addDays(today, -1)), to: formatISODate(addDays(today, 1)) }
   }
@@ -141,7 +220,7 @@ export function conversationIntent(text: string, items: WorkItem[], lastId: stri
     }
     if (!start && DATE_CUE.test(text) && parsed.draft.date) {
       return { type: 'update', item, patch: item.kind === 'task' && /마감|까지|due/i.test(text)
-        ? { dueDate: parsed.draft.dueDate ?? parsed.draft.date }
+        ? { dueDate: parsed.draft.dueDate ?? parsed.draft.date, dueTime: parsed.draft.dueTime ?? null }
         : { date: parsed.draft.date } }
     }
     if (!start) return { type: 'reply', text: '변경할 시간을 알려 주세요. 예: 그거 오후 5시로 바꿔줘' }

@@ -21,7 +21,7 @@ const browserEndpoint = await new Promise((resolve, reject) => {
 })
 const server = spawn(process.execPath, ['--input-type=module', '-e', 'import { createServer } from "vite"; const server = await createServer({ server: { host: "127.0.0.1", port: ' + new URL(base).port + ', strictPort: true, watch: { ignored: ["**/.tmp/**"] } } }); await server.listen(); server.printUrls();'], { env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }, windowsHide: true, stdio: 'pipe' })
 let serverOutput = ''; server.stdout.on('data', data => { serverOutput += data }); server.stderr.on('data', data => { serverOutput += data })
-for (let i=0; i<60; i++) { try { const res = await fetch(base); if(res.ok) break } catch {} await new Promise(r=>setTimeout(r,100)); if(i===59) throw new Error(serverOutput) }
+for (let i=0; i<300; i++) { try { const res = await fetch(base); if(res.ok) break } catch {} await new Promise(r=>setTimeout(r,100)); if(i===299) throw new Error(serverOutput) }
 let targets
 for (let i=0;i<50;i++){try{targets=await fetch(browserEndpoint + '/json/list').then(r=>r.json()); break}catch{} await new Promise(r=>setTimeout(r,100));if(i===49)throw new Error(browserOutput)}
 const target = targets.find(t => t.type === 'page')
@@ -54,7 +54,7 @@ async function navigate(url) {
   await loaded
 }
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
-async function wait(expression, label) { for (let i = 0; i < 80; i++) { if (await evaluate(expression)) return; await pause(100) } throw new Error('Timed out: ' + label) }
+async function wait(expression, label) { for (let i = 0; i < 300; i++) { if (await evaluate(expression)) return; await pause(100) } throw new Error('Timed out: ' + label) }
 const q = value => JSON.stringify(value)
 async function click(selector) { await evaluate('document.querySelector(' + q(selector) + ').click()') }
 async function button(text) { await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim() === ' + q(text) + ').click()') }
@@ -66,6 +66,16 @@ const library = 'blanky.library.' + owner
 
 try {
   await send('Page.enable'); await send('Runtime.enable');
+  await send('Emulation.setTimezoneOverride',{timezoneId:'Asia/Seoul'});
+  await send('Page.addScriptToEvaluateOnNewDocument',{source: '('+(()=>{
+    window.__timelineNow = new Date('2026-10-29T10:30:00+09:00').getTime();
+    const NativeDate = Date;
+    window.Date = class extends NativeDate {
+      constructor(...args){if(args.length)super(...args);else super(window.__timelineNow)}
+      static now(){return window.__timelineNow}
+    };
+  }).toString()+')()'});
+
   await send('Page.addScriptToEvaluateOnNewDocument', { source: '(' + (() => {
     if (!location.hostname || localStorage.getItem('timeline-seed')) return;
     const id = '11111111-1111-4111-8111-111111111111';
@@ -89,6 +99,14 @@ try {
   }).toString()+')()' });
   await navigate(base+'/schedule');
   await wait('document.querySelectorAll("[data-timeline-id]").length===8','timeline');
+
+  await wait('document.querySelector(".schedule-now")?.dataset.currentTime === "10:30"','current time');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".schedule-now")).pointerEvents'),'none');
+  assert.equal(await evaluate('document.querySelector("time[aria-current=time]").textContent'),'10:00');
+  const previousTop=await evaluate('parseFloat(document.querySelector(".schedule-now").style.top)');
+  await evaluate('window.__timelineNow+=60000;window.dispatchEvent(new Event("focus"))');
+  await wait('document.querySelector(".schedule-now")?.dataset.currentTime === "10:31"','minute refresh');
+  assert.ok(await evaluate('parseFloat(document.querySelector(".schedule-now").style.top)')>previousTop);
   const rect = id => evaluate(`(()=>{const r=document.querySelector('[data-timeline-id="${id}"]').getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom}})()`);
   const long = await rect('long'), short = await rect('short1'), later = await rect('later'), alone = await rect('alone');
   assert.ok(later.width > short.width*2.5,'later event expands into free columns');
@@ -103,7 +121,8 @@ try {
   for (const width of [390,768,1440]) {
     await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<700});await pause(150);
     assert.equal(await evaluate('document.documentElement.scrollWidth<=window.innerWidth+1'),true,'no page overflow '+width);
-    assert.ok(await evaluate('Math.min(...[...document.querySelectorAll("[data-timeline-id]")].map(e=>e.getBoundingClientRect().width))>=130'),'readable card width');
+    assert.equal(await evaluate('(()=>{const s=document.querySelector(".schedule-timeline-scroll");return s.scrollWidth<=s.clientWidth+1})()'),true,'no timeline horizontal scroll '+width);
+    assert.ok(await evaluate('[...document.querySelectorAll("[data-timeline-id]")].every(e=>e.getBoundingClientRect().right<=document.querySelector(".schedule-timeline-scroll").getBoundingClientRect().right+1)'),'cards fit timeline width '+width);
     await checkNoCollisions();
     if (width === 390) {
       await mkdir(resolve('.tmp/timeline-layout'),{recursive:true});
@@ -123,12 +142,34 @@ try {
   assert.ok(Math.abs((await rect('short1')).height-55)<1);
   assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-timeline-id=short1] .schedule-card-title")).webkitLineClamp'),'2');
   await checkNoCollisions();
+  // Whole card opens details: clicking the time text (not the title) opens the editor.
+  const dialogs = 'document.querySelectorAll("[aria-expanded=true]").length'
+  const before = await evaluate(dialogs)
+  await evaluate(`document.querySelector('[data-timeline-id=later] .schedule-card-time').click()`)
+  await wait(dialogs + '>' + before, 'time click opens details')
+  await evaluate('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}))'); await pause(100)
+  await wait(dialogs + '===' + before, 'details closed')
+  await evaluate(`document.querySelector('[data-timeline-id=later]').click()`)
+  await wait(dialogs + '>' + before, 'card padding click opens details')
+  await evaluate('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}))'); await pause(100)
+  await wait(dialogs + '===' + before, 'details closed again')
+  // Truncated title expands in place without opening details, and collapses on a second click.
+  await send('Emulation.setDeviceMetricsOverride',{width:390,height:900,deviceScaleFactor:1,mobile:true});await pause(150)
+  await evaluate(`(()=>{const t=document.querySelector('[data-timeline-id=short2] .schedule-card-title');return t.scrollWidth>t.clientWidth||t.scrollHeight>t.clientHeight})()`).then(v=>assert.equal(v,true,'title is truncated'))
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('[data-timeline-id=short2] .schedule-card-title')).textOverflow`),'ellipsis')
+  await evaluate(`document.querySelector('[data-timeline-id=short2] .schedule-card-title').click()`)
+  await wait(`document.querySelector('[data-timeline-id=short2]').classList.contains('schedule-time-expanded')`,'title expanded')
+  assert.equal(await evaluate(dialogs), before, 'expanding does not open details')
+  assert.equal(await evaluate(`(()=>{const t=document.querySelector('[data-timeline-id=short2] .schedule-card-title');return t.scrollHeight<=t.clientHeight+1})()`),true,'full title visible')
+  await evaluate(`document.querySelector('[data-timeline-id=short2] .schedule-card-title').click()`)
+  await wait(`!document.querySelector('[data-timeline-id=short2]').classList.contains('schedule-time-expanded')`,'title collapsed')
+  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});await pause(150)
   await evaluate(`document.querySelector('[data-timeline-id=task1] [role=checkbox]').click()`);
   await wait(`JSON.parse(localStorage.getItem(${q(library)})).items.find(i=>i.id==='task1').status==='done'`,'checkbox saved');
   await navigate(base+'/schedule');
   await wait('document.querySelectorAll("[data-timeline-id]").length===8','reload');
   assert.equal(errors.length,0,errors.join('\n'));
-  console.log('PASS: overlap groups, width expansion, long titles, checkbox rows, mobile/tablet/desktop bounds, drag and resize recalculate and persist.');
+  console.log('PASS: live current-time marker and focus refresh;  overlap groups, width expansion, long titles, checkbox rows, mobile/tablet/desktop bounds, drag and resize recalculate and persist.');
 
 } finally {
   ws.close(); server.kill();

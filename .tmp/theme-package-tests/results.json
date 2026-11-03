@@ -1,14 +1,12 @@
 {
   "passed": [
     "Legacy Soft Pink applies and persists",
-    "Circular HEX picker, preview screen switching and cancel preserve active theme",
-    "JSON export and import show isolated right preview and cancel restores draft",
-    "Live image, SVG icon, checkbox and Custom CSS preview without changing active theme",
-    "Unsafe CSS blocks save and preserves active theme",
-    "Save persists PNG assets and placement separately in IndexedDB; mobile editor has no horizontal overflow",
+    "Color tab live preview and save keep the active theme",
+    "Custom tab reviews a .blanky file and install does not apply it",
+    "Color overlay save keeps package assets",
     "Package applies to real schedule, sidebar, calendar and icons after refresh",
     "Temporary preview restores original package assets, icons and active theme",
-    "Creator export downloads the .zip extension",
+    "Creator export downloads the .blankytheme extension",
     "Second account imports, previews, installs and applies identical package without store",
     "Package library renders on mobile without horizontal overflow",
     "Deleting imported copy releases Object URLs and preserves original creator package",

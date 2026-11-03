@@ -71,14 +71,16 @@ export function parseGoogleEvent(value: unknown, calendarTimeZone: string): Goog
   const privateProps = record(record(event.extendedProperties).private)
   const blanky = text(privateProps.blankyScheduleId)
   const colorId = text(event.colorId)
+  const when = whenFromGoogle(event, calendarTimeZone)
+  const timeZone = text(record(event.start).timeZone) || calendarTimeZone
   return {
     id,
     etag,
     status: 'confirmed',
     title: text(event.summary) || '(제목 없음)',
     description: text(event.description),
-    when: whenFromGoogle(event, calendarTimeZone),
-    recurrence: parseGoogleRecurrence(Array.isArray(event.recurrence) ? event.recurrence.map(String) : []),
+    when,
+    recurrence: parseGoogleRecurrence(Array.isArray(event.recurrence) ? event.recurrence.map(String) : [], { when, timeZone }),
     updated: asIsoDateTime(text(event.updated) || new Date().toISOString()),
     blankyScheduleId: blanky ? asScheduleId(blanky) : null,
     colorId: /^([1-9]|1[01])$/.test(colorId) ? colorId : null,

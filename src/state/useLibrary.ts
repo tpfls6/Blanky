@@ -12,7 +12,9 @@ export type LibraryValue = LibraryData & {
   diaryLoading: boolean
   commitWork: (before: import('../types/work.ts').WorkItem | null, after: import('../types/work.ts').WorkItem | null, source?: 'manual' | 'ai_chat') => Promise<import('../types/work.ts').WorkItem | null>
   applyWorkBatch: (input: { key: string; deletes: import('../types/work.ts').WorkItem[]; source?: 'manual' | 'ai_chat' }) => Promise<import('@blanky/api').ScheduleBatchResult>
+  createWorkBatch: (inputs: (import('../types/work.ts').WorkInput & { id?: string })[]) => Promise<import('../types/work.ts').WorkItem[]>
   workError: string
+  isRemoteWork: (id: string) => boolean
   adoptPlannerSchedules: (rows: import('@blanky/types').Schedule[]) => void
   refreshWork: () => Promise<void>
   saveCapture: (content: string, type: EntryType) => string | null
@@ -30,17 +32,21 @@ export type LibraryValue = LibraryData & {
   updateBook: (id: string, patch: Partial<Omit<Book, 'id' | 'createdAt'>>) => void
   removeBook: (id: string) => void
   addLog: (bookId: string, log: { date: string; page: number | null; note: string }) => void
-  addCategory: (name: string, parentId: string | null) => void
+  addCategory: (name: string, parentId: string | null, style?: Partial<Pick<WorkspaceCategory, 'color' | 'icon'>>) => void
   updateCategory: (id: string, patch: Partial<Pick<WorkspaceCategory, 'name' | 'color' | 'icon' | 'kind'>>) => void
   reorderCategories: (parentId: string | null, orderedIds: string[]) => void
   removeCategory: (id: string) => void
   updateSettings: (patch: Partial<Settings>) => void
   resetPreferences: () => void
+  /** False until the signed-in user's server preferences were read (or the read failed). */
+  settingsReady: boolean
   addRecordType: (input: Pick<CustomRecordType, 'name' | 'icon' | 'color' | 'description' | 'blocks'>) => string | null
   updateRecordType: (id: string, patch: Partial<Pick<CustomRecordType, 'name' | 'icon' | 'color' | 'description' | 'blocks'>>) => void
   duplicateRecordType: (id: string) => string | null
   removeRecordType: (id: string) => void
   addRecord: (typeId: string, input: { id?: string; title: string; values: Record<string, FieldValue> }) => string
+  commitCollectionRecord: (typeId: string, id: string | null, input: { title: string; values: Record<string, FieldValue> }) => Promise<void>
+  eraseCollectionRecord: (id: string) => Promise<void>
   updateRecord: (id: string, patch: { title: string; values: Record<string, FieldValue> }) => void
   removeRecord: (id: string) => void
   restoreTrash: (id: string) => Promise<void>

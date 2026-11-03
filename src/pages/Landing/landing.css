@@ -1,0 +1,17 @@
+/* Landing layout. Type, motion and the app pictures come from features/guide/guide.css. */
+.landing-wrap { width: 100%; max-width: 64rem; margin-inline: auto; padding-inline: 1rem; }
+@media (min-width: 640px) { .landing-wrap { padding-inline: 1.5rem; } }
+@media (min-width: 768px) { .landing-wrap { padding-inline: 2.5rem; } }
+
+.landing-hero { padding-block: 4rem 5rem; }
+.landing-hero-shot { margin-top: 3.5rem; }
+@media (min-width: 900px) { .landing-hero { padding-block: 6.5rem 7rem; } .landing-hero-shot { margin-top: 5rem; } }
+
+.landing-section { border-top: 1px solid var(--line); padding-block: 4.5rem; }
+@media (min-width: 900px) { .landing-section { padding-block: 7rem; } }
+
+.landing-cover { display: flex; width: 3.5rem; height: 5rem; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 3px; background: var(--accent-light); padding: 0.25rem; text-align: center; font-size: 0.625rem; line-height: 1.3; color: var(--accent-text); }
+.landing-quote { margin-top: 1rem; border-left: 2px solid var(--line); padding-left: 0.75rem; font-size: 0.875rem; line-height: 1.6; color: var(--muted); }
+
+.landing-final { border-top: 1px solid var(--line); padding-block: 5rem 6rem; }
+@media (min-width: 900px) { .landing-final { padding-block: 8rem 9rem; } }

@@ -50,6 +50,7 @@ export type BlockProps = {
   text?: string
   level?: 1 | 2 | 3
   label?: string
+  role?: string
   placeholder?: string
   required?: boolean
   defaultValue?: string | number | boolean
@@ -409,6 +410,7 @@ function normalizeBlock(value: unknown, depth: number): Block | null {
   if (typeof propsRow.text === 'string') props.text = propsRow.text
   if (typeof propsRow.title === 'string') props.title = propsRow.title
   if (typeof propsRow.label === 'string') props.label = propsRow.label
+  if (typeof propsRow.role === 'string' && /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/.test(propsRow.role)) props.role = propsRow.role
   if (typeof propsRow.placeholder === 'string') props.placeholder = propsRow.placeholder
   if (typeof propsRow.icon === 'string') props.icon = propsRow.icon
   if (typeof propsRow.color === 'string') props.color = propsRow.color

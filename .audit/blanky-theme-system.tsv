@@ -1,0 +1,11 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T07:50:00Z	start	opened the theme-system run	user asked for a Kakao-style .blankytheme package on the existing Blanky theme stack	this chat	open
+2026-10-27T08:05:00Z	frame	keep the existing ThemePackage engine and close gaps only	graph and source already have ZIP parse, validator, sanitizer, store, studio, and CSS tokens	packages/types/src/themePackage.ts, src/theme/package/ThemeLoader.ts, THEME_PACKAGE_IMPLEMENTATION.md	found engine already shipped
+2026-10-27T08:10:00Z	frame	skip architect and arena	the one-way door (tokens in JSON, CSS only in the web adapter) is already the live shape	src/theme/variables.ts, src/theme/package/runtimeCss.ts	skipped second design bakeoff
+2026-10-27T08:12:00Z	checkpoint	one worker owns the gap fill	ThemePackage, validator, loader, studio, and tests share one type	tests/themePackage.test.ts	serialize
+2026-10-27T08:40:00Z	format	export and import use .blankytheme and keep old aliases	the spec names one shareable file, older .blanky-theme zip and json still exist	0f24320720b406926bfe067301e64a736db55de3	tests green
+2026-10-27T08:41:00Z	assets	new uploads write into spec folders, old flat assets still import	validator already allows any assets/ path	src/theme/package/slots.ts:themeAssetPath	tests green
+2026-10-27T08:42:00Z	runtime	input surface wash, hover media query, 720px decoration shrink	keep layout, only appearance	src/styles/index.css, src/theme/package/runtimeCss.ts	tests green
+2026-10-27T08:50:00Z	verify	theme unit tests 36/36 and browser script 13/13	real Chromium plus isolated local accounts	npm run test:theme-packages, npm run test:theme-package-browser	VERIFIED
+2026-10-27T08:51:00Z	build	npm run build failed on pre-existing calendar and AI types	no error in theme files	npm run build	INCONCLUSIVE for whole app, theme files clean
+2026-10-27T08:52:00Z	pr	did not open a PR	user did not ask to push, and feat/theme-kinds also has unrelated custom-page commits	feat/theme-kinds	skipped

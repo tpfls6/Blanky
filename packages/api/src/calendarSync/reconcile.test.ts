@@ -10,12 +10,14 @@ import {
   asGoogleSub,
   asIsoDateTime,
   asScheduleId,
+  asSyncToken,
   asTimeStr,
   asUserId,
 } from '../../../types/src/calendarSync.ts'
 import { applyOps, type ApplyDeps } from './apply.ts'
 import type { EventLink, GooglePeerEvent, ReadyConnection, ReconcileOp, SnapshotRow } from './domain.ts'
 import { reconcile } from './reconcile.ts'
+import { runSync } from './sync.ts'
 import { parseGoogleRecurrence, parseRecurrenceFromSchedule, toGoogleRrule } from './recurrence.ts'
 
 const when = {
@@ -107,6 +109,71 @@ function kinds(ops: readonly ReconcileOp[]): string[] {
   return ops.map((op) => op.kind)
 }
 
+test('a local edit exports even when the incremental Google page has no changed events', () => {
+  const local = row({ scheduleId: asScheduleId('local'), title: 'Blanky edit', updatedAt: asIsoDateTime('2026-10-26T02:00:00Z') })
+  const mapped = link({ scheduleId: local.scheduleId, googleEventId: asGoogleEventId('remote') })
+  const ops = run([local], [mapped], [])
+  assert.deepEqual(kinds(ops), ['update_google'])
+  assert.equal(ops[0].kind === 'update_google' && ops[0].body.summary, 'Blanky edit')
+})
+
+test('a private Google marker never authorizes updating a row outside this snapshot', () => {
+  const ops = run([], [], [confirmed({ blankyScheduleId: asScheduleId('not-owned') })])
+  assert.equal(ops[0].kind, 'upsert_blanky')
+  if (ops[0].kind === 'upsert_blanky') assert.ok(ops[0].draft.scheduleId.startsWith('pending:'))
+})
+
+test('Google-origin edits preserve the original ownership of an exported Blanky event', () => {
+  const local = row({ scheduleId: asScheduleId('original') })
+  const mapped = link({ scheduleId: local.scheduleId, googleEventId: asGoogleEventId('remote'), origin: 'blanky' })
+  const ops = run([local], [mapped], [confirmed({ id: mapped.googleEventId, etag: asEtag('new-etag') })])
+  assert.equal(ops[0].kind === 'upsert_blanky' && ops[0].origin, 'blanky')
+})
+
+test('first import from Google does not export unrelated personal schedules', () => {
+  const ops = reconcile({ connection, snapshot: { calendarId: connection.calendar.blankyCalendarId, rows: [row({ scheduleId: asScheduleId('personal') })], links: [] }, page: { events: [confirmed({})], nextPageToken: null, nextSyncToken: null }, exportUnlinked: false })
+  assert.deepEqual(kinds(ops), ['upsert_blanky'])
+})
+
+test('reconnect recovers the original owned schedule ID instead of importing another copy', async () => {
+  const local = row({ scheduleId: asScheduleId('original') }), links: EventLink[] = []
+  const report = await runSync({ connection,
+    google: { async list() { return { kind: 'page', page: { events: [confirmed({ blankyScheduleId: local.scheduleId })], nextPageToken: null, nextSyncToken: asSyncToken('new-token') } } } },
+    async loadSnapshot() { return { calendarId: connection.calendar.blankyCalendarId, rows: [], links } },
+    async findOriginalRows(ids) { assert.deepEqual(ids, [local.scheduleId]); return [local] },
+    async wipeLinks() {}, async saveCursor() {}, apply: applyDeps({ async upsertLink(link) { links.push(link) } }),
+  })
+  assert.equal(links[0].scheduleId, local.scheduleId)
+  assert.equal(report.imported, 0)
+  assert.equal(report.exported, 0)
+})
+
+test('incremental pagination keeps the same sync token through the final page', async () => {
+  const calls: unknown[] = [], saved: unknown[] = []
+  const token = asSyncToken('original-token')
+  await runSync({ connection: { ...connection, cursor: { kind: 'incremental', token } },
+    google: { async list(input) { calls.push(input); return { kind: 'page', page: { events: [], nextPageToken: input.pageToken ? null : 'page-2', nextSyncToken: input.pageToken ? asSyncToken('next-token') : null } } } },
+    async loadSnapshot() { return { calendarId: connection.calendar.blankyCalendarId, rows: [], links: [] } },
+    async wipeLinks() { throw new Error('must not reset a valid token') },
+    async saveCursor(_id, cursor) { saved.push(cursor) }, apply: applyDeps({}),
+  })
+  assert.deepEqual(calls, [{ syncToken: token, pageToken: null }, { syncToken: token, pageToken: 'page-2' }])
+  assert.deepEqual(saved, [{ kind: 'incremental', token: 'next-token' }])
+})
+
+test('a matching original on a later page is linked without creating a duplicate Google event', async () => {
+  const local = row({ scheduleId: asScheduleId('original') }), links: EventLink[] = []
+  const report = await runSync({ connection,
+    google: { async list(input) { return { kind: 'page', page: { events: input.pageToken ? [confirmed({ blankyScheduleId: local.scheduleId })] : [], nextPageToken: input.pageToken ? null : 'page-2', nextSyncToken: input.pageToken ? asSyncToken('new-token') : null } } } },
+    async loadSnapshot() { return { calendarId: connection.calendar.blankyCalendarId, rows: [local], links } },
+    async wipeLinks() {}, async saveCursor() {}, apply: applyDeps({ async upsertLink(link) { links.push(link) } }),
+  })
+  assert.equal(links.length, 1)
+  assert.equal(links[0].scheduleId, local.scheduleId)
+  assert.equal(report.exported, 0)
+  assert.equal(report.imported, 0)
+})
+
 test('weekly empty days uses the schedule date weekday', () => {
   assert.deepEqual(parseRecurrenceFromSchedule({ date: '2026-10-26', repeat: 'weekly', repeatDays: [] }), {
     freq: 'weekly',
@@ -123,7 +190,8 @@ test('Google RRULE stays at the Blanky ceiling and skips the rest', () => {
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=MONTHLY']), { freq: 'monthly' })
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO']), { kind: 'unsupported' })
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=DAILY;COUNT=5']), { kind: 'unsupported' })
-  assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=MONTHLY;UNTIL=20261231T000000Z']), { kind: 'unsupported' })
+  // UNTIL is mirrored as repeat_until (see recurrenceUntil.test.ts); COUNT stays unsupported.
+  assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=MONTHLY;UNTIL=20261231']), { freq: 'monthly', until: '2026-12-31' })
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=YEARLY']), { kind: 'unsupported' })
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=WEEKLY']), { kind: 'unsupported' })
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=DAILY', 'EXDATE:20261027']), { kind: 'unsupported' })

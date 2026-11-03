@@ -99,10 +99,20 @@ try {
   await click('button[aria-label="보내기"]');
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).memos.some(row=>row.body==="조용한 하루")','ambiguous record saved as memo');
   console.log('PASS: automatic records, recipe with time, ambiguous memo fallback');
-  await fill('#home-entry', '오늘 오후 3시 검증회의');
+  // A clear request saves on its own; an hour without 오전·오후 waits in the chat panel for review.
+  await fill('#home-entry', '오늘 오후 5시 자동저장회의');
   await click('button[aria-label="보내기"]');
+  await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.some(i=>i.title==="자동저장회의")', 'clear request auto-saved');
+  const auto = await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items.find(i=>i.title==="자동저장회의")');
+  assert.equal(auto.startTime, '17:00'); assert.equal(auto.endTime, null, 'auto-save must not invent one hour duration');
+  const afterAuto = await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items.length');
+  await fill('#home-entry', '오늘 3시 검증회의');
+  await click('button[aria-label="보내기"]');
+  await wait('[...document.querySelectorAll("#home-chat-panel [data-chat-message]")].at(-1)?.dataset.chatStatus==="review"', 'ambiguous hour waits');
+  assert.equal(await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items.length'), afterAuto, 'ambiguous analysis must not auto-save');
+  await button('확인 후 저장');
   await wait('document.querySelector("[data-analysis-item]")', 'analysis review');
-  assert.equal(await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items.length'), initial, 'analysis must not auto-save');
+  await fill('[data-analysis-item] input[type=time]', '15:00');
   await evaluate(`(()=>{const select=document.querySelector('[data-analysis-item] select[aria-label="반복"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'weekly');select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
   await wait(`document.querySelectorAll(${q('[aria-label="반복 요일"] button')}).length===7`,'weekday choices');
   await click('button[aria-label="일요일 반복"]');
@@ -136,9 +146,9 @@ try {
   await wait('document.querySelector("#home-entry")', 'home reloaded');
   await fill('#home-entry', '오후 3시 날짜없는회의');
   await click('button[aria-label="보내기"]');
-  await wait('document.querySelector("[data-analysis-item]")', 'event without a date opens review');
+  await wait('[...document.querySelectorAll("#home-chat-panel [data-chat-message]")].at(-1)?.dataset.chatStatus==="review"', 'event without a date waits for review');
   assert.equal(await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).memos.some(row=>row.body==="오후 3시 날짜없는회의")'), false, 'undated event is not a memo');
-  await button('닫기');
+  await button('저장 안 함');
   const before = await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items');
   await fill('#home-entry', '이번 주 공부 계획 세워줘');
   await click('button[aria-label="보내기"]');

@@ -1,0 +1,10 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T05:30:00Z	start	opened figure-it-out for the template marketplace	cross-cutting store plus collections plus RLS	this run	in progress
+2026-10-27T05:40:00Z	frame	reuse user_pages, forkCollections, and the theme-store RPC pattern	listing and private page must stay split, and the clone path already existed	src/features/workspace/templates.ts:154 src/state/library.tsx:877 supabase/migrations/20261007150000_theme_store.sql	framed
+2026-10-27T06:10:00Z	engine	pure sanitize plus forkSnapshot with field-key remap	server cannot trust client stripping, and sample values must follow new keys	src/features/marketplace/sanitize.ts src/features/marketplace/install.ts tests/marketplace.test.ts	tests green
+2026-10-27T06:20:00Z	db	new listings/versions/installs tables and security-definer RPCs	match theme install_theme: idempotent request id, protected counters, page stays owner-only	supabase/migrations/20261027160000_template_marketplace.sql	not applied to prod
+2026-10-27T06:35:00Z	hydrate	pull pages, record types, and records on login	installed pages must survive refresh and another device	src/state/library.tsx page-load effect	unit covered, browser pending
+2026-10-27T06:50:00Z	ui	store tabs plus template detail/publish/library on existing theme-page styles	the store already had a templates placeholder chip	src/pages/Themes/ThemePages.tsx src/pages/Store/TemplateStore.tsx	shipped
+2026-10-27T06:55:00Z	verify	unit tests for package/fork/i18n/rpc wiring	prove the snapshot does not share ids and strips pii	tests/marketplace.test.ts packages/api/src/template.test.ts	26 tests green
+2026-10-27T07:00:00Z	verify	browser install, add record, refresh, publish	same CDP harness as workspace-builder	.audit/runs/marketplace-store/result.json	PASS
+2026-10-27T07:01:00Z	verify	did not run supabase pgTAP or apply the migration to prod	dangerous remote db writes stay behind approval	supabase/tests/template_marketplace.sql	NOT VERIFIED

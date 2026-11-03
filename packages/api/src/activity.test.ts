@@ -37,3 +37,28 @@ test('task CRUD sends task fields and AI source through existing repository', as
   assert.equal(sent.change_source, 'ai_chat')
   assert.equal(saved.kind, 'task')
 })
+test('batch create keeps client ids and a retried insert returns the rows already saved', async () => {
+  const id = '22222222-2222-4222-8222-222222222222'
+  const stored: Record<string, unknown>[] = []
+  const query = {
+    mode: '',
+    insert(value: Record<string, unknown>[]) { this.mode = 'insert'; this.rows = value; return this },
+    rows: [] as Record<string, unknown>[],
+    select() { return this },
+    in() { this.mode = 'list'; return this },
+    then(resolve: (value: unknown) => void) {
+      if (this.mode === 'list') return resolve({ data: stored, error: null })
+      if (this.rows.some(row => stored.some(saved => saved.id === row.id))) return resolve({ data: null, error: { code: '23505', message: 'duplicate key' } })
+      const rows = this.rows.map(row => ({ ...snapshot, ...row }))
+      stored.push(...rows)
+      return resolve({ data: rows, error: null })
+    },
+  }
+  const repo = createScheduleRepository({ from: () => query } as unknown as SupabaseClient<Database>)
+  const draft = { id, title: '회의', date: '2026-11-04', kind: 'event' as const, changeSource: 'ai_chat' as const }
+  const first = await repo.createMany('owner', [draft])
+  const retried = await repo.createMany('owner', [draft])
+  assert.equal(first[0].id, id)
+  assert.equal(retried[0].id, id)
+  assert.equal(stored.length, 1)
+})

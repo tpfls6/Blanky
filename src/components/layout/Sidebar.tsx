@@ -1,7 +1,7 @@
 import { BrandLogo } from '../common/BrandLogo.tsx'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
-import { NavLink, useLocation } from 'react-router-dom'
-import { chromeNavLabel, isRecordNav, CUSTOM_NAV, STORE_NAV, THEMES_NAV, TRASH_NAV, SETTINGS_NAV, pageNav, visibleNav } from '../../constants/navigation.ts'
+import { NavLink } from 'react-router-dom'
+import { chromeNavLabel, isRecordNav, CUSTOM_NAV, STORE_NAV, TRASH_NAV, SETTINGS_NAV, pageNav, visibleNav } from '../../constants/navigation.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 
@@ -30,7 +30,6 @@ function NavRow({
 }
 
 export function Sidebar() {
-  const { pathname } = useLocation()
   const { settings, customPages } = useLibrary()
   const { t } = useI18n()
   const items = visibleNav(settings.nav)
@@ -62,10 +61,9 @@ export function Sidebar() {
       </nav>
       <div className="mt-auto border-t border-line pt-3">
         <NavRow id="store" to={STORE_NAV.to} icon={STORE_NAV.icon} label={t('nav.store')} />
-        <NavRow id="custom" to={THEMES_NAV.to} icon={THEMES_NAV.icon} label={t('nav.themes')} />
         <NavRow id="custom" to={CUSTOM_NAV.to} icon={CUSTOM_NAV.icon} label={t('nav.custom')} />
         <NavRow id="delete" to={TRASH_NAV.to} icon={TRASH_NAV.icon} label={t('nav.trash')} />
-        <NavLink data-theme-slot="sidebar-item" to={SETTINGS_NAV.to} aria-current={pathname === THEMES_NAV.to ? false : 'page'} className={() => 'nav-link min-w-0'}>
+        <NavLink data-theme-slot="sidebar-item" to={SETTINGS_NAV.to} className="nav-link min-w-0">
           <ThemeIcon name="settings" fallback={SETTINGS_NAV.icon} strokeWidth={1.5} aria-hidden="true" />
           <span className="min-w-0 truncate">{t('nav.settings')}</span>
         </NavLink>

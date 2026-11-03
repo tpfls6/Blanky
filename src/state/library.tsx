@@ -2,10 +2,10 @@ import { mergeCategories } from '../utils/mergeCategories.ts'
 import { getDiaryRecords, saveDiaryRecord, deleteDiaryRecord, hasSyncedDiary } from '../services/diary/index.ts'
 import { loadWork, saveWork, workFromSchedule, type Activity } from '../services/schedule/workStore.ts'
 import type { Schedule } from '@blanky/types'
-import type { ScheduleBatchResult } from '@blanky/api'
+import { AppError, createRecordRepository, type ScheduleBatchResult } from '@blanky/api'
 import { isGoogleOriginWork } from '../services/calendarSync/origin.ts'
 import { getScheduleRepository } from '../services/schedule/index.ts'
-import { isSupabaseConfigured } from '../services/supabase/client.ts'
+import { getSupabaseClient, isSupabaseConfigured } from '../services/supabase/client.ts'
 import type { WorkItem } from '../types/work.ts'
 import { withPersonalCalendar } from '../services/calendar/local.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
@@ -268,6 +268,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const [workError, setWorkError] = useState('')
   const remoteIds = useRef(new Set<string>())
+  const isRemoteWork = useCallback((id: string) => isSupabaseConfigured && remoteIds.current.has(id), [])
   const activeUser = useRef(userId)
   useLayoutEffect(() => { activeUser.current = userId }, [userId])
   const workLoaded = useRef(!isSupabaseConfigured)
@@ -304,9 +305,10 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       if (!userId || activeUser.current !== userId) throw new Error('로그인이 필요합니다.')
       let saved = after
       if (after) {
-          const normalized = createWorkItem(after, { inferEndTime: source !== 'ai_chat' })
+        const statusOnly = before && Object.keys(after).every(key => key === 'status' || after[key as keyof WorkItem] === before[key as keyof WorkItem])
+        const normalized = statusOnly ? after : createWorkItem(after, { inferEndTime: source !== 'ai_chat' })
         if (!normalized) throw new Error('제목과 날짜를 확인해 주세요.')
-        saved = { ...normalized, id: after.id, calendarId: after.calendarId ?? data.personalCalendar?.id, createdByUserId: after.createdByUserId ?? userId }
+        saved = { ...after, ...normalized, id: after.id, calendarId: after.calendarId ?? data.personalCalendar?.id, createdByUserId: after.createdByUserId ?? userId }
       }
       let categories: WorkspaceCategory[] = []
       if (saved) {
@@ -328,11 +330,38 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           trash: !saved && before ? withTrash(current, toTrash('item', before, before.title)) : current.trash }
       })
       setWorkError('')
+      window.dispatchEvent(new Event('blanky:work-saved'))
       return saved
     })
     workQueue.current = operation
     return operation
   }, [userId, data.categories, data.personalCalendar?.id])
+
+  // An input id is kept so retrying the same request updates in place instead of adding copies.
+  const createWorkBatch = useCallback((inputs: (import('../types/work.ts').WorkInput & { id?: string })[]) => {
+    const operation = workQueue.current.catch(() => undefined).then(async () => {
+      await ready.current
+      if (!workLoaded.current || !userId || activeUser.current !== userId) throw new Error('로그인 및 데이터 로딩을 확인해 주세요.')
+      const items = inputs.map(input => {
+        const item = createWorkItem(input, { inferEndTime: false })
+        if (!item) throw new Error('제목과 날짜를 확인해 주세요.')
+        if (item.categoryId && !/^[0-9a-f-]{36}$/i.test(item.categoryId) && isSupabaseConfigured) throw new Error('서버 카테고리를 선택해 주세요.')
+        // Like single saves (workStore), the local placeholder calendar is not a server calendar_id.
+        const calendarId = data.personalCalendar?.id
+        return { ...item, id: input.id ?? item.id, calendarId: isSupabaseConfigured && calendarId?.startsWith('local-personal:') ? undefined : calendarId, createdByUserId: userId, changeSource: 'ai_chat' as const }
+      })
+      const saved = isSupabaseConfigured ? (await getScheduleRepository().createMany(userId, items)).map(row => workFromSchedule(row, 'personal')) : items
+      if (activeUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
+      if (isSupabaseConfigured) saved.forEach(item => remoteIds.current.add(item.id))
+      const activities: Activity[] = saved.map(item => ({ id: crypto.randomUUID(), entityId: item.id, before: null, after: item, action: 'created', source: 'ai_chat', createdAt: new Date().toISOString() }))
+      const savedIds = new Set(saved.map(item => item.id))
+      setData(current => ({ ...current, items: [...current.items.filter(item => !savedIds.has(item.id)), ...saved], activities: [...activities, ...(current.activities ?? [])] }))
+      window.dispatchEvent(new Event('blanky:work-saved'))
+      return saved
+    })
+    workQueue.current = operation
+    return operation
+  }, [userId, data.personalCalendar?.id])
 
   const applyWorkBatch = useCallback((input: { key: string; deletes: WorkItem[]; source?: Activity['source'] }): Promise<ScheduleBatchResult> => {
     const operation = workQueue.current.catch(() => undefined).then(async () => {
@@ -385,39 +414,56 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const adoptPlannerSchedules = useCallback((rows: Schedule[]) => {
     if(!userId||activeUser.current!==userId||rows.some(row=>row.userId!==userId))throw new Error('로그인 사용자가 변경되었어요.')
-    const items=rows.map(workFromSchedule), ids=new Set(items.map(item=>item.id))
+    const items=rows.map(row => workFromSchedule(row)), ids=new Set(items.map(item=>item.id))
     ids.forEach(id=>remoteIds.current.add(id))
     setData(current=>({...current,items:[...current.items.filter(item=>!ids.has(item.id)),...items]}))
   },[userId])
   const refreshWork = useCallback(async()=>{
     if(!userId||!isSupabaseConfigured)return
+    await workQueue.current.catch(() => undefined)
     const remote=await loadWork()
     if(activeUser.current!==userId)throw new Error('로그인 사용자가 변경되었어요.')
     const ids=new Set(remote.items.map(item=>item.id));remoteIds.current=ids
-    setData(current=>({...current,items:[...current.items.filter(item=>(!item.calendarId||item.calendarId.startsWith('local-personal:'))&&!ids.has(item.id)),...remote.items],activities:remote.activities}))
+    setData(current=>{const merged=mergeCategories(current.categories,remote.categories);return {...current,categories:merged.categories,items:[...current.items.filter(item=>(!item.calendarId||item.calendarId.startsWith('local-personal:'))&&!ids.has(item.id)),...remote.items].map(merged.remap),memos:current.memos.map(merged.remap),activities:remote.activities}})
   },[userId])
 
   const remoteUser = useRef<string | null>(null)
   const settingsRef = useRef(data.settings)
+  const [settingsPulledFor, setSettingsPulledFor] = useState<string | null>(null)
 
   useEffect(() => {
     if (!userId) return
-    let cancel = false
+    let cancel = false, pulling = false
     remoteUser.current = null
-    void pullPreferences().then((remote) => {
-      if (cancel) return
-      remoteUser.current = userId
-      if (!remote) {
-        void pushPreferences(settingsRef.current)
-        return
-      }
-      setData((current) => ({
-        ...current,
-        settings: { ...remote, nav: syncNav(remote.nav, current.recordTypes.map((item) => item.id)) },
-      }))
-    })
+    const pull = () => {
+      if (cancel || pulling || remoteUser.current === userId) return
+      pulling = true
+      pullPreferences().then((remote) => {
+        if (cancel) return
+        remoteUser.current = userId
+        setSettingsPulledFor(userId)
+        if (!remote) {
+          void pushPreferences(settingsRef.current)
+          return
+        }
+        setData((current) => ({
+          ...current,
+          settings: { ...remote, nav: syncNav(remote.nav, current.recordTypes.map((item) => item.id)) },
+        }))
+      }, () => {
+        // Server unreachable: keep pushes paused so local settings never overwrite unseen remote ones.
+        if (!cancel) setSettingsPulledFor(userId)
+      }).finally(() => { pulling = false })
+    }
+    pull()
+    window.addEventListener('online', pull)
+    window.addEventListener('focus', pull)
+    document.addEventListener('visibilitychange', pull)
     return () => {
       cancel = true
+      window.removeEventListener('online', pull)
+      window.removeEventListener('focus', pull)
+      document.removeEventListener('visibilitychange', pull)
     }
   }, [userId])
 
@@ -461,10 +507,21 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const item = data.items.find(row => row.id === id)
     if (item) void commitWork(item, { ...item, ...patch }).catch(() => setWorkError('변경을 저장하지 못했습니다.'))
   }, [commitWork, data.items])
+  const pendingToggles = useRef(new Set<string>())
   const toggleItem = useCallback((id: string) => {
     const item = data.items.find(row => row.id === id)
-    if (item) void commitWork(item, { ...item, status: item.status === 'done' ? 'todo' : 'done' }).catch(() => setWorkError('완료 상태를 저장하지 못했습니다.'))
-  }, [commitWork, data.items])
+    if (!item || pendingToggles.current.has(id)) return
+    pendingToggles.current.add(id)
+    const owner = userId
+    const status = item.status === 'done' ? 'todo' : 'done'
+    setWorkError('')
+    setData(current => ({ ...current, items: current.items.map(row => row.id === id ? { ...row, status } : row) }))
+    void commitWork(item, { ...item, status }).catch(() => {
+      if (activeUser.current !== owner) return
+      setData(current => ({ ...current, items: current.items.map(row => row.id === id ? { ...row, status: item.status } : row) }))
+      setWorkError('완료 상태를 저장하지 못했습니다. 이전 상태로 복원했어요. 다시 시도해 주세요.')
+    }).finally(() => pendingToggles.current.delete(id))
+  }, [commitWork, data.items, userId])
   const removeItem = useCallback((id: string) => {
     const item = data.items.find(row => row.id === id)
     if (item) void commitWork(item, null).catch(() => setWorkError('삭제하지 못했습니다.'))
@@ -574,7 +631,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
-  const addCategory = useCallback((name: string, parentId: string | null) => {
+  const addCategory = useCallback((name: string, parentId: string | null, style?: Partial<Pick<WorkspaceCategory, 'color' | 'icon'>>) => {
     const trimmed = name.trim()
     if (!trimmed) return
     const category: WorkspaceCategory = {
@@ -582,8 +639,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       name: trimmed,
       parentId,
       kind: parentId ? 'topic' : 'area',
-      color: '#3A62B0',
-      icon: parentId ? 'Tag' : 'Folder',
+      color: style?.color ?? '#3A62B0',
+      icon: style?.icon ?? (parentId ? 'Tag' : 'Folder'),
     }
     setData((current) => ({ ...current, categories: [...current.categories, category] }))
     mirrorCategoryCreate(category, 0)
@@ -657,7 +714,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const resetPreferences = useCallback(() => {
     setData((current) => ({
       ...current,
-      settings: defaultPreferences(current.recordTypes.map((item) => item.id)),
+      settings: { ...defaultPreferences(current.recordTypes.map((item) => item.id)), onboardingDone: current.settings.onboardingDone, onboardingPages: current.settings.onboardingPages },
     }))
   }, [])
 
@@ -739,6 +796,50 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }))
     mirrorRecordTypeDelete(id)
   }, [])
+
+  const commitCollectionRecord = useCallback(async (typeId: string, id: string | null, input: { title: string; values: Record<string, FieldValue> }) => {
+    const page = data.customPages.find(row => row.id === typeId && row.template)
+    const type = data.recordTypes.find(row => row.id === typeId) ?? (page ? {
+      id: page.id, name: page.name, description: page.description, icon: page.icon,
+      color: DEFAULT_SWATCH, blocks: [], version: 1,
+    } : undefined)
+    if (!type || !input.title.trim()) throw new Error('기록의 제목과 컬렉션을 확인해 주세요.')
+    const before = id ? data.records.find(row => row.id === id && row.typeId === typeId) : null
+    if (id && !before && !page) throw new Error('기록이 변경되었어요. 다시 열어 주세요.')
+    const now = new Date().toISOString()
+    let saved: CustomRecord = { id: id ?? crypto.randomUUID(), typeId, title: input.title.trim(), values: input.values, templateVersion: type.version, createdAt: before?.createdAt ?? now, updatedAt: now }
+    if (isSupabaseConfigured) {
+      if (!userId || activeUser.current !== userId) throw new Error('로그인을 확인해 주세요.')
+      const repository = createRecordRepository(getSupabaseClient())
+      try { await repository.getCustomRecordType(typeId) }
+      catch (error) {
+        if (!(error instanceof AppError) || error.code !== 'CUSTOM_RECORD_TYPE_NOT_FOUND') throw error
+        await repository.createCustomRecordType(userId, { id: type.id, name: type.name, description: type.description, icon: type.icon, color: type.color, blocks: type.blocks, version: type.version })
+      }
+      let exists = Boolean(before)
+      if (page && id && !exists) {
+        try { await repository.getCustomRecord(id); exists = true }
+        catch (error) { if (!(error instanceof AppError) || error.code !== 'CUSTOM_RECORD_NOT_FOUND') throw error }
+      }
+      const row = exists ? await repository.updateCustomRecord(saved.id, { title: saved.title, values: saved.values, templateVersion: saved.templateVersion })
+        : await repository.createCustomRecord(userId, { id: saved.id, recordTypeId: typeId, title: saved.title, values: saved.values, templateVersion: saved.templateVersion })
+      if (activeUser.current !== userId) throw new Error('로그인 사용자가 변경되었습니다.')
+      saved = { ...saved, id: row.id, title: row.title, values: row.values as Record<string, FieldValue>, createdAt: row.createdAt, updatedAt: row.updatedAt }
+    }
+    setData(current => ({ ...current, records: [saved, ...current.records.filter(row => row.id !== saved.id)] }))
+  }, [userId, data.recordTypes, data.records, data.customPages])
+
+  const eraseCollectionRecord = useCallback(async (id: string) => {
+    if (isSupabaseConfigured) {
+      if (!userId || activeUser.current !== userId) throw new Error('로그인을 확인해 주세요.')
+      await createRecordRepository(getSupabaseClient()).deleteCustomRecord(id)
+      if (activeUser.current !== userId) throw new Error('로그인 사용자가 변경되었습니다.')
+    }
+    setData(current => {
+      const record = current.records.find(row => row.id === id)
+      return { ...current, records: current.records.filter(row => row.id !== id), trash: record ? withTrash(current, toTrash('record', record, record.title)) : current.trash }
+    })
+  }, [userId])
 
   const addRecord = useCallback((typeId: string, input: { id?: string; title: string; values: Record<string, FieldValue> }) => {
     const id = input.id ?? crypto.randomUUID()
@@ -1155,7 +1256,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     diaryError,
     diaryLoading,
     commitWork,
+    isRemoteWork,
     applyWorkBatch,
+    createWorkBatch,
     adoptPlannerSchedules,
     refreshWork,
     workError,
@@ -1180,11 +1283,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     removeCategory,
     updateSettings,
     resetPreferences,
+    settingsReady: !isSupabaseConfigured || settingsPulledFor === userId,
     addRecordType,
     updateRecordType,
     duplicateRecordType,
     removeRecordType,
     addRecord,
+    commitCollectionRecord,
+    eraseCollectionRecord,
     updateRecord,
     removeRecord,
     restoreTrash,

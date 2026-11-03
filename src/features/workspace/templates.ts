@@ -2,6 +2,7 @@ import { cloneBlocks, createBlock, type BuilderBlock } from '../builder/schema.t
 import { createBlock as createField } from '../records/registry.ts'
 import { cloneBlock as cloneField, type CustomRecordType } from '../records/schema.ts'
 import { SWATCHES } from '../../constants/swatches.ts'
+import { notebookTemplates } from './notebookTemplates.ts'
 
 function options(labels: string[]) {
   return labels.map((label, index) => ({
@@ -63,7 +64,7 @@ export function builtinTemplates(): StarterTemplate[] {
     createField('longText', { label: '메모' }),
   ])
 
-  return [
+  const templates: StarterTemplate[] = [
     { id: 'tpl-empty', name: '빈 페이지', icon: 'StickyNote', description: '블록을 직접 조합합니다', collections: [], blocks: [createBlock('text')] },
     {
       id: 'tpl-workout',
@@ -125,6 +126,7 @@ export function builtinTemplates(): StarterTemplate[] {
       ],
     },
   ]
+  return [templates[0]!, ...notebookTemplates(), ...templates.filter(template => !['tpl-empty', 'tpl-movie', 'tpl-study'].includes(template.id))]
 }
 
 export function collectionIds(blocks: readonly BuilderBlock[]): string[] {

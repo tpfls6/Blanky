@@ -27,22 +27,40 @@ function AccountThemeProvider({ children, userId }: {
         setError('');
     };
     useEffect(() => {
-        let alive = true;
+        let alive = true, loaded = false, busy = false;
         if (!userId)
             return;
-        loadThemes(userId!).then(next => {
-            if (alive) {
-                setState(next);
-                setError('');
-            }
-        }).catch(e => {
-            if (alive)
-                setError(e instanceof Error ? e.message : '테마를 불러오지 못했습니다.');
-        }).finally(() => {
-            if (alive)
-                setLoading(false);
-        });
-        return () => { alive = false; clearPackageDownloadCache(); };
+        const load = () => {
+            if (!alive || loaded || busy)
+                return;
+            busy = true;
+            loadThemes(userId!).then(next => {
+                loaded = true;
+                if (alive) {
+                    setState(next);
+                    setError('');
+                }
+            }).catch(e => {
+                if (alive)
+                    setError(e instanceof Error ? e.message : '테마를 불러오지 못했습니다.');
+            }).finally(() => {
+                busy = false;
+                if (alive)
+                    setLoading(false);
+            });
+        };
+        load();
+        // A failed first load is retried once the connection or the tab comes back.
+        window.addEventListener('online', load);
+        window.addEventListener('focus', load);
+        document.addEventListener('visibilitychange', load);
+        return () => {
+            alive = false;
+            window.removeEventListener('online', load);
+            window.removeEventListener('focus', load);
+            document.removeEventListener('visibilitychange', load);
+            clearPackageDownloadCache();
+        };
     }, [userId]);
     const apply = async (t: BlankyTheme) => {
         if (!userId)

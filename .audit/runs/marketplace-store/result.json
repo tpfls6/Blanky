@@ -1,0 +1,19 @@
+{
+  "started": "2026-11-03T04:09:01.869Z",
+  "ended": "2026-11-03T04:09:14.693Z",
+  "ok": false,
+  "log": [
+    "started 2026-11-03T04:09:01.869Z",
+    "2026-11-03T04:09:05.234Z store shows official movie template",
+    "2026-11-03T04:09:05.351Z screenshot 01-store-templates.png",
+    "2026-11-03T04:09:05.479Z detail preview shows sample movie",
+    "2026-11-03T04:09:05.531Z screenshot 02-template-detail.png",
+    "2026-11-03T04:09:05.678Z installed movie page e328c7c2-3452-4ce7-b882-2aae25de9a8c from /pages/e328c7c2-3452-4ce7-b882-2aae25de9a8c",
+    "2026-11-03T04:09:14.692Z FAIL Timed out: user page chrome"
+  ],
+  "errors": [],
+  "extra": {
+    "error": "Error: Timed out: user page chrome\n    at wait (file:///C:/Users/serin/Github/Blanky/scripts/marketplace-browser-test.mjs:93:9)\n    at async file:///C:/Users/serin/Github/Blanky/scripts/marketplace-browser-test.mjs:152:3"
+  },
+  "serverTail": "\u001b[2m오후 1:09:02\u001b[22m \u001b[36m\u001b[1m[vite]\u001b[22m\u001b[39m \u001b[90m\u001b[2m(client)\u001b[22m\u001b[39m Re-optimizing dependencies because vite config has changed\n  \u001b[32m➜\u001b[39m  \u001b[1mLocal\u001b[22m:   \u001b[36mhttp://127.0.0.1:\u001b[1m5203\u001b[22m/\u001b[39m\n\u001b[2m오후 1:09:03\u001b[22m \u001b[36m\u001b[1m[vite]\u001b[22m\u001b[39m \u001b[90m\u001b[2m(client)\u001b[22m\u001b[39m [optimizer] bundling dependencies...\n"
+}

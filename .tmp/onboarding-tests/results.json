@@ -1,0 +1,17 @@
+{
+  "passed": [
+    "New account stores no sample schedules, categories, diaries, memos or books",
+    "Home guide shows 3 steps and records completion",
+    "Schedule shows 2 examples; pressing one fills the input and saves nothing",
+    "Diary guide skip; example starts a real entry and hides once it exists",
+    "Memo guide complete; example starts a memo and hides",
+    "Reading shows shelf + book examples; the shelf example opens the real dialog without saving",
+    "Store, custom and settings guides show once and record completion",
+    "Guides stay finished after reload and without device keys (preference-only state)",
+    "Replay links in settings and /guide reopen a page guide; closing clears ?tour",
+    "Mobile guide and example layout without horizontal scroll",
+    "All seven tours and both store tabs: every step, previous/next, non-overlapping target geometry, focus, and no overflow at 1440px and 375px; dynamic chat/custom tabs; Tab, ESC, focus restoration, missing-target recovery",
+    "Legacy account keeps its data and settings; no examples beside real data"
+  ],
+  "browserErrors": []
+}

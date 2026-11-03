@@ -67,6 +67,7 @@ export function scheduleTasks(tasks: PlanningTask[], existing: BusySchedule[], s
         let start: number, end: number
         try { start = localInstant(date, settings.dayStartTime, settings.timezone); end = localInstant(date, settings.dayEndTime, settings.timezone) }
         catch { warnings.push(`${date}: DST로 모호하거나 존재하지 않는 작업 시간대를 건너뛰었어요.`); continue }
+        if (date === task.deadline && (task.deadlineTime ?? task.sourceItem?.draft.dueTime)) end = Math.min(end, localInstant(date, (task.deadlineTime ?? task.sourceItem!.draft.dueTime)!, settings.timezone))
         const dayStart = startOfDay(date, settings.timezone), dayEnd = startOfDay(nextDate(date), settings.timezone)
         let used = intervals.filter(item => item.task).reduce((sum, item) => sum + Math.max(0, Math.min(item.end, dayEnd) - Math.max(item.start, dayStart)) / minute, 0)
         const blocked = intervals.map(item => ({ start: item.start - rest, end: item.end + rest })).sort((a, b) => a.start - b.start || a.end - b.end)

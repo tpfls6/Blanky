@@ -43,7 +43,7 @@
   "calendarName": "Calendar {{name}}",
   "synced": "Synced {{imported}} imported, {{exported}} sent",
   "autoSync": "Auto sync",
-  "autoSyncHint": "Opening this page refreshes a connection older than 5 minutes. Saving an event does not write to Google immediately.",
+  "autoSyncHint": "While the app is open, sync runs about every 5 minutes. Saved events are also synced shortly afterward.",
   "syncNow": "Sync now",
   "disconnect": "Disconnect",
   "disconnectTitle": "Disconnect",

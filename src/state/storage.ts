@@ -9,4 +9,12 @@ export function taskNavKey(userId: string): string {
   return `blanky.taskNav.${userId}`
 }
 
+export function homeChatKey(userId: string): string {
+  return `blanky.homeChat.${userId}`
+}
+
+export function onboardingKey(userId: string): string {
+  return `blanky.onboarding.${userId}`
+}
+
 export const RECENT_ICONS_KEY = 'blanky.recentIcons'

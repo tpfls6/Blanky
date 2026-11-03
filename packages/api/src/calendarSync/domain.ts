@@ -126,7 +126,7 @@ export type ConflictNote = {
 }
 
 export type ReconcileOp =
-  | { kind: 'upsert_blanky'; googleEventId: GoogleEventId; etag: Etag; origin: 'google'; draft: SnapshotRow }
+  | { kind: 'upsert_blanky'; googleEventId: GoogleEventId; etag: Etag; origin: EventLink['origin']; draft: SnapshotRow }
   | { kind: 'delete_blanky'; scheduleId: ScheduleId; googleEventId: GoogleEventId }
   | { kind: 'create_google'; scheduleId: ScheduleId; body: GoogleEventWrite }
   | { kind: 'update_google'; scheduleId: ScheduleId; googleEventId: GoogleEventId; etag: Etag; body: GoogleEventWrite }
@@ -139,6 +139,8 @@ export type ReconcileInput = {
   connection: ReadyConnection
   snapshot: BlankySnapshot
   page: GoogleEventPage
+  deferOutbound?: boolean
+  exportUnlinked?: boolean
 }
 
 export function isUnsupportedRecurrence(value: Recurrence | UnsupportedRecurrence): value is UnsupportedRecurrence {

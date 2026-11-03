@@ -22,11 +22,16 @@ export type ScheduleChangeAction = 'created' | 'updated' | 'completed' | 'delete
 export type Schedule = {
   plannerApprovalKey?: string | null
   kind?: 'event' | 'task'
+  dueTime?: string | null
   dueDate?: string | null
   endDate?: string | null
   allDay?: boolean
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
   repeatDays?: number[]
+  /** Series end (inclusive). Absent when the column is not migrated yet. */
+  repeatUntil?: string | null
+  /** Original row of a split recurring series. Absent when the column is not migrated yet. */
+  seriesId?: string | null
   changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
 
   id: string
@@ -55,11 +60,14 @@ export type Schedule = {
 /** Partial schedule returned by the AI parser before it is saved. */
 export type ScheduleDraft = {
   kind?: 'event' | 'task'
+  dueTime?: string | null
   dueDate?: string | null
   endDate?: string | null
   allDay?: boolean
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
   repeatDays?: number[]
+  repeatUntil?: string | null
+  seriesId?: string | null
   changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
 
   calendarId?: string

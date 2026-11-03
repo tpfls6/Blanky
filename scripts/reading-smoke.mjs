@@ -52,7 +52,7 @@ try {
  const catalog=await server.ssrLoadModule('/src/pages/Reading/readingIconCatalog.ts');assert.ok(catalog.iconCatalog.length>1000);assert.ok(catalog.findReadingIcon('BookOpen'));
  const {StarRating}=await server.ssrLoadModule('/src/pages/Reading/StarRating.tsx');
  const stars=renderToString(React.createElement(StarRating,{value:4.5,onChange:()=>{}}));assert.equal((stars.match(/점 선택/g)??[]).length,10);assert.ok(stars.includes('aria-label="4.5점 선택" aria-pressed="true"'));assert.ok(stars.includes('width:50%'));
- const {ReadingIconPicker}=await server.ssrLoadModule('/src/pages/Reading/ReadingIconPicker.tsx');assert.ok(renderToString(React.createElement(ReadingIconPicker,{value:'🦋',onChange:()=>{}})).includes('🦋'));
+ const {ReadingIconPicker}=await server.ssrLoadModule('/src/pages/Reading/ReadingIconPicker.tsx');assert.ok(renderToString(React.createElement(ReadingIconPicker,{value:'🦋',onChange:()=>{},color:'#3C8664',onColor:()=>{}})).includes('🦋'));
  const source=await import('node:fs/promises').then(fs=>fs.readFile('src/pages/Reading/ReadingPage.tsx','utf8'));
  assert.equal(source.includes('type="checkbox"'),false);assert.equal(source.includes('ShelfChecks'),false);
  assert.equal(source.includes('진행률'),false);assert.equal(source.includes('현재 페이지'),false);assert.equal(source.includes('총 페이지'),false);assert.equal(source.includes('<label>순서'),false);
@@ -60,7 +60,7 @@ try {
  const {ReadingPage}=await server.ssrLoadModule('/src/pages/Reading/ReadingPage.tsx')
  const {SessionContext}=await server.ssrLoadModule('/src/state/useSession.ts')
  const {LibraryContext}=await server.ssrLoadModule('/src/state/useLibrary.ts')
- const tree=React.createElement(MemoryRouter,null,React.createElement(SessionContext.Provider,{value:{user:{id:'reading-smoke-alice'}}},React.createElement(LibraryContext.Provider,{value:{books:[],logs:[],pageLayouts:{},setPageLayout:()=>{}}},React.createElement(ReadingPage))))
+ const tree=React.createElement(MemoryRouter,null,React.createElement(SessionContext.Provider,{value:{user:{id:'reading-smoke-alice'}}},React.createElement(LibraryContext.Provider,{value:{settings:{locale:"ko",onboardingPages:["reading"],onboardingDone:true},settingsReady:true,updateSettings:()=>{},books:[],logs:[],pageLayouts:{},setPageLayout:()=>{}}},React.createElement(ReadingPage))))
  assert.ok(renderToString(tree).includes('reading-page'))
  console.log('PASS reading: duplicate prevention, all statuses, progress/rating, shelf CRUD, many-to-many, highlight/note CRUD, persistence, user isolation, legacy migration, cascade cleanup, Theme slots, SSR page render')
 } finally {await server.close()}

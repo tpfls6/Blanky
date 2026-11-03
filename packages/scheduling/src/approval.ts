@@ -28,6 +28,7 @@ export function validatePlannerEdits(plan: PlanningRecommendation, edits: Planne
     if (block!.confirmationNeeded.length && edit.confirmed !== true) fail('CONFIRMATION_REQUIRED','추정 정보와 확인 필요 항목을 확인해 주세요.')
     let start=0,end=0
     try { start=localInstant(edit.date,edit.startTime,settings.timezone); end=localInstant(edit.date,edit.endTime,settings.timezone) } catch { fail('INVALID_INPUT','존재하지 않거나 모호한 시각이에요. 다른 시간을 지정해 주세요.') }
+    if (edit.date === source.task.deadline && (source.task.deadlineTime ?? source.task.sourceItem?.draft.dueTime) && end > localInstant(edit.date, (source.task.deadlineTime ?? source.task.sourceItem!.draft.dueTime)!, settings.timezone)) fail('CONSTRAINT_VIOLATION', '마감 시각을 벗어났어요.')
     if (!Number.isInteger(edit.durationMinutes) || edit.durationMinutes < settings.minBlockMinutes || edit.durationMinutes > settings.maxBlockMinutes || (end-start)/60000 !== edit.durationMinutes || edit.startTime < settings.dayStartTime || edit.endTime > settings.dayEndTime || end <= start) fail('CONSTRAINT_VIOLATION','시작·종료 시각, 소요시간과 작업 가능 범위를 확인해 주세요.')
     if (source.task.notBefore && start < epoch(source.task.notBefore)) fail('DEPENDENCY_VIOLATION','선행 작업이 끝난 후에 배치해 주세요.')
     if (selected.some(row=>row.id===edit.id) && !replayIds.includes(edit.id) && start < epoch(now)) fail('CONSTRAINT_VIOLATION','지난 시간에는 적용할 수 없어요. 추천을 다시 생성해 주세요.')

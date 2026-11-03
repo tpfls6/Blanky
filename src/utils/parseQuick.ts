@@ -1,4 +1,5 @@
 import { addDays, formatClock, formatISODate, parseClock } from '@blanky/utils'
+import { readDeadline } from '../../packages/parse/src/deadline.ts'
 import type { WorkKind, WorkspaceCategory } from '../types/work.ts'
 
 export type QuickDraft = {
@@ -10,6 +11,7 @@ export type QuickDraft = {
   endTime: string | null
   duration: number | null
   dueDate: string | null
+  dueTime?: string | null
   allDay: boolean
   categoryId: string | null
 }
@@ -138,6 +140,8 @@ export function parseQuick(
   fallbackDate?: string,
 ): QuickDraft {
   let rest = input.replace(/\s+/g, ' ').trim()
+  const deadline = readDeadline(rest, today)
+  if (deadline) { rest = deadline.rest; kind = 'task' }
   const baseDate = fallbackDate ?? formatISODate(today)
   let startTime: string | null = null
   let endTime: string | null = null
@@ -240,7 +244,8 @@ export function parseQuick(
     startTime,
     endTime: startTime ? endTime : null,
     duration,
-    dueDate,
+    dueDate: deadline?.date ?? dueDate,
+    dueTime: deadline?.time ?? null,
     allDay: !task && !startTime,
     categoryId: category.categoryId,
   }

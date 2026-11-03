@@ -1,0 +1,7 @@
+started 2026-11-03T04:09:01.869Z
+2026-11-03T04:09:05.234Z store shows official movie template
+2026-11-03T04:09:05.351Z screenshot 01-store-templates.png
+2026-11-03T04:09:05.479Z detail preview shows sample movie
+2026-11-03T04:09:05.531Z screenshot 02-template-detail.png
+2026-11-03T04:09:05.678Z installed movie page e328c7c2-3452-4ce7-b882-2aae25de9a8c from /pages/e328c7c2-3452-4ce7-b882-2aae25de9a8c
+2026-11-03T04:09:14.692Z FAIL Timed out: user page chrome

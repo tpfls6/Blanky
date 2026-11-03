@@ -1,0 +1,86 @@
+[
+  {
+    "width": 1440,
+    "theme": 0,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 1440,
+    "theme": 1,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 1440,
+    "theme": 2,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 1440,
+    "theme": 3,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 768,
+    "theme": 0,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 768,
+    "theme": 1,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 768,
+    "theme": 2,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 768,
+    "theme": 3,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 390,
+    "theme": 0,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 390,
+    "theme": 1,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 390,
+    "theme": 2,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  },
+  {
+    "width": 390,
+    "theme": 3,
+    "outerOverflow": false,
+    "overlap": true,
+    "innerOverflow": false
+  }
+]

@@ -38,7 +38,7 @@ export function googleBodyFromWrite(body: GoogleEventWrite, timeZone: string): R
     description: body.description,
     start: when.start,
     end: when.end,
-    recurrence: toGoogleRrule(body.recurrence),
+    recurrence: toGoogleRrule(body.recurrence, { allDay: body.when.allDay, timeZone }),
     ...(body.colorId ? { colorId: body.colorId } : {}),
     extendedProperties: { private: { [BLANKY_SCHEDULE_EXTENDED_PROPERTY]: body.blankyScheduleId } },
   }

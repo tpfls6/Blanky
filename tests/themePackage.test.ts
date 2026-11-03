@@ -15,6 +15,12 @@ import { writeZip, readZip } from '../src/theme/package/zip.ts';
 import { encoder, LIMITS } from '../src/theme/package/limits.ts';
 const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#ff9bb7" d="M2 2h20v20H2z"/></svg>';
 const file=()=>validateAsset('assets/background.svg',encoder.encode(svg));
+test('sidebar decorations preserve CSS function widths and independent heights',()=>{
+    const theme=structuredClone(BUILTIN_THEMES[0]);
+    const css=runtimeCss('preview',theme,{assets:{sidebarTop:'blob:top',sidebarBottom:'blob:bottom'},icons:{},fonts:{},previews:[],dispose(){}});
+    assert.ok(css.includes('width:min(100%, 208px);height:calc(72px * 1)'));
+    assert.ok(css.includes('width:min(100%, 208px);height:calc(96px * 1)'));
+});
 function fixture(){const p=packageFromTheme(BUILTIN_THEMES[1]);p.manifest.id='cherry-blossom';p.manifest.name='Cherry Blossom';p.manifest.assets={background:'assets/background.svg',sidebar:'assets/background.svg',checkbox:'assets/background.svg'};p.manifest.iconPack={home:'assets/home.svg',calendar:'assets/home.svg'};p.files={'assets/background.svg':file(),'assets/home.svg':file()};p.customCss='[data-theme-slot="schedule-card"] { border-radius: 20px; backdrop-filter: blur(12px); }\n[data-theme-slot="sidebar"] { background-image: url("asset://sidebar"); }';return p;}
 test('all four legacy config themes remain valid standalone packages',()=>{for(const t of BUILTIN_THEMES){const p=validatePackage(packageFromTheme(t));assert.deepEqual(p.config,t.config);assert.equal(Object.keys(p.files).length,0);}});
 test('package config, image mapping, checkbox and SVG icon pack are validated',()=>{const p=validatePackage(fixture());assert.equal(p.manifest.iconPack.home,'assets/home.svg');assert.equal(p.files['assets/home.svg'].mime,'image/svg+xml');assert.match(p.customCss,/border-radius: 20px/);});

@@ -72,11 +72,14 @@ export type Database = {
           calendar_id: string
           created_by_user_id: string | null
           kind?: string
+          due_time?: string | null
           due_date?: string | null
           end_date?: string | null
           all_day?: boolean
           repeat_rule?: string
           repeat_days?: number[]
+          repeat_until?: string | null
+          series_id?: string | null
           change_source?: string
           title: string
           description: string
@@ -101,11 +104,14 @@ export type Database = {
           user_id: string
           calendar_id?: string
           kind?: string
+          due_time?: string | null
           due_date?: string | null
           end_date?: string | null
           all_day?: boolean
           repeat_rule?: string
           repeat_days?: number[]
+          repeat_until?: string | null
+          series_id?: string | null
           change_source?: string
           title: string
           description?: string
@@ -126,11 +132,14 @@ export type Database = {
         {
           calendar_id?: string
           kind?: string
+          due_time?: string | null
           due_date?: string | null
           end_date?: string | null
           all_day?: boolean
           repeat_rule?: string
           repeat_days?: number[]
+          repeat_until?: string | null
+          series_id?: string | null
           change_source?: string
           title?: string
           description?: string

@@ -11,7 +11,7 @@ import type { EventLink, GoogleEventWrite, ReconcileOp, SnapshotRow } from './do
 export type ApplyDeps = {
   connectionId: ConnectionId
   readUpdatedAt(id: ScheduleId): Promise<IsoDateTime>
-  upsertSchedule(draft: SnapshotRow, origin: 'google'): Promise<{ scheduleId: ScheduleId; updatedAt: IsoDateTime }>
+  upsertSchedule(draft: SnapshotRow, origin: EventLink['origin']): Promise<{ scheduleId: ScheduleId; updatedAt: IsoDateTime }>
   deleteSchedule(id: ScheduleId): Promise<void>
   casUpdateSchedule(input: {
     id: ScheduleId
@@ -68,7 +68,7 @@ async function applyUpdateGoogle(
   report: SyncReport,
 ): Promise<void> {
   const result = await deps.updateGoogleEvent({ id: op.googleEventId, etag: op.etag, body: op.body })
-  if ('kind' in result && result.kind === 'etag_mismatch') {
+  if ('kind' in result) {
     report.conflicts = [...report.conflicts, {
       scheduleId: op.scheduleId,
       googleEventId: op.googleEventId,

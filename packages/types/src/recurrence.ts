@@ -5,8 +5,10 @@ export function normalizeRepeatDays(value: unknown): number[] {
   return [...value].sort((a, b) => a - b)
 }
 export function isoWeekday(date: string): number { return new Date(`${date}T12:00:00Z`).getUTCDay() || 7 }
-export function repeatsOn(row: { date: string; repeat?: string; repeatDays?: number[] }, day: string): boolean {
+/** `repeatUntil` is the last day a series may occur on; null/absent repeats forever. */
+export function repeatsOn(row: { date: string; repeat?: string; repeatDays?: number[]; repeatUntil?: string | null }, day: string): boolean {
   if (day < row.date) return false
+  if (row.repeat && row.repeat !== 'none' && row.repeatUntil && day > row.repeatUntil) return false
   if (row.repeat === 'daily') return true
   if (row.repeat === 'weekly') return (normalizeRepeatDays(row.repeatDays).length ? row.repeatDays! : [isoWeekday(row.date)]).includes(isoWeekday(day))
   if (row.repeat === 'monthly') return day.slice(8) === row.date.slice(8)
