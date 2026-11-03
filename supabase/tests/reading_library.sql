@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(41);
 insert into auth.users(id,email) values
  ('a8000000-0000-0000-0000-000000000001','reading-a@example.test'),
  ('b8000000-0000-0000-0000-000000000002','reading-b@example.test');
@@ -55,6 +55,9 @@ select lives_ok($$update public.user_books set reading_status='stopped',progress
 select throws_ok($$update public.user_books set progress=101$$,'23514',null,'invalid progress rejected');
 select throws_ok($$update public.user_books set rating=4.2$$,'23514',null,'invalid rating increment rejected');
 select lives_ok($$update public.reading_shelves set name='renamed',icon='♡',color='accent',sort_order=2$$,'shelf edit supported');
+select lives_ok($$update public.reading_shelves set color='#3A62B0'$$,'swatch hex color supported');
+select lives_ok($$update public.reading_shelves set color='#00ff7f'$$,'custom hex color supported');
+select throws_ok($$update public.reading_shelves set color='blue'$$,'23514',null,'invalid shelf color rejected');
 select lives_ok($$delete from public.reading_shelves where user_id=auth.uid()$$,'shelf deletion supported');
 select is((select count(*) from public.reading_shelf_books),0::bigint,'shelf deletion removes memberships');
 select is((select count(*) from public.user_books),1::bigint,'shelf deletion preserves library book');

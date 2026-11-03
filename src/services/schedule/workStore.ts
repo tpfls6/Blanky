@@ -25,6 +25,11 @@ export function workFromSchedule(row: Schedule, calendarType?: WorkItem['calenda
 export async function saveWork(userId: string, before: WorkItem | null, after: WorkItem, remote: boolean, source: Activity['source'], categories: WorkspaceCategory[]): Promise<{ item: WorkItem; categories: WorkspaceCategory[] }> {
   if (!isSupabaseConfigured) return { item: after, categories: [] }
   const repository = getScheduleRepository()
+  // An existing remote category does not need to be fetched or recreated for a status change.
+  // This also lets completion save when category listing is unavailable.
+  if (before && remote && Object.keys(after).every(key => ['status', 'createdByUserId', 'calendarType'].includes(key) || after[key as keyof WorkItem] === before[key as keyof WorkItem])) {
+    return { item: workFromSchedule(await repository.updateStatus(before.id, after.status, source), after.calendarType), categories: [] }
+  }
   // Legacy seed categories use names as IDs; resolve them through the category API.
   const remoteCategories = after.categoryId ? await getCategories() : []
   const resolveCategory = async (id: string | null): Promise<string | null> => {

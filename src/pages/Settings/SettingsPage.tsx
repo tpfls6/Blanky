@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { PageTour } from '../../features/onboarding/Onboarding.tsx'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CalendarDays, Languages, Sparkles, Tag, User, type LucideIcon } from 'lucide-react'
 import { useI18n } from '../../i18n/useI18n.ts'
@@ -110,7 +111,7 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl items-start gap-8 px-6 py-8 md:px-10 lg:gap-14">
-      <nav aria-label={t('settings.menu')} className="sticky top-8 hidden w-48 shrink-0 overflow-hidden rounded-md border border-line bg-surface px-3 py-4 lg:block">
+      <nav data-tour="settings-nav" aria-label={t('settings.menu')} className="sticky top-8 hidden w-48 shrink-0 overflow-hidden rounded-md border border-line bg-surface px-3 py-4 lg:block">
         <p className="px-3 pb-3 text-sm font-medium tracking-tight">{t('settings.title')}</p>
         <div className="flex flex-col gap-0.5">
           {SETTINGS_MENUS.map((id) => {
@@ -128,6 +129,7 @@ export function SettingsPage() {
         <label className="mb-6 block lg:hidden">
           <span className="sr-only">{t('settings.menu')}</span>
           <select
+            data-tour="settings-nav"
             className="field select w-full"
             value={menu}
             onChange={(event) => navigate(settingsPath(event.target.value as SettingsMenuId))}
@@ -139,7 +141,8 @@ export function SettingsPage() {
         </label>
         <h1 className="text-2xl font-medium tracking-tight">{sectionLabel}</h1>
         <p className="mt-2 text-sm text-neutral-400">{sectionDescription}</p>
-        <div className="mt-8">{body}</div>
+        <PageTour page="settings" className="mt-6" />
+        <div data-tour="settings-body" className="mt-8">{body}</div>
         <div className="mt-10 border-t border-line pt-6">
           <button type="button" className="text-sm text-neutral-400" onClick={() => setResetOpen(true)}>
             {t('settings.reset')}

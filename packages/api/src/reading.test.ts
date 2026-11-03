@@ -58,6 +58,10 @@ test('record and shelf validation is identical in local and remote repositories'
  assert.throws(() => validateBookPatch({reading_status:'constructor' as never}));
  assert.throws(() => validateShelf({name:' ',description:'',icon:'📚',color:'primary',sort_order:0}));
  assert.throws(() => validateShelf({name:'책장',description:'',icon:'📚',color:'primary',sort_order:1.5}));
+ for (const color of ['primary','accent','textSecondary','#3A62B0','#3c8664','#C27832','#C15E80','#6B5BD0','#C25A54','#737373','#00ff7f'])
+  validateShelf({name:'책장',description:'',icon:'📚',color,sort_order:0});
+ for (const color of ['blue','#fff','#12345g','#1234567','3A62B0','rgb(0,0,0)',''])
+  assert.throws(() => validateShelf({name:'책장',description:'',icon:'📚',color,sort_order:0}), /#RRGGBB/);
  assert.throws(() => validateHighlight({content:'문장',page_number:0,note:'',tags:[],source_type:'manual',source_url:null,source_title:null}));
  validateHighlight({content:'문장',page_number:null,note:'',tags:[],source_type:'web',source_url:'https://example.test',source_title:'자료'});
 });

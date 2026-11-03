@@ -1,4 +1,4 @@
-import { AppError, type Database } from '@blanky/api'
+import { AppError, mapDbError, type Database } from '@blanky/api'
 import { coercePage, type UserPage } from '../../features/builder/schema.ts'
 import { getCurrentUserId } from '../auth/index.ts'
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase/client.ts'
@@ -47,7 +47,7 @@ async function client() {
 export async function listUserPages(kind: 'page' | 'template' = 'page'): Promise<UserPage[]> {
   const { db } = await client()
   const { data, error } = await db.from('user_pages').select('*').eq('kind', kind).order('sort', { ascending: true })
-  if (error) throw new AppError('NETWORK', error.message)
+  if (error) throw mapDbError(error)
   return ((data ?? []) as PageRow[]).flatMap((row) => {
     const next = mapRow(row)
     return next ? [next] : []

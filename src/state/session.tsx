@@ -1,6 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react'
 import { emailError, passwordError, signupErrors, type SignupInput } from '../utils/account.ts'
-import { libraryKey, SESSION_KEY, USERS_KEY } from './storage.ts'
+import { homeChatKey, libraryKey, SESSION_KEY, USERS_KEY } from './storage.ts'
 import { SessionContext, type Account } from './useSession.ts'
 import { isSupabaseConfigured } from '../services/supabase/client.ts'
 import { RemoteSessionProvider } from './remoteSession.tsx'
@@ -117,6 +117,7 @@ function LocalSessionProvider({ children }: { children: ReactNode }) {
     if (!user) return
     writeUsers(readUsers().filter((account) => account.id !== user.id))
     localStorage.removeItem(libraryKey(user.id))
+    localStorage.removeItem(homeChatKey(user.id))
     localStorage.removeItem(SESSION_KEY)
     setUser(null)
   }, [user])

@@ -2,6 +2,7 @@ export const ROUTES = {
   home: '/',
   activity: '/activity',
   schedule: '/schedule',
+  recurring: '/schedule/recurring',
   diary: '/diary',
   reading: '/reading',
   memo: '/memo',
@@ -11,7 +12,7 @@ export const ROUTES = {
   store: '/store',
   storeTemplates: '/store?tab=templates',
   themeEditor: '/customize/theme',
-  myThemes: '/settings/themes',
+  myThemes: '/custom?tab=themes',
   themeDetail: (id: string) => '/store/themes/' + id,
   templateDetail: (id: string) => '/store/templates/' + id,
   templateLibrary: '/store/templates/library',
@@ -22,6 +23,8 @@ export const ROUTES = {
   login: '/login',
   signup: '/signup',
   forgot: '/forgot',
+  welcome: '/welcome',
+  guide: '/guide',
 } as const
 
 export function isCustomWorkspace(pathname: string): boolean {

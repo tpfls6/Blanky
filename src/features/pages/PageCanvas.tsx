@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { EyeOff, Trash2 } from 'lucide-react'
+import { ChevronRight, EyeOff, Trash2 } from 'lucide-react'
 import { Sortable } from '../../components/drag/Sortable.tsx'
 import { useLibrary } from '../../state/useLibrary.ts'
 import {
@@ -39,9 +39,7 @@ function LayoutBlock({ block }: { block: PageBlock }) {
   return (
     <div>
       <button type="button" onClick={() => setOpen((value) => !value)} className="flex items-center gap-1 text-sm font-medium" aria-expanded={open}>
-        <span className="chevron inline-block text-neutral-400" style={{ transform: open ? 'rotate(90deg)' : undefined }}>
-          ›
-        </span>
+        <ChevronRight size={14} strokeWidth={1.5} className="chevron shrink-0 inline-block text-neutral-400" style={{ transform: open ? 'rotate(90deg)' : undefined }} aria-hidden="true" />
         {title}
       </button>
       <div className="fold" style={{ gridTemplateRows: open ? '1fr' : '0fr', opacity: open ? 1 : 0 }}>

@@ -115,3 +115,16 @@ test('keep-one cleanup and a follow-up stay on dedupe instead of memo or single 
   if (scoped.type === 'dedupe') assert.equal(scoped.start, '2026-10-29')
   assert.equal(conversationIntent('오늘 일정 너무 많은데 정리해줘', [workA], null, spoken, []).type, 'reply')
 })
+
+test('overlap requests split by data: same-title copies dedupe, different titles stay conflicts', () => {
+  const spoken = new Date(2026, 9, 27)
+  const work = { ...item, id: 'w1', title: '근로', date: '2026-10-29', repeat: 'weekly' as const, repeatDays: [4, 5] }
+  const study = { ...work, id: 'c1', title: '수업' }
+  // No copies: keeping one of two different events is a conflict choice, not a duplicate cleanup.
+  assert.equal(conversationIntent('목금마다 수업이랑 근로가 겹치는데 하나만 남겨줘', [work, study], null, spoken, []).type, 'conflicts')
+  // An explicit keep choice is a conflict choice even when copies exist.
+  const copies = [work, { ...work, id: 'w2' }, study, { ...study, id: 'c2' }]
+  assert.equal(conversationIntent('수업이랑 근로 겹치는데 근로만 남기고 수업은 지워줘', copies, null, spoken, []).type, 'conflicts')
+  // Copies plus "bug"/"duplicate" wording is a duplicate cleanup.
+  assert.equal(conversationIntent('수업이랑 근로가 겹쳐 보이는데 중복 같아, 정리해줘', copies, null, spoken, []).type, 'dedupe')
+})

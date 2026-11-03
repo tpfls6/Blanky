@@ -44,7 +44,7 @@ function updateGoogle(row: SnapshotRow, event: Extract<GooglePeerEvent, { status
   }
 }
 
-export function reconcile({ snapshot, page }: ReconcileInput): readonly ReconcileOp[] {
+export function reconcile({ snapshot, page, deferOutbound = false, exportUnlinked = true }: ReconcileInput): readonly ReconcileOp[] {
   const rowsById = new Map(snapshot.rows.map((row) => [row.scheduleId, row]))
   const linksBySchedule = new Map(snapshot.links.map((link) => [link.scheduleId, link]))
   const linksByGoogle = new Map(snapshot.links.map((link) => [link.googleEventId, link]))
@@ -86,7 +86,8 @@ export function reconcile({ snapshot, page }: ReconcileInput): readonly Reconcil
         googleEventId: event.id,
         etag: event.etag,
         origin: 'google',
-        draft: inboundDraft(event, event.blankyScheduleId ?? asScheduleId(`pending:${event.id}`), event.updated),
+        // A Google private property is a lookup hint, never authority to update an arbitrary row.
+        draft: inboundDraft(event, asScheduleId(`pending:${event.id}`), event.updated),
       })
       continue
     }
@@ -115,7 +116,7 @@ export function reconcile({ snapshot, page }: ReconcileInput): readonly Reconcil
         kind: 'upsert_blanky',
         googleEventId: event.id,
         etag: event.etag,
-        origin: 'google',
+        origin: link.origin,
         draft: inboundDraft(event, row.scheduleId, row.updatedAt),
       })
       continue
@@ -124,8 +125,17 @@ export function reconcile({ snapshot, page }: ReconcileInput): readonly Reconcil
     if (wanted && wanted !== event.colorId) ops.push(updateGoogle(row, event))
   }
 
+  if (deferOutbound) return ops
+
   for (const row of snapshot.rows) {
-    if (handledSchedules.has(row.scheduleId) || linksBySchedule.has(row.scheduleId)) continue
+    if (handledSchedules.has(row.scheduleId)) continue
+    const link = linksBySchedule.get(row.scheduleId)
+    if (link) {
+      // Incremental results omit unchanged Google events. Local edits must still be sent.
+      if (row.updatedAt !== link.appliedBlankyUpdatedAt) ops.push({ kind: 'update_google', scheduleId: row.scheduleId, googleEventId: link.googleEventId, etag: link.appliedEtag, body: writeBody(row) })
+      continue
+    }
+    if (!exportUnlinked) continue
     ops.push({ kind: 'create_google', scheduleId: row.scheduleId, body: writeBody(row) })
   }
 

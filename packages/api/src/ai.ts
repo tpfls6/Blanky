@@ -54,6 +54,7 @@ export function mapParsedSchedule(value: unknown): ParsedSchedule {
       startTime: readClock(value.draft.startTime),
       endTime: readClock(value.draft.endTime),
       dueDate: readDay(value.draft.dueDate),
+      dueTime: type === 'task' && readDay(value.draft.dueDate) ? readClock(value.draft.dueTime) : null,
       endDate: readDay(value.draft.endDate),
       categoryId: readNullableString(value.draft.categoryId),
     },

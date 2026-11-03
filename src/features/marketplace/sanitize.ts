@@ -2,6 +2,7 @@ import { coerceBlock, coercePage, type BuilderBlock } from '../builder/schema.ts
 import { coerceFieldLabels, coerceTemplate } from '../pages/templates.ts'
 import { coerceRecordType, flatten, type CustomRecordType, type FieldValue } from '../records/schema.ts'
 import { snapshotCollections } from '../workspace/templates.ts'
+import { isCalendarDate } from '../../../packages/types/src/aiSchema.ts'
 import {
   SNAPSHOT_LIMITS,
   TEMPLATE_CATEGORIES,
@@ -83,7 +84,11 @@ function cleanSamples(samples: readonly TemplateSample[], collections: readonly 
     for (const [key, value] of Object.entries(sample.values)) {
       if (!allowed?.has(key)) continue
       if (typeof value === 'string') {
-        if (textHasPii(value)) {
+        const collection = collections.find(item => item.id === sample.collectionId)
+        const field = collection ? flatten(collection.blocks).find(block => block.fieldKey === key) : undefined
+        const calendarValue = field?.type === 'date' && isCalendarDate(value)
+        const optionValue = field?.type === 'select' && field.props.options?.some(option => option.id === value)
+        if (!calendarValue && !optionValue && textHasPii(value)) {
           dirty = true
           break
         }

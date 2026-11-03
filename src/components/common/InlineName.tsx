@@ -76,7 +76,7 @@ export function InlineName({
         }
       }}
       onBlur={() => stop(Boolean((inputRef.current?.value ?? '').trim()))}
-      className={`min-w-0 flex-1 bg-transparent outline-none ${className}`}
+      className={`field-inline min-w-0 flex-1 ${className}`}
     />
   )
 }

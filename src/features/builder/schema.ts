@@ -49,6 +49,7 @@ export type BuilderProps = {
   icon?: string
   width?: number
   collectionId?: string
+  recordLayout?: 'movie' | 'finance' | 'travel' | 'study'
   view?: 'table' | 'card' | 'gallery' | 'calendar' | 'kanban' | 'chart'
   background?: string
   color?: string
@@ -149,6 +150,7 @@ export function coerceBlock(value: unknown): BuilderBlock | null {
   if (typeof raw.icon === 'string') props.icon = raw.icon
   if (typeof raw.width === 'number') props.width = widthOf(raw.width)
   if (typeof raw.collectionId === 'string') props.collectionId = raw.collectionId
+  if (raw.recordLayout === 'movie' || raw.recordLayout === 'finance' || raw.recordLayout === 'travel' || raw.recordLayout === 'study') props.recordLayout = raw.recordLayout
   if (raw.view === 'table' || raw.view === 'card' || raw.view === 'gallery' || raw.view === 'calendar' || raw.view === 'kanban' || raw.view === 'chart') props.view = raw.view
   if (typeof raw.background === 'string') props.background = raw.background
   if (typeof raw.color === 'string') props.color = raw.color

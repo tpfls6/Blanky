@@ -95,6 +95,18 @@ export async function refreshAccessToken(
   }
 }
 
+export async function revokeToken(token: string, fetcher: typeof fetch = fetch): Promise<void> {
+  const response = await fetcher('https://oauth2.googleapis.com/revoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ token }),
+  })
+  // 400 means Google no longer knows the token, which is the goal.
+  if (!response.ok && response.status !== 400) {
+    throw new CalendarSyncError('GOOGLE_DENIED', 'Google Calendar 권한을 해제하지 못했습니다.', 502)
+  }
+}
+
 function expiry(expiresIn: unknown): IsoDateTime {
   const seconds = typeof expiresIn === 'number' && expiresIn > 0 ? expiresIn : 3600
   return asIsoDateTime(new Date(Date.now() + seconds * 1000).toISOString())

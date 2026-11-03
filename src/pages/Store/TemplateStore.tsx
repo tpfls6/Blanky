@@ -7,6 +7,7 @@ import { officialListings } from '../../features/marketplace/official.ts'
 import { TemplatePreviewProvider } from '../../features/marketplace/preview.tsx'
 import { TEMPLATE_CATEGORIES, type TemplateListing } from '../../features/marketplace/schema.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
+import { PageTour } from '../../features/onboarding/Onboarding.tsx'
 import { isSupabaseConfigured } from '../../services/supabase/client.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
@@ -23,6 +24,7 @@ import {
   updateListing,
   type TemplateLibrary,
 } from '../../services/templates/index.ts'
+import { TemplateThumbnail } from './TemplateThumbnail.tsx'
 
 function categoryLabel(t: (key: string) => string, id: string) {
   return t('templates.cat.' + id)
@@ -32,18 +34,7 @@ function TemplateCard({ listing }: { listing: TemplateListing }) {
   return (
     <article>
       <Link to={ROUTES.templateDetail(listing.id)} className="block">
-        <div className="theme-swatch" style={{ background: '#f6f6f5' }}>
-          {listing.thumbnailUrl ? <img src={listing.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : (
-            <>
-              <div style={{ background: '#e8eef8' }} />
-              <div>
-                <span style={{ background: '#3a62b0' }} />
-                <span style={{ background: '#f1f4fb' }} />
-                <span style={{ background: '#ffffff' }} />
-              </div>
-            </>
-          )}
-        </div>
+        <TemplateThumbnail listing={listing} />
         <h2 className="mt-3 font-medium">{listing.name}</h2>
         <p className="text-xs text-neutral-500">{listing.creatorName} · {listing.category}</p>
         <p className="mt-1 text-sm">{listing.description}</p>
@@ -99,10 +90,11 @@ export function TemplateStore() {
           <Link className="btn btn-primary" to={ROUTES.templatePublish}>{t('templates.publish')}</Link>
         </div>
       </header>
-      <div className="mt-6 flex gap-3">
+      <div data-tour="store-tabs" className="mt-6 flex gap-3">
         <Link className="chip" to="/store">{t('templates.themes')}</Link>
         <span className="chip chip-on">{t('templates.templates')}</span>
       </div>
+      <PageTour page="store" className="mt-5" />
       <input className="field my-5 w-full max-w-lg" aria-label={t('templates.search')} placeholder={t('templates.search')} value={query} onChange={(event) => setQuery(event.target.value)} />
       <div className="mb-4 flex flex-wrap gap-2">
         {TEMPLATE_CATEGORIES.map((id) => (
@@ -119,7 +111,7 @@ export function TemplateStore() {
       {error ? <p role="alert">{error}</p> : null}
       {loading ? (
         <div className="theme-grid" aria-busy="true">
-          {[0, 1, 2].map((item) => <div key={item} className="theme-swatch animate-pulse bg-neutral-100" />)}
+          {[0, 1, 2].map((item) => <div key={item} className="template-thumb animate-pulse bg-neutral-100" />)}
         </div>
       ) : (
         <div className="theme-grid">

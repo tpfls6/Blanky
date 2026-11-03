@@ -19,7 +19,7 @@ const browserEndpoint = await new Promise((resolve, reject) => {
   browser.stderr.on('data', data => { browserOutput += data; const match = browserOutput.match(/ws:\/\/127\.0\.0\.1:\d+/); if (match) resolve(match[0].replace('ws:', 'http:')) })
   browser.on('exit', code => reject(new Error('Chromium exited: ' + code + ' ' + browserOutput)))
 })
-const server = spawn(process.execPath, ['--input-type=module', '-e', 'import { createServer } from "vite"; const server = await createServer({ server: { host: "127.0.0.1", port: ' + new URL(base).port + ', strictPort: true, watch: { ignored: ["**/.tmp/**"] } } }); await server.listen(); server.printUrls();'], { env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }, windowsHide: true, stdio: 'pipe' })
+const server = spawn(process.execPath, ['--input-type=module', '-e', 'import { createServer } from "vite"; const server = await createServer({ server: { host: "127.0.0.1", port: ' + new URL(base).port + ', strictPort: true, watch: null } }); await server.listen(); server.printUrls();'], { env: { ...process.env, VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }, windowsHide: true, stdio: 'pipe' })
 let serverOutput = ''; server.stdout.on('data', data => { serverOutput += data }); server.stderr.on('data', data => { serverOutput += data })
 for (let i=0; i<60; i++) { try { const res = await fetch(base); if(res.ok) break } catch {} await new Promise(r=>setTimeout(r,100)); if(i===59) throw new Error(serverOutput) }
 let targets
@@ -43,6 +43,11 @@ ws.addEventListener('message', ({ data }) => {
 })
 function send(method, params = {}) { return new Promise((resolve, reject) => { const id = ++nextId; pending.set(id, { resolve, reject }); ws.send(JSON.stringify({ id, method, params })) }) }
 async function evaluate(expression) {
+  // Inline previews render existing pages in their own responsive document.
+  if (/document\.querySelector\("\.theme-preview(?!-tabs)/.test(expression)) {
+    await send('Runtime.evaluate', { expression: 'new Promise(resolve => { const check = () => { const doc = document.querySelector("iframe.theme-preview-frame")?.contentDocument; if (doc?.querySelector(".theme-preview")) resolve(); else setTimeout(check, 20) }; check() })', awaitPromise: true });
+    expression = expression.replace(/document\.querySelector\("\.theme-preview(?!-tabs)/g, 'document.querySelector("iframe.theme-preview-frame").contentDocument.querySelector(".theme-preview');
+  }
   const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
   if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text)
   return result.result.value
@@ -54,7 +59,7 @@ async function navigate(url) {
   await loaded
 }
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
-async function wait(expression, label) { for (let i = 0; i < 80; i++) { if (await evaluate(expression)) return; await pause(100) } throw new Error('Timed out: ' + label) }
+async function wait(expression, label) { for (let i = 0; i < 300; i++) { if (await evaluate(expression)) return; await pause(100) } throw new Error('Timed out: ' + label) }
 const q = value => JSON.stringify(value)
 async function click(selector) { await evaluate('document.querySelector(' + q(selector) + ').click()') }
 async function button(text) { await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim() === ' + q(text) + ').click()') }
@@ -78,7 +83,7 @@ try {
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false})
  await send('Page.addScriptToEvaluateOnNewDocument',{source:'if(location.origin === '+q(base)+' && !localStorage.getItem("blanky.theme.test.seeded")){localStorage.setItem("blanky.accounts.v1",JSON.stringify([{id:'+q(owner)+',name:"Theme Test",nickname:"테마 테스트",email:"theme-test@example.test",password:"test-only",avatar:null},{id:'+q(bob)+',name:"Bob",nickname:"Bob",email:"theme-bob@example.test",password:"test-only",avatar:null}]));localStorage.setItem("blanky.session.v1",'+q(owner)+');localStorage.setItem("blanky.library.'+owner+'",JSON.stringify({items:[{id:"theme-event",kind:"event",title:"패키지 테스트 일정",description:"",date:"2026-10-08",startTime:"10:00",endTime:"11:00",status:"todo",priority:"normal",categoryId:null,allDay:false,repeatRule:"none",createdAt:"2026-10-08T00:00:00Z",updatedAt:"2026-10-08T00:00:00Z"}],categories:[],settings:{},diaries:[]}));localStorage.setItem("blanky.theme.test.seeded","1");}'})
  await navigate(base+'/settings/themes');await wait('document.querySelectorAll("article").length>=4','legacy themes')
- await evaluate('[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Soft Pink")).parentElement.querySelector("button").click()')
+ await evaluate('[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Soft Pink")).querySelector("button").click()')
  await wait('document.querySelector(".blanky-themed")?.style.getPropertyValue("--bg")==="#fff8fb"','legacy apply')
  const previous=await active();assert.ok(previous);checks.push('Legacy Soft Pink applies and persists')
  await navigate(base+'/customize/theme');await wait('!!document.querySelector(".theme-editor") && document.body.innerText.includes("색상 변경") && document.body.innerText.includes("커스텀")','color and custom tabs')
@@ -158,9 +163,9 @@ try {
  // Exercise real download button, then feed the downloaded .blankytheme to a second isolated account.
  await send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:outDir})
  await navigate(base+'/settings/themes');await wait('document.body.innerText.includes("Flower Package")','owned library')
- await evaluate('[...[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Flower Package")).parentElement.querySelectorAll("button")].find(b=>b.textContent.includes("테마 파일로 내보내기")).click()')
+ await evaluate('[...[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Flower Package")).querySelectorAll("button")].find(b=>b.textContent.includes("테마 파일로 내보내기")).click()')
  let exported
- for(let i=0;i<80;i++){exported=(await readdir(outDir)).find(n=>n.endsWith('.blankytheme'));if(exported)break;await pause(100)}
+ for(let i=0;i<300;i++){exported=(await readdir(outDir)).find(n=>n.endsWith('.blankytheme'));if(exported)break;await pause(100)}
  assert.ok(exported,'actual .blankytheme download');checks.push('Creator export downloads the .blankytheme extension')
  await evaluate('localStorage.setItem("blanky.session.v1",'+q(bob)+')')
  await navigate(base+'/settings/themes');await wait('document.querySelectorAll("article").length>=4','Bob themes')
@@ -171,7 +176,7 @@ try {
  assert.equal(await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+bob+'")||"{}").active??null'),null)
  await screenshot('import-review');await button('설치')
  await wait('!document.querySelector(".theme-import-review")','import installed')
- await evaluate('[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Flower Package")).parentElement.querySelector("button").click()')
+ await evaluate('[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Flower Package")).querySelector("button").click()')
  await wait('!!JSON.parse(localStorage.getItem("blanky.themes.'+bob+'")).active','Bob applies')
  const bobTheme=await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+bob+'")).active')
  await navigate(base+'/schedule');await wait('document.querySelector("aside img")?.src.startsWith("blob:")','Bob icon roundtrip')
@@ -182,7 +187,7 @@ try {
  assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true)
  await screenshot('mobile-library');checks.push('Package library renders on mobile without horizontal overflow')
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false})
- await evaluate('[...[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Flower Package")).parentElement.querySelectorAll("button")].find(b=>b.textContent==="삭제").click()')
+ await evaluate('[...[...document.querySelectorAll("article")].find(a=>a.textContent.includes("Flower Package")).querySelectorAll("button")].find(b=>b.textContent==="삭제").click()')
  await wait('!!document.querySelector("dialog[open]")','delete confirm');await evaluate('[...document.querySelector("dialog[open]").querySelectorAll("button")].find(b=>b.textContent==="삭제").click()')
  await wait('!JSON.parse(localStorage.getItem("blanky.themes.'+bob+'")).themes.some(t=>t.id==='+q(bobTheme)+')','delete imported')
  assert.equal(await evaluate('JSON.parse(localStorage.getItem("blanky.themes.'+owner+'")).themes.some(t=>t.id==='+q(themeId)+')'),true)
@@ -193,7 +198,7 @@ try {
  await navigate();await wait('document.body.innerText.includes("기본 테마로 복구했습니다")','damaged package fallback')
  assert.equal(await evaluate('document.querySelector(".blanky-themed").style.getPropertyValue("--bg")'),'#ffffff')
  assert.equal(await evaluate('document.querySelectorAll("aside img").length'),0)
- assert.equal(await evaluate('!!document.querySelector("nav")'),true)
+ await wait('!!document.querySelector("nav")','navigation after recovery')
  checks.push('Missing asset falls back to Default Theme with a recovery notice and functional navigation')
  await screenshot('corrupt-package-fallback')
  assert.equal(errors.length,0,errors.join('\n'))

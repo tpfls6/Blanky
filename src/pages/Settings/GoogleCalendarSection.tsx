@@ -6,12 +6,20 @@ import type {
   GoogleCalendarChoice,
   GoogleCalendarId,
 } from '@blanky/types'
-import { getCalendarSyncClient } from '../../services/calendarSync/index.ts'
+import { getCalendarSyncClient, synchronizeCalendars } from '../../services/calendarSync/index.ts'
 import { isSupabaseConfigured } from '../../services/supabase/client.ts'
+import { useLibrary } from '../../state/useLibrary.ts'
+import { useSession } from '../../state/useSession.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { calendarPanel, errorCode, errorLine, lastSyncLine } from './calendarPanel.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { Choice, SwitchRow } from './bits.tsx'
+import { ArrowRight } from 'lucide-react'
+
+function ImportDirection({ label }: { label: string }) {
+  const [from, to] = label.split(' → ')
+  return <span className="inline-flex items-center gap-1.5 align-middle" role="img" aria-label={label}><span aria-hidden="true">{from}</span><ArrowRight size={14} strokeWidth={1.5} className="block shrink-0" aria-hidden="true" /><span aria-hidden="true">{to}</span></span>
+}
 
 function CalendarPick({
   calendars,
@@ -43,8 +51,8 @@ function CalendarPick({
         <p className="text-sm">{t('calendar.firstImport')}</p>
         <p className="mt-1 text-xs text-neutral-400">{t('calendar.firstImportHint')}</p>
         <div className="mt-2 flex flex-wrap gap-1" role="radiogroup">
-          <Choice value="from_google" current={direction} label={t('calendar.fromGoogle')} onPick={setDirection} />
-          <Choice value="from_blanky" current={direction} label={t('calendar.fromBlanky')} onPick={setDirection} />
+          <Choice value="from_google" current={direction} label={<ImportDirection label={t('calendar.fromGoogle')} />} onPick={setDirection} />
+          <Choice value="from_blanky" current={direction} label={<ImportDirection label={t('calendar.fromBlanky')} />} onPick={setDirection} />
         </div>
       </div>
       <button
@@ -64,42 +72,33 @@ function CalendarPick({
 
 export function GoogleCalendarSection() {
   const { t, locale } = useI18n()
+  const { refreshWork } = useLibrary()
+  const { user } = useSession()
   const confirm = useConfirm()
-  const [view, setView] = useState<ConnectionView>()
+  const [view, setView] = useState<ConnectionView | undefined>(() => isSupabaseConfigured ? undefined : { status: 'error', code: 'GOOGLE_ENV_MISSING', message: t('calendar.envView') })
   const [calendars, setCalendars] = useState<readonly GoogleCalendarChoice[]>([])
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const inFlight = useRef(false)
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setView({ status: 'error', code: 'GOOGLE_ENV_MISSING', message: t('calendar.envView') })
-      return
-    }
+    if (!isSupabaseConfigured) return
+    let stopped = false
     const sync = getCalendarSyncClient()
-    void sync.status().then(async (next) => {
+    const load = () => { void sync.status().then(async (next) => {
+      if (stopped) return
       setView(next)
-      if (next.status === 'connected') setCalendars(await sync.listCalendars())
+      if (next.status === 'connected') {
+        const rows = await sync.listCalendars()
+        if (!stopped) setCalendars(rows)
+      }
     }).catch((error) => {
-      setView({ status: 'error', code: errorCode(error), message: errorLine(error, locale) })
-    })
-  }, [])
-
-  useEffect(() => {
-    if (!isSupabaseConfigured || view?.status !== 'ready' || !view.autoSync || inFlight.current) return
-    const staleMs = Date.now() - Date.parse(view.lastSync.at)
-    if (Number.isFinite(staleMs) && staleMs < 5 * 60 * 1000) return
-    const sync = getCalendarSyncClient()
-    inFlight.current = true
-    setBusy(true)
-    void sync.sync().then((report) => {
-      setMessage(t('calendar.synced', { imported: report.imported, exported: report.exported }))
-      return sync.status()
-    }).then(setView).catch((error) => setMessage(errorLine(error, locale))).finally(() => {
-      inFlight.current = false
-      setBusy(false)
-    })
-  }, [view?.status, view?.status === 'ready' ? view.autoSync : false, view?.status === 'ready' ? view.lastSync.at : ''])
+      if (!stopped) setView({ status: 'error', code: errorCode(error), message: errorLine(error, locale) })
+    }) }
+    load()
+    window.addEventListener('blanky:calendar-synced', load)
+    return () => { stopped = true; window.removeEventListener('blanky:calendar-synced', load) }
+  }, [locale])
 
   if (!view) return <p className="text-sm text-neutral-500" role="status">{t('calendar.reading')}</p>
 
@@ -152,6 +151,7 @@ export function GoogleCalendarSection() {
           onPick={async (googleCalendarId, firstImport) => {
             await run(async () => {
               setView(await getCalendarSyncClient().selectCalendar({ googleCalendarId, firstImport }))
+              await refreshWork()
             })
           }}
         />
@@ -168,6 +168,7 @@ export function GoogleCalendarSection() {
                 if (busy) return
                 void run(async () => {
                   setView(await getCalendarSyncClient().setAutoSync(!view.autoSync))
+                  window.dispatchEvent(new Event('blanky:work-saved'))
                 })
               }}
             />
@@ -177,7 +178,7 @@ export function GoogleCalendarSection() {
             className="btn btn-line mt-3"
             disabled={busy}
             onClick={() => void run(async () => {
-              const report = await getCalendarSyncClient().sync()
+              const report = await synchronizeCalendars(user!.id, refreshWork)
               setMessage(t('calendar.synced', { imported: report.imported, exported: report.exported }))
               setView(await getCalendarSyncClient().status())
             })}
@@ -202,6 +203,7 @@ export function GoogleCalendarSection() {
                 importedRows: dropImported ? 'delete' : 'keep',
               }
               setView(await getCalendarSyncClient().disconnect(disposition))
+              await refreshWork()
             })}
           >
             {t('calendar.disconnect')}

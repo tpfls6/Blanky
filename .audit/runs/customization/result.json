@@ -1,0 +1,15 @@
+{
+  "started": "2026-11-03T04:08:51.788Z",
+  "ended": "2026-11-03T04:08:57.314Z",
+  "ok": true,
+  "log": [
+    "started 2026-11-03T04:08:51.788Z",
+    "2026-11-03T04:08:55.915Z screenshot 01-desktop-themes.png",
+    "2026-11-03T04:08:57.221Z screenshot 02-mobile-themes.png",
+    "2026-11-03T04:08:57.252Z screenshot 03-mobile-templates.png",
+    "2026-11-03T04:08:57.313Z screenshot 04-mobile-layout.png"
+  ],
+  "errors": [],
+  "extra": null,
+  "serverTail": "\u001b[2m오후 1:08:52\u001b[22m \u001b[36m\u001b[1m[vite]\u001b[22m\u001b[39m \u001b[90m\u001b[2m(client)\u001b[22m\u001b[39m Re-optimizing dependencies because vite config has changed\n  \u001b[32m➜\u001b[39m  \u001b[1mLocal\u001b[22m:   \u001b[36mhttp://127.0.0.1:\u001b[1m5208\u001b[22m/\u001b[39m\n\u001b[2m오후 1:08:53\u001b[22m \u001b[36m\u001b[1m[vite]\u001b[22m\u001b[39m \u001b[90m\u001b[2m(client)\u001b[22m\u001b[39m [optimizer] scanning dependencies...\n"
+}

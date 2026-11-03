@@ -1,3 +1,10 @@
+export function timelineCurrentTime(day: string, firstMinute: number, endMinute: number, now: Date) {
+  const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
+  const minutes = now.getHours() * 60 + now.getMinutes()
+  if (day !== date || minutes < firstMinute || minutes >= endMinute) return null
+  return { minutes, hour: `${String(now.getHours()).padStart(2, '0')}:00`, label: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` }
+}
+
 export function timelineRange(item: { startTime: string | null; endTime: string | null; duration: number | null; date: string; endDate: string | null }, day: string) {
   if (!item.startTime) return null
   const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))

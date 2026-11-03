@@ -1,5 +1,5 @@
 import { packageFeatures } from '../../theme/package/features.ts';
-import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { THEME_ASSET_KEYS, THEME_ICON_KEYS, THEME_PACKAGE_IMPORT_EXTS, isThemePackageFile, type BlankyTheme, type ThemePackage } from '@blanky/types';
 import { packageFromTheme, importThemePackage, exportThemePackage, downloadTheme } from '../../theme/package/ThemeLoader.ts';
 import { validateAsset } from '../../theme/package/ThemeValidator.ts';
@@ -81,7 +81,7 @@ async function readImportedTheme(file: File, userId: string): Promise<BlankyThem
     return { id: crypto.randomUUID(), creatorId: userId, creatorName: pkg.manifest.author, name: pkg.manifest.name, description: pkg.manifest.description, thumbnailUrl: '', category: '가져온 테마', tags: [], visibility: 'private', pricingType: 'free', price: 0, config: pkg.config, themeType: 'package', package: pkg, downloadCount: 0, ratingAverage: 0, ratingCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 }
 
-export function ThemeImport({ onPreview, variant = 'button' }: { onPreview?: (theme: BlankyTheme | null) => void; variant?: 'button' | 'dropzone' } = {}) {
+export function ThemeImport({ onPreview, variant = 'button', renderTrigger }: { onPreview?: (theme: BlankyTheme | null) => void; variant?: 'button' | 'dropzone'; renderTrigger?: (trigger: ReactNode) => ReactNode } = {}) {
     const ctx = useTheme();
     const { user } = useSession();
     const [pending, setPending] = useState<BlankyTheme | null>(null);
@@ -137,7 +137,7 @@ export function ThemeImport({ onPreview, variant = 'button' }: { onPreview?: (th
                 <p>파일을 끌어다 놓거나 선택하세요.</p>
                 <input aria-label="테마 가져오기" type="file" accept={accept} disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void open(file); }} />
             </label>
-            : <label className="btn btn-line theme-import-label">테마 가져오기<input aria-label="테마 가져오기" type="file" accept={accept} disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void open(file); }} /></label>}
+            : (renderTrigger ?? (trigger => trigger))(<label className="btn btn-line theme-import-label">테마 가져오기<input aria-label="테마 가져오기" type="file" accept={accept} disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void open(file); }} /></label>)}
         <p role={message && !pending ? 'alert' : 'status'}>{message}</p>
         {pending && <section className="theme-import-review" aria-label="테마 설치 전 확인">
             <h2>{pending.name}</h2>

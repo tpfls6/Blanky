@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { BookOpen, CalendarDays, House, Library, StickyNote } from 'lucide-react';
 import type { BlankyTheme } from '@blanky/types';
 import { BrandLogo } from '../../components/common/BrandLogo.tsx';
@@ -50,25 +51,51 @@ function PreviewSidebar({ current }: { current: string }) {
     );
 }
 
+// A separate document gives existing pages their own responsive viewport and
+// prevents inherited theme variables/fonts from leaking into either preview.
+function PreviewFrame({ children, mobile }: { children: ReactNode; mobile: boolean }) {
+    const frame = useRef<HTMLIFrameElement>(null);
+    const [body, setBody] = useState<HTMLElement | null>(null);
+    useEffect(() => {
+        const doc = frame.current?.contentDocument;
+        if (!doc) return;
+        doc.documentElement.lang = document.documentElement.lang;
+        const syncStyles = () => {
+            doc.head.querySelectorAll('[data-preview-style]').forEach(node => node.remove());
+            document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(node => {
+                const copy = node.cloneNode(true) as HTMLElement;
+                copy.setAttribute('data-preview-style', '');
+                doc.head.append(copy);
+            });
+        };
+        syncStyles();
+        const observer = new MutationObserver(syncStyles);
+        observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+        setBody(doc.body);
+        return () => observer.disconnect();
+    }, []);
+    return <iframe ref={frame} title="테마 화면 미리보기" className={'theme-preview-frame' + (mobile ? ' preview-frame-mobile' : '')}>
+        {body && createPortal(children, body)}
+    </iframe>;
+}
+
 export function ThemePreview({ theme, viewport = 'desktop', fill = false }: {
     theme: BlankyTheme;
     viewport?: 'desktop' | 'mobile';
     fill?: boolean;
 }) {
     const [view, setView] = useState<(typeof PAGES)[number]['id']>('home');
-    const [ready, setReady] = useState(false);
-    useEffect(() => setReady(true), []);
     const current = PAGES.find(page => page.id === view) ?? PAGES[0];
     const Page = current.Page;
     return (
         <div className={fill ? 'theme-editor-preview theme-preview-fill' : 'theme-editor-preview'}>
             <div className="theme-preview-tabs" aria-label="미리보기 화면">{PAGES.map(item => <button key={item.id} type="button" className={view === item.id ? 'chip chip-on' : 'chip'} aria-pressed={view === item.id} onClick={() => setView(item.id)}>{item.label}</button>)}</div>
             {viewport === 'mobile' && <p className="mb-2 text-xs text-neutral-500">모바일 미리보기는 반응형 시뮬레이션입니다. 네이티브 렌더링과 다를 수 있습니다.</p>}
-            <ThemeRuntime inert theme={theme} className={'theme-preview preview-page preview-' + viewport}>
+            <PreviewFrame mobile={viewport === 'mobile'}><ThemeRuntime inert theme={theme} className={'theme-preview preview-page preview-' + viewport}>
                 <div data-theme-slot="schedule-card" hidden />
                 <PreviewSidebar current={view} />
-                <div className="theme-preview-page" aria-hidden="true">{ready ? <Page /> : null}</div>
-            </ThemeRuntime>
+                <div className="theme-preview-page" aria-hidden="true"><Page /></div>
+            </ThemeRuntime></PreviewFrame>
         </div>
     );
 }

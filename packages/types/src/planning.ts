@@ -25,6 +25,7 @@ export type SchedulingSettings = {
   now: string
 }
 export type PlanningTask = {
+  deadlineTime?: string | null
   originGroup?: string
   repeatIndex?: number
   excludedDates?: string[]

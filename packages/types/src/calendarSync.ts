@@ -17,12 +17,15 @@ export type IsoDateTime = Brand<string, 'IsoDateTime'>
 
 export type IsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
-/** Blanky recurrence ceiling. No COUNT, UNTIL, INTERVAL, EXDATE, or exception instances. */
+/**
+ * Blanky recurrence ceiling. No COUNT, INTERVAL, EXDATE, or exception instances.
+ * `until` is the last local date an occurrence may start on (Blanky `repeat_until`); absent repeats forever.
+ */
 export type Recurrence =
   | { freq: 'none' }
-  | { freq: 'daily' }
-  | { freq: 'weekly'; days: readonly [IsoWeekday, ...IsoWeekday[]] }
-  | { freq: 'monthly' }
+  | { freq: 'daily'; until?: DateStr }
+  | { freq: 'weekly'; days: readonly [IsoWeekday, ...IsoWeekday[]]; until?: DateStr }
+  | { freq: 'monthly'; until?: DateStr }
 
 export type PeerWhen =
   | { allDay: true; date: DateStr; endDate: DateStr | null }

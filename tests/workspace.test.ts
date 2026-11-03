@@ -8,7 +8,7 @@ import { assignSelect, chartSeries, monthCells, shiftMonth } from '../src/featur
 
 test('builtin templates cover the starter set', () => {
   const names = builtinTemplates().map((item) => item.name)
-  for (const name of ['빈 페이지', '운동 관리', '영화 기록', '링크 모음', '공부 관리', '프로젝트 관리']) {
+  for (const name of ['빈 페이지', '운동 관리', '영화 기록', '링크 모음', '공부 내용 기록', '프로젝트 관리', '가계부', '여행 기록']) {
     assert.ok(names.includes(name), name)
   }
 })

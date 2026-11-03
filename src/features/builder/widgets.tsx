@@ -1,3 +1,4 @@
+import { DateTimeInfo } from '../../components/common/DateTimeInfo.tsx'
 import { Link } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
@@ -34,8 +35,8 @@ export function WidgetBlock({ type }: { type: WidgetType }) {
       <List>
         {rows.map((item) => (
           <li key={item.id}>
-            {item.startTime ? `${item.startTime} ` : ''}
-            {item.title}
+            <p>{item.title}</p>
+            <DateTimeInfo startTime={item.startTime} endTime={item.endTime} allDay={item.allDay} />
           </li>
         ))}
       </List>
@@ -61,7 +62,8 @@ export function WidgetBlock({ type }: { type: WidgetType }) {
       <List>
         {rows.map((item) => (
           <li key={item.id}>
-            {item.date} {item.title}
+            <p>{item.title}</p>
+            <DateTimeInfo date={item.date} endDate={item.endDate} startTime={item.startTime} endTime={item.endTime} allDay={item.allDay} />
           </li>
         ))}
       </List>

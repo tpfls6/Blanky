@@ -53,3 +53,5 @@ export { approvePlanner } from './plannerApproval.ts'
 export { replanTasks } from './planning.ts'
 
 export { loadPlannerDraft,savePlannerDraft,clearPlannerDraft } from './plannerDraft.ts'
+export { HOLIDAY_ENDPOINT, fetchKoreanHolidays, holidayKind, isHolidayYear, parseHolidayResponse } from './holidays.ts'
+export type { Holiday, HolidayKind } from './holidays.ts'

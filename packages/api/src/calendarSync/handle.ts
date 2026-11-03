@@ -8,12 +8,13 @@ import { CalendarSyncError, asCalendarSyncError, calendarError, errorStatus } fr
 import { createGoogleEvent, deleteGoogleEvent, listGoogleCalendars, listGoogleEvents, updateGoogleEvent } from './googleApi.ts'
 import { consentUrl, createOAuthState, hashOAuthState, refreshAccessToken } from './oauth.ts'
 import {
-  clonePersonalOntoBoundCalendar,
+  bindPersonalToCalendar,
   disconnectConnection,
   insertExternalCalendar,
   loadConnection,
   loadPersonalCalendarId,
   loadSnapshot,
+  findOwnedSchedules,
   markNeedsReauth,
   saveAwaitingConsent,
   saveAutoSync,
@@ -86,6 +87,7 @@ async function applyFor(connection: ReadyConnection, accessToken: string, deps: 
     upsertSchedule: (draft) => upsertSchedule(deps.admin, {
       userId: connection.userId,
       calendarId: connection.calendar.blankyCalendarId,
+      googleCalendarId: connection.calendar.googleCalendarId,
       draft,
     }),
     deleteSchedule: (id) => deleteSchedule(deps.admin, id),
@@ -169,7 +171,7 @@ export async function handleCalendarAction(deps: HandleDeps): Promise<HandleResu
       if (action.firstImport.direction === 'from_blanky') {
         const personal = await loadPersonalCalendarId(deps.admin, userId)
         if (personal) {
-          await clonePersonalOntoBoundCalendar(deps.admin, {
+          await bindPersonalToCalendar(deps.admin, {
             userId,
             personalCalendarId: personal,
             boundCalendarId: blankyCalendarId,
@@ -188,6 +190,8 @@ export async function handleCalendarAction(deps: HandleDeps): Promise<HandleResu
             ...input,
           }, deps.fetch),
         },
+        exportUnlinked: action.firstImport.direction === 'from_blanky',
+        findOriginalRows: (ids) => findOwnedSchedules(deps.admin, userId, ids),
         loadSnapshot: (current) => loadSnapshot(deps.admin, current),
         wipeLinks: (id) => wipeLinks(deps.admin, id),
         saveCursor: async (id, cursor) => {
@@ -211,6 +215,7 @@ export async function handleCalendarAction(deps: HandleDeps): Promise<HandleResu
       const readyConnection = ready(connection)
       const tokens = await withTokens(readyConnection, deps)
       const report = await runSync({
+        findOriginalRows: (ids) => findOwnedSchedules(deps.admin, userId, ids),
         connection: readyConnection,
         google: {
           list: (input) => listGoogleEvents({

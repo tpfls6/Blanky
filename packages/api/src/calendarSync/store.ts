@@ -33,6 +33,7 @@ export type DbClient = {
 type Query = {
   select: (columns?: string) => Query
   insert: (values: unknown) => Query
+  upsert: (values: unknown) => Query
   update: (values: unknown) => Query
   delete: () => Query
   eq: (column: string, value: unknown) => Query
@@ -47,7 +48,26 @@ function query(client: DbClient, table: string): Query {
   return client.from(table) as Query
 }
 
-async function one(result: Promise<{ data: unknown; error: { message: string } | null }>, fallback = 'Calendar 저장소를 읽지 못했습니다.'): Promise<unknown> {
+/** Series end column from migration 20261029200000. */
+function repeatUntil(recurrence: SnapshotRow['recurrence']): { repeat_until: string | null } {
+  return { repeat_until: recurrence.freq !== 'none' && recurrence.until ? recurrence.until : null }
+}
+
+/**
+ * Writes with repeat_until, retrying without it on a database that has not run the migration yet,
+ * as long as there is no series end to lose. A real end date still fails loudly.
+ */
+async function withRepeatUntil<T extends { error: { message: string; code?: string } | null }>(
+  recurrence: SnapshotRow['recurrence'],
+  write: (columns: { repeat_until?: string | null }) => PromiseLike<T>,
+): Promise<T> {
+  const columns = repeatUntil(recurrence)
+  const result = await write(columns)
+  const missing = result.error && /repeat_until/.test(result.error.message) && (result.error.code === '42703' || result.error.code === 'PGRST204' || /column/i.test(result.error.message))
+  return missing && !columns.repeat_until ? write({}) : result
+}
+
+async function one(result: PromiseLike<{ data: unknown; error: { message: string } | null }>, fallback = 'Calendar 저장소를 읽지 못했습니다.'): Promise<unknown> {
   const { data, error } = await result
   if (error) throw new CalendarSyncError('GOOGLE_HTTP', error.message || fallback, 502)
   return data
@@ -184,7 +204,8 @@ export async function saveAwaitingConsent(admin: DbClient, input: { userId: User
     await one(query(admin, 'google_calendar_connections').update(row).eq('id', input.id).select('id').maybeSingle())
     return
   }
-  const { id: _omit, ...create } = row
+  const create: Omit<typeof row, 'id'> & { id?: ConnectionId } = { ...row }
+  delete create.id
   await one(query(admin, 'google_calendar_connections').insert(create).select('id').single())
 }
 
@@ -304,13 +325,20 @@ export function snapshotRowFromSchedule(
   }
 }
 
-export async function loadSnapshot(admin: DbClient, connection: ReadyConnection): Promise<BlankySnapshot> {
-  const schedules = await one(query(admin, 'schedules').select('*').eq('calendar_id', connection.calendar.blankyCalendarId))
+export async function loadSnapshot(admin: DbClient, connection: ReadyConnection, includePersonal = true): Promise<BlankySnapshot> {
+  const personalId = includePersonal ? await loadPersonalCalendarId(admin, connection.userId) : null
+  const calendarIds = [...new Set([connection.calendar.blankyCalendarId, ...(personalId ? [personalId] : [])])]
+  const schedules = await one(query(admin, 'schedules').select('*').eq('user_id', connection.userId).in('calendar_id', calendarIds))
   const links = await one(query(admin, 'google_calendar_event_links').select('*').eq('connection_id', connection.id))
   const colors = await categoryColors(admin, connection.userId)
+  const linkedIds = (Array.isArray(links) ? links : []).map(value => asScheduleId(record(value).schedule_id))
+  const rows = (Array.isArray(schedules) ? schedules : []).map(row => snapshotRowFromSchedule(mapScheduleRow(row), colors))
+  const known = new Set(rows.map(row => row.scheduleId))
+  const missing = linkedIds.filter(id => !known.has(id))
+  const linkedRows = missing.length ? await findOwnedSchedules(admin, connection.userId, missing) : []
   return {
     calendarId: connection.calendar.blankyCalendarId,
-    rows: (Array.isArray(schedules) ? schedules : []).map((row) => snapshotRowFromSchedule(mapScheduleRow(row), colors)),
+    rows: [...new Map([...rows, ...linkedRows].map(row => [row.scheduleId, row])).values()],
     links: (Array.isArray(links) ? links : []).map((value) => {
       const row = record(value)
       return {
@@ -326,6 +354,14 @@ export async function loadSnapshot(admin: DbClient, connection: ReadyConnection)
   }
 }
 
+export async function findOwnedSchedules(admin: DbClient, userId: UserId, ids: readonly ScheduleId[]): Promise<SnapshotRow[]> {
+  const valid = [...new Set(ids)].filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+  if (!valid.length) return []
+  const rows = await one(query(admin, 'schedules').select('*').eq('user_id', userId).in('id', valid))
+  const colors = await categoryColors(admin, userId)
+  return (Array.isArray(rows) ? rows : []).map(row => snapshotRowFromSchedule(mapScheduleRow(row), colors))
+}
+
 export async function wipeLinks(admin: DbClient, connectionId: ConnectionId): Promise<void> {
   await one(query(admin, 'google_calendar_event_links').delete().eq('connection_id', connectionId))
 }
@@ -333,10 +369,13 @@ export async function wipeLinks(admin: DbClient, connectionId: ConnectionId): Pr
 export async function upsertSchedule(admin: DbClient, input: {
   userId: UserId
   calendarId: CalendarId
+  googleCalendarId: import('../../../types/src/calendarSync.ts').GoogleCalendarId
   draft: SnapshotRow
 }): Promise<{ scheduleId: ScheduleId; updatedAt: IsoDateTime }> {
   const when = input.draft.when
-  const data = await one(query(admin, 'schedules').insert({
+  const id = await googleImportScheduleId(input.userId, input.googleCalendarId, input.draft.scheduleId)
+  const { data, error } = await withRepeatUntil(input.draft.recurrence, columns => query(admin, 'schedules').insert({
+    id,
     user_id: input.userId,
     calendar_id: input.calendarId,
     created_by_user_id: input.userId,
@@ -349,14 +388,37 @@ export async function upsertSchedule(admin: DbClient, input: {
     end_date: when.allDay ? when.endDate : null,
     repeat_rule: input.draft.recurrence.freq,
     repeat_days: input.draft.recurrence.freq === 'weekly' ? [...input.draft.recurrence.days] : [],
+    ...columns,
     change_source: 'calendar_sync',
     kind: 'event',
     priority: 'medium',
     status: 'todo',
     category_id: input.draft.categoryId,
   }).select('id, updated_at').single())
+  if (error) {
+    if ('code' in error && error.code === '23505') {
+      // A concurrent sync or reconnect already imported this exact Google event.
+      // Never overwrite the existing row or reset its task metadata.
+      const existing = await one(query(admin, 'schedules').select('id, updated_at').eq('id', id).eq('user_id', input.userId).single())
+      const previous = asIsoDateTime(record(existing).updated_at)
+      if (Date.parse(input.draft.updatedAt) > Date.parse(previous)) {
+        const result = await casUpdateSchedule(admin, { id, expectedUpdatedAt: previous, draft: { ...input.draft, scheduleId: id, updatedAt: previous } })
+        if (result === 'updated') return { scheduleId: id, updatedAt: await readUpdatedAt(admin, id) }
+      }
+      return { scheduleId: asScheduleId(record(existing).id), updatedAt: input.draft.updatedAt }
+    }
+    throw new CalendarSyncError('GOOGLE_HTTP', error.message, 502)
+  }
   const row = record(data)
   return { scheduleId: asScheduleId(row.id), updatedAt: asIsoDateTime(row.updated_at) }
+}
+
+export async function googleImportScheduleId(userId: UserId, googleCalendarId: string, eventKey: string): Promise<ScheduleId> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(['blanky-google-event', userId, googleCalendarId, eventKey]))))
+  digest[6] = (digest[6] & 0x0f) | 0x80
+  digest[8] = (digest[8] & 0x3f) | 0x80
+  const hex = [...digest.slice(0, 16)].map(byte => byte.toString(16).padStart(2, '0')).join('')
+  return asScheduleId(`${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`)
 }
 
 export async function casUpdateSchedule(admin: DbClient, input: {
@@ -365,7 +427,7 @@ export async function casUpdateSchedule(admin: DbClient, input: {
   draft: SnapshotRow
 }): Promise<'updated' | 'lost_race'> {
   const when = input.draft.when
-  const data = await one(query(admin, 'schedules').update({
+  const data = await one(withRepeatUntil(input.draft.recurrence, columns => query(admin, 'schedules').update({
     title: input.draft.title,
     description: input.draft.description,
     date: when.date,
@@ -375,9 +437,10 @@ export async function casUpdateSchedule(admin: DbClient, input: {
     end_date: when.allDay ? when.endDate : null,
     repeat_rule: input.draft.recurrence.freq,
     repeat_days: input.draft.recurrence.freq === 'weekly' ? [...input.draft.recurrence.days] : [],
+    ...columns,
     change_source: 'calendar_sync',
     updated_at: new Date().toISOString(),
-  }).eq('id', input.id).eq('updated_at', input.expectedUpdatedAt).select('id').maybeSingle())
+  }).eq('id', input.id).eq('updated_at', input.expectedUpdatedAt).select('id').maybeSingle()))
   return data ? 'updated' : 'lost_race'
 }
 
@@ -408,21 +471,14 @@ export async function deleteLink(admin: DbClient, input: { scheduleId: ScheduleI
   else await one(q.delete().eq('google_event_id', input.googleEventId))
 }
 
-export async function clonePersonalOntoBoundCalendar(admin: DbClient, input: {
+export async function bindPersonalToCalendar(admin: DbClient, input: {
   userId: UserId
   personalCalendarId: CalendarId
   boundCalendarId: CalendarId
 }): Promise<void> {
-  const rows = await one(query(admin, 'schedules').select('*').eq('calendar_id', input.personalCalendarId).eq('user_id', input.userId))
-  const colors = await categoryColors(admin, input.userId)
-  for (const value of Array.isArray(rows) ? rows : []) {
-    const row = mapScheduleRow(value)
-    await upsertSchedule(admin, {
-      userId: input.userId,
-      calendarId: input.boundCalendarId,
-      draft: snapshotRowFromSchedule(row, colors),
-    })
-  }
+  // Keep the original ID and task metadata; cloning created two independently editable rows.
+  await one(query(admin, 'schedules').update({ calendar_id: input.boundCalendarId })
+    .eq('calendar_id', input.personalCalendarId).eq('user_id', input.userId))
 }
 
 export async function disconnectConnection(admin: DbClient, connection: Connection, disposition: DisconnectDisposition): Promise<void> {

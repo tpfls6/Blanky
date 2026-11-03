@@ -42,7 +42,7 @@ function isMissingFunction(body: Record<string, unknown>, message: string): bool
   return code === 'NOT_FOUND' || text.includes('requested function was not found') || text.includes('function not found')
 }
 
-async function invoke(client: SupabaseClient, body: unknown): Promise<Record<string, unknown>> {
+async function invoke(client: SupabaseClient, body: Record<string, unknown>): Promise<Record<string, unknown>> {
   const { data, error } = await client.functions.invoke('google-calendar', { body })
   const payload = record(data)
   if (payload.error) throw asCalendarSyncError(payload.error)

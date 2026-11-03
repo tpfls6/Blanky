@@ -1,0 +1,22 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(8);
+insert into auth.users(id,email) values ('a3000000-0000-0000-0000-000000000001','deadline@example.test');
+insert into public.schedules(id,user_id,kind,title,date,due_date)
+values ('a4000000-0000-0000-0000-000000000001','a3000000-0000-0000-0000-000000000001','task','Deadline','2026-10-29','2026-11-02');
+set local role authenticated;
+set local request.jwt.claim.sub = 'a3000000-0000-0000-0000-000000000001';
+select is((select due_time from public.schedules where id='a4000000-0000-0000-0000-000000000001'),null::time,'date-only deadlines have no clock');
+update public.schedules set due_time='15:00' where id='a4000000-0000-0000-0000-000000000001';
+select is((select due_time from public.schedules where id='a4000000-0000-0000-0000-000000000001'),'15:00'::time,'owner can edit clock');
+select throws_ok($$update public.schedules set due_date=null where id='a4000000-0000-0000-0000-000000000001'$$,'23514',null,'clock requires date');
+select throws_ok($$update public.schedules set kind='event' where id='a4000000-0000-0000-0000-000000000001'$$,'23514',null,'event cannot have deadline clock');
+update public.schedules set status='done' where id='a4000000-0000-0000-0000-000000000001';
+select is((select due_time from public.schedules where id='a4000000-0000-0000-0000-000000000001'),'15:00'::time,'completion preserves deadline');
+update public.schedules set due_date=null,due_time=null where id='a4000000-0000-0000-0000-000000000001';
+select is((select due_time from public.schedules where id='a4000000-0000-0000-0000-000000000001'),null::time,'owner can clear deadline');
+select is((select due_date from public.schedules where id='a4000000-0000-0000-0000-000000000001'),null::date,'date is cleared too');
+set local request.jwt.claim.sub = 'b3000000-0000-0000-0000-000000000002';
+select is((select count(*) from public.schedules where id='a4000000-0000-0000-0000-000000000001'),0::bigint,'other users cannot read deadline');
+select * from finish();
+rollback;

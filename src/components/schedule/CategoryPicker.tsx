@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 import { IconView } from '../../constants/icons.ts'
 import type { WorkspaceCategory } from '../../types/work.ts'
@@ -8,6 +9,19 @@ type CategoryPickerProps = {
   categories: WorkspaceCategory[]
   value: string | null
   onChange: (id: string | null) => void
+}
+
+// Fixed to the viewport so scroll containers and dialogs never clip the menu.
+function placeMenu(anchor: DOMRect): CSSProperties {
+  const margin = 8
+  const gap = 4
+  const width = Math.min(Math.max(224, anchor.width), window.innerWidth - margin * 2)
+  const left = Math.min(Math.max(anchor.left, margin), window.innerWidth - margin - width)
+  const below = window.innerHeight - anchor.bottom - margin - gap
+  const above = anchor.top - margin - gap
+  const up = below < 260 && above > below
+  const maxHeight = Math.min(300, Math.max(140, up ? above : below))
+  return { left, width, maxHeight, ...(up ? { bottom: window.innerHeight - anchor.top + gap } : { top: anchor.bottom + gap }) }
 }
 
 type Option = {
@@ -23,6 +37,9 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
   const [active, setActive] = useState(0)
   const listId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [place, setPlace] = useState<CSSProperties | null>(null)
   const label = categoryPath(value, categories) ?? '카테고리'
 
   const options = useMemo(() => {
@@ -45,9 +62,35 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
     return rows.filter((option) => option.keywords.toLocaleLowerCase('ko').includes(text))
   }, [categories, query])
 
-  useEffect(() => {
-    if (open) inputRef.current?.focus()
+  useLayoutEffect(() => {
+    if (!open) return
+    const update = () => {
+      const rect = buttonRef.current?.getBoundingClientRect()
+      if (rect) setPlace(placeMenu(rect))
+    }
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
   }, [open])
+
+  const ready = open && place !== null
+
+  useEffect(() => {
+    if (!ready) return
+    inputRef.current?.focus()
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+      setQuery('')
+    }
+    document.addEventListener('pointerdown', onPointer)
+    return () => document.removeEventListener('pointerdown', onPointer)
+  }, [ready])
 
 
   const choose = (id: string | null) => {
@@ -59,6 +102,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
   return (
     <div className="relative">
       <button data-theme-slot="button"
+        ref={buttonRef}
         type="button"
         aria-expanded={open}
         aria-controls={listId}
@@ -68,8 +112,8 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
         <span className="truncate">{label}</span>
         <ChevronDown className="size-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
       </button>
-      {open ? (
-        <div className="menu absolute z-20 mt-1 w-56 p-1.5">
+      {open && place ? createPortal(
+        <div ref={menuRef} className="menu fixed z-[60] flex flex-col p-1.5" style={place}>
           <input data-theme-slot="input"
             ref={inputRef}
             value={query}
@@ -101,7 +145,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
             }}
             className="field w-full"
           />
-          <div id={listId} role="listbox" aria-label="카테고리" className="mt-1 max-h-56 overflow-y-auto">
+          <div id={listId} role="listbox" aria-label="카테고리" className="mt-1 min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {options.map((option, index) => {
               const selected = option.id === '' ? value === null : value === option.id
               const category = categories.find((item) => item.id === option.id)
@@ -128,7 +172,8 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
               )
             })}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   )

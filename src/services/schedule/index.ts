@@ -38,6 +38,7 @@ export function draftFromParsed(
     endTime: parsed.draft.endTime ?? '',
     duration: minutesBetween(parsed.draft.startTime, parsed.draft.endTime),
     dueDate: parsed.draft.dueDate ?? '',
+    dueTime: parsed.draft.dueTime ?? '',
     categoryId,
     description: '',
     status: 'todo',
@@ -70,8 +71,11 @@ export async function classifySchedule(
 }
 
 export async function analyzeSchedules(text: string, categories: WorkspaceCategory[], today: Date): Promise<ScheduleAnalysis> {
-  if (!isSupabaseConfigured) return resolveScheduleAnalysis(text, { today, categories })
-  return analyzeScheduleFromText({ text, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul' })
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(today)
+  const part = (key: string) => Number(parts.find(value => value.type === key)!.value)
+  const anchor = new Date(part('year'), part('month') - 1, part('day'))
+  if (!isSupabaseConfigured) return resolveScheduleAnalysis(text, { today: anchor, categories })
+  return analyzeScheduleFromText({ text, timezone: 'Asia/Seoul' })
 }
 
 export async function recordScheduleFeedback(draft: ScheduleDraft): Promise<void> {

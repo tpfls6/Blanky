@@ -1,0 +1,10 @@
+ts	phase	decision	why	evidence	result
+2026-10-27T02:35:00Z	start	started the user-page block builder run	figure-it-out for a large feature that must not rewrite core pages	agent this-session	open
+2026-10-27T02:36:00Z	frame	done when a signed-in user can create a custom page, edit blocks, persist, and keep Home/Schedule/Diary/Reading/Memo working	falsifiable predicate on the real app	src/pages/Custom/CustomPage.tsx src/features/pages/PageCanvas.tsx	framed
+2026-10-27T02:37:00Z	design	new builder next to PageCanvas and records Builder, no Tiptap or dnd-kit	PageCanvas is a widget grid for four core pages, records Builder is a form schema, Sortable and Tiptap already exist	src/features/pages/layout.ts src/features/records/Builder.tsx package.json	skipped arena
+2026-10-27T02:50:00Z	unit	schema ops and templates pass four node tests	needed a check that fails if convert, columns, undo, or coerce break	tests/pageBuilder.test.ts	tests green
+2026-10-27T03:10:00Z	persist	user_pages table with owner RLS, local library cache, 600ms mirror	same write-through pattern as custom record types, no new npm package	supabase/migrations/20261027120000_user_pages.sql src/services/pages/index.ts	unit RLS regex green
+2026-10-27T03:20:00Z	ui	PageBuilder plus sidebar pages plus widget refs	reuse Sortable and slash menu from records, widgets read live library data	src/features/builder/PageBuilder.tsx src/pages/Pages/UserPage.tsx	vite compiled, no overlay
+2026-10-27T03:25:00Z	verify	live editor path not driven	login wall at localhost:5174/login, no demo credentials used	http://localhost:5174/login	INCONCLUSIVE
+2026-10-27T03:50:00Z	verify	unit+tsc green, live login still blocked	pageBuilder+workspace 11 pass, tsc 0	tests/pageBuilder.test.ts tests/workspace.test.ts	unit green live INCONCLUSIVE
+2026-10-27T03:51:00Z	done	hand back architecture report	predicate unproven in the signed-in browser	6cb30f0	handed

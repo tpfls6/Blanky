@@ -2,8 +2,11 @@ import { formatClock, parseClock } from '@blanky/utils'
 import { normalizeRepeatDays, repeatsOn } from '../../packages/types/src/recurrence.ts'
 import { CATEGORIES } from '../data/mockWorkspace.ts'
 import { parseQuick } from './parseQuick.ts'
+import { occursOn } from './calendarMonth.ts'
 import type { Priority } from '@blanky/types'
 import type { CategoryKind, RepeatRule, WorkInput, WorkItem, WorkspaceCategory } from '../types/work.ts'
+
+export { occursOn }
 
 /** Stored kind wins. Missing kind: roots are areas, children of the seed "project" area are projects. */
 export function categoryKind(category: Pick<WorkspaceCategory, 'kind' | 'parentId'>): CategoryKind {
@@ -109,10 +112,13 @@ export function createWorkItem(input: WorkInput, options: { inferEndTime?: boole
     priority: input.priority ?? 'medium',
     status: input.status ?? 'todo',
     dueDate: input.kind === 'task' ? input.dueDate || null : null,
+    dueTime: input.kind === 'task' && input.dueDate ? input.dueTime || null : null,
     endDate,
     allDay,
     repeat: input.repeat ?? 'none',
     repeatDays: input.repeat === 'weekly' ? normalizeRepeatDays(input.repeatDays) : [],
+    // Kept absent unless given, so rows from an un-migrated DB never send the column.
+    ...(input.repeatUntil !== undefined ? { repeatUntil: input.repeat && input.repeat !== 'none' ? input.repeatUntil || null : null } : {}),
   }
 }
 
@@ -170,19 +176,6 @@ export function categoryPath(
   if (!category.parentId) return category.name
   const parent = categories.find((item) => item.id === category.parentId)
   return parent ? `${parent.name} > ${category.name}` : category.name
-}
-
-export function occursOn(item: WorkItem, date: string): boolean {
-  if (item.kind === 'task') return repeatsOn(item, date) || item.dueDate === date
-  const end = item.endDate && item.endDate >= item.date ? item.endDate : item.date
-  const span = Math.round((Date.parse(end) - Date.parse(item.date)) / 86400000)
-  if (!item.repeat || item.repeat === 'none') return item.date <= date && date <= end
-  // Include an occurrence's multi-day tail, without generating duplicate DB rows.
-  for (let offset = 0; offset <= Math.min(span, 366); offset++) {
-    const anchor = new Date(Date.parse(date) - offset * 86400000).toISOString().slice(0, 10)
-    if (repeatsOn(item, anchor)) return true
-  }
-  return false
 }
 
 export function spansDays(item: WorkItem): boolean {
@@ -469,3 +462,4 @@ export function selfCheckWork(): void {
   if (children[0] !== 'stockmate') throw new Error('reorder child')
   if (reorderAmongSiblings(CATEGORIES, 'blanky', 'school') !== CATEGORIES) throw new Error('reorder scope')
 }
+

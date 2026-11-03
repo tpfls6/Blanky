@@ -1,0 +1,14 @@
+
+} catch (error) {
+  log('FAIL ' + (error instanceof Error ? error.message : String(error)))
+  await finish(false, { error: error instanceof Error ? error.stack : String(error) }).catch(() => undefined)
+  throw error
+} finally {
+  ws.close()
+  server.kill()
+  const stopped = new Promise((resolvePromise) => browser.once('exit', resolvePromise))
+  browser.kill()
+  await stopped
+  if (resolve(profile).startsWith(resolve(tmpdir()) + '\\') && profile.includes('blanky-customization-test-')) await rm(profile, { recursive: true, force: true }).catch(() => undefined)
+}
+

@@ -74,6 +74,8 @@ export type ScheduleTab = 'all' | 'timeline' | 'tasks'
 
 export type TimelineDensity = 'compact' | 'default' | 'comfortable'
 
+export type CalendarView = 'simple' | 'detailed'
+
 /** `last` repeats the chip the user saved with most recently. */
 export type HomeInputDefault = 'auto' | 'schedule' | 'task' | 'diary' | 'memo' | 'reading' | 'last'
 
@@ -108,6 +110,7 @@ export type Settings = {
   taskDefaultDuration: number
   defaultEventMinutes: number
   timelineDensity: TimelineDensity
+  calendarView: CalendarView
   homeDefaultInput: HomeInputDefault
   lastInputType: string
   autoClassify: boolean
@@ -116,6 +119,9 @@ export type Settings = {
   notifyEvents: boolean
   notifyTasks: boolean
   customTemplatesGuideSeen: boolean
+  onboardingDone: boolean
+  /** Pages whose first-visit guide was finished or skipped; synced with the other preferences. */
+  onboardingPages: string[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -131,6 +137,7 @@ export const DEFAULT_SETTINGS: Settings = {
   taskDefaultDuration: 60,
   defaultEventMinutes: 60,
   timelineDensity: 'default',
+  calendarView: 'simple',
   homeDefaultInput: 'auto',
   lastInputType: 'auto',
   autoClassify: true,
@@ -139,6 +146,8 @@ export const DEFAULT_SETTINGS: Settings = {
   notifyEvents: true,
   notifyTasks: true,
   customTemplatesGuideSeen: false,
+  onboardingDone: false,
+  onboardingPages: [],
 }
 
 export type CustomRecord = {

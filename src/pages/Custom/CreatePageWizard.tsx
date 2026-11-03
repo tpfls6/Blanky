@@ -8,7 +8,6 @@ import {
 } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { TemplateImport } from './PackageControls.tsx'
-import { TemplatePreview } from './TemplatePreview.tsx'
 
 const ICONS: Record<PageTemplateKind, string> = {
   diary: 'BookOpen',
@@ -29,20 +28,16 @@ export function CreatePageWizard({
   const [pane, setPane] = useState<'basic' | 'custom'>('basic')
   const [step, setStep] = useState(0)
   const [template, setTemplate] = useState<PageTemplateKind>(initial ?? 'diary')
-  const [preview, setPreview] = useState<PageTemplateKind>(initial ?? 'diary')
   const [name, setName] = useState(initial ? t(`custom.kind.${initial}`) : '')
   const [icon, setIcon] = useState(ICONS[initial ?? 'diary'])
   const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({ ...DEFAULT_FIELD_LABELS[initial ?? 'diary'] })
   const keys = FIELD_KEYS[template]
-  const shown = preview
-  const previewName = step === 0 ? t(`custom.kind.${shown}`) : name.trim() || t(`custom.kind.${template}`)
-  const previewLabels = step === 0 ? DEFAULT_FIELD_LABELS[shown] : fieldLabels
+  const pageName = name.trim() || t(`custom.kind.${template}`)
   const defaults = useMemo(() => DEFAULT_FIELD_LABELS[template], [template])
-  const stepTitle = step === 0 ? t('custom.pickTemplate') : step === 1 ? t('custom.namePage') : step === 2 ? t('custom.renameFields') : t('custom.preview')
+  const stepTitle = step === 0 ? t('custom.pickTemplate') : step === 1 ? t('custom.namePage') : t('custom.renameFields')
 
   const select = (next: PageTemplateKind) => {
     setTemplate(next)
-    setPreview(next)
     setIcon(ICONS[next])
     setName(t(`custom.kind.${next}`))
     setFieldLabels({ ...DEFAULT_FIELD_LABELS[next] })
@@ -56,19 +51,18 @@ export function CreatePageWizard({
           <button type="button" className="btn btn-ghost" onClick={() => (pane === 'custom' || step === 0 ? onCancel() : setStep((value) => value - 1))}>
             {pane === 'custom' || step === 0 ? t('custom.goBack') : t('custom.back')}
           </button>
-          {pane === 'basic' && step < 3 ? (
+          {pane === 'basic' && step < 2 ? (
             <button type="button" className="btn btn-primary" onClick={() => {
-              if (step === 0 && preview !== template) select(preview)
               setStep((value) => value + 1)
             }}>
               {t('custom.next')}
             </button>
           ) : null}
-          {pane === 'basic' && step >= 3 ? (
+          {pane === 'basic' && step >= 2 ? (
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => onCreate({ template, name: previewName, icon, fieldLabels })}
+              onClick={() => onCreate({ template, name: pageName, icon, fieldLabels })}
             >
               {t('custom.create')}
             </button>
@@ -85,22 +79,20 @@ export function CreatePageWizard({
       </div>
       {pane === 'custom' ? <TemplateImport list={false} /> : (
         <>
-          <p className="px-6 text-[11px] text-neutral-400">{t('custom.progress', { current: step + 1, total: 4 })}</p>
+          <p className="px-6 text-[11px] text-neutral-400">{t('custom.progress', { current: step + 1, total: 3 })}</p>
           <h2 className="px-6 text-sm font-medium">{stepTitle}</h2>
           {step === 0 ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 px-6">
+            <div className="template-choice-grid">
               {PAGE_TEMPLATES.map((kind) => (
                 <button
                   key={kind}
                   type="button"
                   aria-pressed={template === kind}
-                  className="template-card flex min-w-0 flex-col gap-0.5 rounded-md px-2.5 py-2 text-left"
-                  onMouseEnter={() => setPreview(kind)}
-                  onFocus={() => setPreview(kind)}
+                  className="template-card flex min-w-0 flex-col gap-0.5 rounded-md p-4 text-left"
                   onClick={() => select(kind)}
                 >
                   <span className="truncate text-sm font-medium">{t(`custom.kind.${kind}`)}</span>
-                  <span className="truncate text-[11px] text-neutral-400">{t(`custom.kindHint.${kind}`)}</span>
+                  <span className="text-xs leading-relaxed text-neutral-400">{t(`custom.kindHint.${kind}`)}</span>
                 </button>
               ))}
             </div>
@@ -125,9 +117,6 @@ export function CreatePageWizard({
               ))}
             </div>
           ) : null}
-          <div className="template-preview-slot" aria-live="polite">
-            <TemplatePreview key={shown} kind={shown} heading={previewName} labels={previewLabels} />
-          </div>
         </>
       )}
     </section>

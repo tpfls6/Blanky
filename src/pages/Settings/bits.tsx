@@ -66,7 +66,7 @@ export function Choice<T extends string | number>({
 }: {
   value: T
   current: T
-  label: string
+  label: ReactNode
   onPick: (value: T) => void
 }) {
   const on = current === value

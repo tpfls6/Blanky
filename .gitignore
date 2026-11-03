@@ -33,3 +33,6 @@ dist-ssr
 .tmp/diary-tests/
 .tmp/ai-tests/
 .tmp/arena-i18n/
+
+.claude
+.cursor

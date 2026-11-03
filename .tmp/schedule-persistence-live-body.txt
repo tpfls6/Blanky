@@ -1,0 +1,72 @@
+try {
+ await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable');
+ const failedResources=[];
+ ws.addEventListener('message',({data})=>{const m=JSON.parse(data);if(m.method==='Network.responseReceived' && m.params.response.status>=400 && m.params.response.url.includes('/rest/v1/')) failedResources.push({status:m.params.response.status,url:new URL(m.params.response.url).pathname})});
+ await withPlannerTestUser(async session=>{
+  const repository=createScheduleRepository(session.client);
+  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const original=await repository.create(session.userId,{kind:'task',title:'Live remote task',date:today,duration:30,dueDate:null,dueTime:null,priority:'medium'});
+  assert.equal((await session.client.from('user_pages').select('id').limit(1)).error,null,'user_pages exists and has authenticated grants');
+  await navigate(base+'/login'); await wait('document.querySelector("input[type=email]")','login form');
+  await fill('input[type=email]',session.email);await fill('input[type=password]',session.password);await click('button[type=submit]');
+  await wait('document.querySelector("#home-entry")','authenticated Home');
+  const key='blanky.library.'+session.userId;
+  await wait('JSON.parse(localStorage.getItem('+q(key)+')||"{}").items?.some(i=>i.id==='+q(original.id)+')','remote load');
+  await evaluate('(()=>{const key='+q(key)+';const data=JSON.parse(localStorage.getItem(key));data.items.push('+q({id:'task-exam',title:'Local sample task',kind:'task',date:today,startTime:null,endTime:null,duration:30,status:'todo',priority:'medium',categoryId:null,dueDate:null,dueTime:null,endDate:null,description:'',allDay:false,repeat:'none',calendarId:'local-personal:'+session.userId})+');localStorage.setItem(key,JSON.stringify(data))})()');
+  await navigate(base+'/schedule');
+  await wait('document.querySelector("[role=checkbox][aria-label=\"Live remote task 완료\"]")','remote checkbox');
+  const checkbox='[role=checkbox][aria-label="Live remote task 완료"]';
+  await click(checkbox);
+  for(let i=0;i<100;i++){const row=await session.client.from('schedules').select('status').eq('id',original.id).single();if(row.data?.status==='done')break;if(i===99)throw new Error('UI completion did not persist to Supabase');await pause(100)}
+  await navigate(base+'/schedule');
+  await wait('document.querySelector('+q(checkbox)+')?.getAttribute("aria-checked")==="true"','completion after refresh');
+  await click(checkbox);
+  for(let i=0;i<100;i++){const row=await session.client.from('schedules').select('status').eq('id',original.id).single();if(row.data?.status==='todo')break;if(i===99)throw new Error('UI completion undo did not persist');await pause(100)}
+  console.log('PASS live: remote completion and undo survive refresh.');
+  await click('button[aria-label="Local sample task 시간 추천"]');
+  await wait('document.querySelector("[data-planner-block]")||document.querySelector("[role=dialog] [role=alert]")','local recommendation');
+  assert.ok(await evaluate('document.querySelector("[data-planner-block]")'),await evaluate('document.querySelector("[role=dialog]")?.innerText'));
+  assert.equal((await session.client.from('schedules').select('id')).data.length,1,'recommendation has no writes');
+  await evaluate('document.querySelectorAll("[data-planner-block] input[type=checkbox]").forEach(el=>{if(!el.checked)el.click()})');
+  await button('선택한 1개 전체 적용');
+  await wait('JSON.parse(localStorage.getItem('+q(key)+')).items.some(i=>i.title==="Local sample task"&&i.startTime&&!i.id.startsWith("task-"))','local task saved as remote identity');
+  const created=(await session.client.from('schedules').select('id,start_time').eq('title','Local sample task')).data;
+  assert.equal(created.length,1);assert.ok(created[0].start_time);
+  await navigate(base+'/schedule');
+  await wait('document.querySelector("button[aria-label=\"Live remote task 시간 추천\"]")','remote recommendation button');
+  await click('button[aria-label="Live remote task 시간 추천"]');
+  await wait('document.querySelector("[data-planner-block]")||document.querySelector("[role=dialog] [role=alert]")','remote recommendation');
+  assert.ok(await evaluate('document.querySelector("[data-planner-block]")'),await evaluate('document.querySelector("[role=dialog]")?.innerText'));
+  await evaluate('document.querySelectorAll("[data-planner-block] input[type=checkbox]").forEach(el=>{if(!el.checked)el.click()})');
+  await button('선택한 1개 전체 적용');
+  await wait('JSON.parse(localStorage.getItem('+q(key)+')).items.some(i=>i.id==='+q(original.id)+'&&i.startTime)','remote time saved');
+  const updated=await session.client.from('schedules').select('id,start_time').eq('id',original.id).single();
+  assert.ok(updated.data.start_time);assert.equal((await session.client.from('schedules').select('id')).data.length,2,'no duplicate tasks');
+  await navigate(base+'/schedule');
+  await wait('JSON.parse(localStorage.getItem('+q(key)+')).items.find(i=>i.id==='+q(original.id)+')?.startTime','time assignment after refresh');
+  console.log('PASS live: local task-exam and remote UUID time recommendations apply and persist without duplicate creation.');
+  const inputs=[
+   ['금요일까지 도훈이 데모 영상 넘긴 거 확인하고 피피티 만들기',1],
+   ['내일까지 자료 조사하고 발표자료 만들기',1],
+   ['내일 3시 회의하고 금요일까지 보고서 제출',2],
+   ['월요일 운동하고 화요일 병원 가기',2],
+   ['금요일까지 PPT 만들고 발표 연습하기',1],
+   ['내일 장보기, 금요일 보고서 제출, 토요일 친구 만나기',3],
+  ];
+  for(const [text,count] of inputs){
+   const response=await session.client.functions.invoke('parse-schedule',{body:{text,timezone:'Asia/Seoul',format:'analysis-v1'}});
+   if(response.error){const info=await response.error.context?.json?.().catch(()=>({}));throw new Error('Deployed parser failed: '+info?.error?.code)}
+   assert.equal(response.data.items.length,count,text);
+   if(text.includes('도훈')){assert.equal(response.data.items[0].draft.title,'데모영상 확인 및 PPT 제작');assert.equal(response.data.items[0].draft.dueTime,null)}
+   console.log(JSON.stringify({deployedParser:'passed',expectedCount:count}));
+  }
+  assert.deepEqual(failedResources,[],'no REST 400/404 responses');
+  assert.equal(errors.length,0,errors.join('\n'));
+  console.log(JSON.stringify({livePersistence:'passed',databaseSchema:'repaired',completionReload:true,localAndRemoteRecommendations:true,parserInputs:6,restErrors:0,existingAccountsTouched:false}));
+ });
+} catch(error) {
+ console.log(JSON.stringify({testOnlyBrowserText:await evaluate('document.body.innerText.slice(-1800)').catch(()=>''),errors}));throw error;
+} finally {
+ ws.close();server.kill();const stopped=new Promise(resolve=>browser.once('exit',resolve));browser.kill();await stopped;
+ if(resolve(profile).startsWith(resolve(tmpdir())+'\\')&&profile.includes('blanky-planner-live-test-'))await rm(profile,{recursive:true,force:true}).catch(()=>undefined);
+}

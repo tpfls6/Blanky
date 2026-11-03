@@ -1,5 +1,7 @@
 import { Plus } from 'lucide-react'
+import { PAGE_TOURS, replayHref } from '../../features/onboarding/tourState.ts'
 import { Link } from 'react-router-dom'
+import { ROUTES } from '../../constants/routes.ts'
 import { APP_LOCALES, type AppLocale } from '../../i18n/locale.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -144,6 +146,16 @@ export function GeneralSection() {
       </Group>
       <Group id="navigation" title={t('settings.general.navigationSection')} description={t('settings.general.navigationSectionHint')}>
         <NavSection />
+      </Group>
+      <Group id="help" title={t('settings.general.helpSection')} description={t('settings.general.helpSectionHint')}>
+        <div className="flex flex-wrap gap-2">
+          <Link to={ROUTES.guide} className="btn btn-line">{t('settings.general.openGuide')}</Link>
+          <Link to={replayHref('home')} className="btn btn-ghost">{t('settings.general.replayTour')}</Link>
+        </div>
+        <p className="mt-4 text-xs text-neutral-400">{t('settings.general.replayPages')}</p>
+        <div className="mt-2 flex flex-wrap gap-1">
+          {PAGE_TOURS.map((page) => <Link key={page} to={replayHref(page)} className="chip">{t(`nav.${page}`)}</Link>)}
+        </div>
       </Group>
     </Section>
   )

@@ -71,10 +71,13 @@ export function mapScheduleRow(value: unknown): Schedule {
     plannerApprovalKey: readNullableString(value.planner_approval_key),
     kind: value.kind === 'task' ? 'task' : 'event',
     dueDate: readNullableString(value.due_date),
+    dueTime: readClock(value.due_time),
     endDate: readNullableString(value.end_date),
     allDay: value.all_day === true,
     repeat: value.repeat_rule === 'daily' || value.repeat_rule === 'weekly' || value.repeat_rule === 'monthly' ? value.repeat_rule : 'none',
     repeatDays: normalizeRepeatDays(value.repeat_days),
+    ...('repeat_until' in value ? { repeatUntil: readNullableString(value.repeat_until) } : {}),
+    ...('series_id' in value ? { seriesId: readNullableString(value.series_id) } : {}),
     id: requireString(value.id, 'id'),
     userId: requireString(value.user_id, 'user_id'),
     calendarId: requireString(value.calendar_id, 'calendar_id'),
@@ -115,15 +118,20 @@ function toScheduleChange(value: unknown): ScheduleChange {
 }
 
 function scheduleColumns(draft: ScheduleDraft) {
+  if (draft.dueDate && !isCalendarDate(draft.dueDate) || draft.dueTime && (!draft.dueDate || !/^([01]\d|2[0-3]):[0-5]\d$/.test(draft.dueTime))) throw new AppError('INVALID_INPUT', '마감 날짜와 시각을 확인해 주세요.')
   if (!draft.date) throw new AppError('INVALID_INPUT', '날짜를 확인해 주세요.')
   return {
     ...(draft.calendarId !== undefined ? { calendar_id: draft.calendarId } : {}),
     kind: draft.kind ?? 'event',
-    due_date: draft.dueDate ?? null,
+    due_date: draft.kind === 'task' ? draft.dueDate ?? null : null,
+    due_time: draft.kind === 'task' && draft.dueDate ? draft.dueTime ?? null : null,
     end_date: draft.endDate ?? null,
     all_day: draft.allDay ?? false,
     repeat_rule: draft.repeat ?? 'none',
     repeat_days: draft.repeat === 'weekly' ? normalizeRepeatDays(draft.repeatDays) : [],
+    // Sent only when known, so saves keep working before the repeat_until migration is applied.
+    ...(draft.repeatUntil !== undefined ? { repeat_until: draft.repeat && draft.repeat !== 'none' ? draft.repeatUntil : null } : {}),
+    ...(draft.seriesId !== undefined ? { series_id: draft.seriesId } : {}),
     change_source: draft.changeSource ?? 'manual',
     title: draft.title,
     description: draft.description ?? '',
@@ -148,20 +156,33 @@ async function readRows(data: unknown): Promise<Schedule[]> {
 }
 
 export type ScheduleRepository = {
+  listByIds: (ids: string[]) => Promise<Schedule[]>
   listByDate: (date: string) => Promise<Schedule[]>
   listRange: (startDate: string, endDate: string) => Promise<Schedule[]>
   listForPlanning: (startDate: string, endDate: string) => Promise<Schedule[]>
   create: (userId: string, draft: ScheduleDraft) => Promise<Schedule>
+  /** Drafts may carry client ids: a retried insert that already landed returns the saved rows. */
+  createMany: (userId: string, drafts: (ScheduleDraft & { id?: string })[]) => Promise<Schedule[]>
   update: (id: string, draft: ScheduleDraft) => Promise<Schedule>
+  updateStatus: (id: string, status: ScheduleStatus, source?: 'manual' | 'ai_chat') => Promise<Schedule>
   remove: (id: string) => Promise<void>
   applyBatch: (key: string, deletes: string[]) => Promise<ScheduleBatchResult>
   listChanges: (scheduleId?: string) => Promise<ScheduleChange[]>
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export function createScheduleRepository(
   client: SupabaseClient<Database>,
 ): ScheduleRepository {
   return {
+    async listByIds(ids) {
+      if (!ids.length || ids.length > 200) throw new AppError('INVALID_INPUT', '1~200개 할 일을 선택해 주세요.')
+      if (ids.some(id => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) throw new AppError('INVALID_INPUT', '로컬 할 일은 서버 ID 조회에 사용할 수 없어요.')
+      const {data,error} = await client.from('schedules').select('*').in('id',ids)
+      if(error) throw mapDbError(error)
+      return readRows(data)
+    },
     async listForPlanning(startDate, endDate) {
       if (!isCalendarDate(startDate) || !isCalendarDate(endDate) || startDate > endDate) throw new AppError('INVALID_INPUT', '조회 날짜를 확인해 주세요.')
       const shift = (day: string, amount: number) => new Date(Date.parse(`${day}T00:00:00Z`) + amount * 86400000).toISOString().slice(0, 10)
@@ -203,6 +224,18 @@ export function createScheduleRepository(
       return readRows(data)
     },
 
+    async createMany(userId, drafts) {
+      if (!drafts.length || drafts.length > 20) throw new AppError('INVALID_INPUT', '1~20개 항목을 선택해 주세요.')
+      if (drafts.some(draft => !draft.title.trim() || !draft.date || !isCalendarDate(draft.date))) throw new AppError('INVALID_INPUT', '제목과 날짜를 확인해 주세요.')
+      const ids = drafts.map(draft => draft.id && UUID.test(draft.id) ? draft.id : null)
+      const { data, error } = await client.from('schedules').insert(drafts.map((draft, index) => ({ ...scheduleColumns(draft), ...(ids[index] ? { id: ids[index] } : {}), user_id: userId }))).select('*')
+      if (error?.code === '23505' && ids.every(Boolean)) {
+        const saved = await this.listByIds(ids as string[])
+        if (saved.length === ids.length) return ids.map(id => saved.find(row => row.id === id)!)
+      }
+      if (error) throw mapDbError(error)
+      return readRows(data)
+    },
     async create(userId, draft) {
       const { data, error } = await client
         .from('schedules')
@@ -214,6 +247,13 @@ export function createScheduleRepository(
       return mapScheduleRow(data)
     },
 
+    async updateStatus(id, status, source = 'manual') {
+      if (!STATUSES.includes(status)) throw new AppError('INVALID_INPUT', '완료 상태를 확인해 주세요.')
+      const { data, error } = await client.from('schedules')
+        .update({ status, change_source: source }).eq('id', id).select('*').single()
+      if (error) throw mapDbError(error, 'SCHEDULE_NOT_FOUND')
+      return mapScheduleRow(data)
+    },
     async update(id, draft) {
       const { data, error } = await client
         .from('schedules')

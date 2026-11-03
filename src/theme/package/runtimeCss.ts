@@ -79,7 +79,7 @@ export function runtimeCss(scope: string, theme: BlankyTheme, resolved: Resolved
             const hosts = [deco.slot, ...(deco.extra ?? [])];
             for (const host of hosts) {
                 rules.push(selector(host) + '{position:relative;}');
-                rules.push(selector(host) + '::' + deco.pseudo + '{content:"";pointer-events:none;display:block;background-image:' + url(u) + ';background-repeat:no-repeat;background-size:contain;background-position:' + deco.pos + ';opacity:' + (settings?.opacity ?? 100) / 100 + ';width:' + deco.size.split(' ')[0] + ';height:calc(' + deco.size.split(' ')[1] + ' * ' + size + ');flex:0 0 auto;}');
+                rules.push(selector(host) + '::' + deco.pseudo + '{content:"";pointer-events:none;display:block;background-image:' + url(u) + ';background-repeat:no-repeat;background-size:contain;background-position:' + deco.pos + ';opacity:' + (settings?.opacity ?? 100) / 100 + ';width:' + deco.size.slice(0, deco.size.lastIndexOf(' ')) + ';height:calc(' + deco.size.slice(deco.size.lastIndexOf(' ') + 1) + ' * ' + size + ');flex:0 0 auto;}');
                 if (host !== 'sidebar')
                     rules.push(selector(host) + '::' + deco.pseudo + '{position:absolute;z-index:0;inset:auto;top:' + (deco.pos.includes('top') ? '0' : 'auto') + ';bottom:' + (deco.pos.includes('bottom') ? '0' : 'auto') + ';right:' + (deco.pos.includes('right') ? '0' : 'auto') + ';left:' + (deco.pos.includes('left') ? '0' : deco.pos.includes('right') ? 'auto' : '50%') + ';}');
             }

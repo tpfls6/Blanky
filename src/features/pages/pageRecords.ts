@@ -25,7 +25,7 @@ function asNumber(value: FieldValue | undefined): number | null {
 }
 
 export function recordsForPage(records: readonly CustomRecord[], pageId: string): CustomRecord[] {
-  return records.filter((item) => item.typeId === pageId)
+  return records.filter((item) => item.typeId === pageId && item.values.kind !== 'blanky.page.reading-state')
 }
 
 export function packDiary(entry: DiaryEntry): { title: string; values: Record<string, FieldValue> } {
@@ -62,13 +62,15 @@ export function unpackDiary(record: CustomRecord): DiaryEntry {
   }
 }
 
-export function packMemo(entry: Pick<Memo, 'id' | 'title' | 'body' | 'createdAt' | 'updatedAt'>): { title: string; values: Record<string, FieldValue> } {
+export function packMemo(entry: Pick<Memo, 'id' | 'title' | 'body' | 'createdAt' | 'updatedAt'> & Partial<Pick<Memo, 'categoryId' | 'tags'>>): { title: string; values: Record<string, FieldValue> } {
   return {
     title: entry.title.trim() || '제목 없는 메모',
     values: {
       kind: pageTypeMarker('memo'),
       title: entry.title,
       body: entry.body,
+      categoryId: entry.categoryId ?? '',
+      tags: entry.tags ?? [],
       createdAt: entry.createdAt,
     },
   }
@@ -79,8 +81,8 @@ export function unpackMemo(record: CustomRecord): Memo {
     id: record.id,
     title: asString(record.values.title) || record.title,
     body: asString(record.values.body),
-    categoryId: null,
-    tags: [],
+    categoryId: asString(record.values.categoryId) || null,
+    tags: Array.isArray(record.values.tags) ? record.values.tags.filter((tag): tag is string => typeof tag === 'string') : [],
     createdAt: asString(record.values.createdAt) || record.createdAt,
     updatedAt: record.updatedAt,
   }

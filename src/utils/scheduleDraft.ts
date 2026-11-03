@@ -16,6 +16,7 @@ export type ParsedSnapshot = {
 }
 
 export type ScheduleDraft = {
+  priority?: import('@blanky/types').Priority
   repeat?: import('../types/work.ts').RepeatRule
   repeatDays?: number[]
   id: string | null
@@ -26,6 +27,7 @@ export type ScheduleDraft = {
   startTime: string
   endTime: string
   duration: string
+  dueTime?: string
   dueDate: string
   categoryId: string | null
   description: string
@@ -60,7 +62,7 @@ export function draftFromText(
   const parsed = parseQuick(normalized, today, categories, kind, selected)
   return {
     id: null,
-    kind,
+    kind: parsed.kind,
     title: tidyTitle(parsed.title),
     date: parsed.date,
     endDate: parsed.endDate ?? '',
@@ -68,6 +70,7 @@ export function draftFromText(
     endTime: parsed.endTime ?? '',
     duration: parsed.duration ? String(parsed.duration) : '',
     dueDate: parsed.dueDate ?? '',
+    dueTime: parsed.dueTime ?? '',
     categoryId: parsed.categoryId,
     description: '',
     status: 'todo',

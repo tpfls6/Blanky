@@ -437,3 +437,9 @@ verify_jwt = true
 
 [functions.planner-draft]
 verify_jwt = true
+
+[functions.korean-holidays]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
