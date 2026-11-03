@@ -2,6 +2,11 @@ import type { AnalysisItem, ScheduleDraftFields } from '../../../packages/types/
 import { AnalysisError, isCalendarDate } from '../../../packages/types/src/aiSchema.ts'
 import type { WorkInput } from '../../types/work.ts'
 
+/** Weekly repeat starts on for an explicit 매주 request or a rule-read weekday timetable (weekly-* items). */
+export function weeklyRequested(text: string, item: AnalysisItem): boolean {
+  return /매주|주마다|매\s*주/.test(text) || item.id.startsWith('weekly-')
+}
+
 /** Review can fill unknowns, but never substitutes today's date or a default duration. */
 export function reviewedWorkInput(item: AnalysisItem, draft: ScheduleDraftFields, noTimeConfirmed: boolean, categoryIds: string[], repeat: WorkInput['repeat'] = 'none', repeatDays: number[] = [], inferredTimeConfirmed = false): WorkInput {
   if (!['none', 'daily', 'weekly', 'monthly'].includes(repeat)) throw new AnalysisError('INVALID_INPUT', '반복 설정을 확인해 주세요.')

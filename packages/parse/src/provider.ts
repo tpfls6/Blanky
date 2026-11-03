@@ -55,6 +55,7 @@ export function readModelSchedule(value: unknown): ParsedSchedule | null {
       startTime: readClock(draft.startTime),
       endTime: readClock(draft.endTime),
       dueDate: readDay(draft.dueDate),
+      dueTime: type === 'task' && readDay(draft.dueDate) ? readClock(draft.dueTime) : null,
       endDate: readDay(draft.endDate),
       categoryId: typeof draft.categoryId === 'string' ? draft.categoryId : null,
     },
@@ -85,7 +86,8 @@ function parseJson(text: string): unknown {
 function schedulePrompt(input: ProviderParseInput): string {
   return [
     'Return JSON only.',
-    '{"type":"event|task","confidence":0.9,"draft":{"title":"","date":"YYYY-MM-DD or null","startTime":"HH:mm or null","endTime":"HH:mm or null","dueDate":"YYYY-MM-DD or null","endDate":null,"categoryId":null}}',
+    '{"type":"event|task","confidence":0.9,"draft":{"title":"","date":"YYYY-MM-DD or null","startTime":"HH:mm or null","endTime":"HH:mm or null","dueDate":"YYYY-MM-DD or null","dueTime":"HH:mm or null","endDate":null,"categoryId":null}}',
+    'Task deadline clocks belong only in dueTime, never startTime. Date-only deadlines have dueTime=null. Do not guess ambiguous AM/PM.',
     `Today ${input.today}. Timezone ${input.timezone}.`,
     `Rule: ${JSON.stringify({ type: input.type, draft: input.draft })}`,
     input.text,

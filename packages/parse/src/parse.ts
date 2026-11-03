@@ -1,3 +1,4 @@
+import { readDeadline } from './deadline.ts'
 import { addDays, formatISODate } from '../../utils/src/date.ts'
 import type {
   CategoryRef,
@@ -140,7 +141,8 @@ function parseDatePhrase(phrase: string, today: Date, anchor: Date | null): Date
   const month = Number(monthDay[1])
   const day = Number(monthDay[2])
   if (month < 1 || month > 12 || day < 1 || day > 31) return null
-  return new Date(today.getFullYear(), month - 1, day)
+  const result = new Date(today.getFullYear(), month - 1, day)
+  return result.getMonth() === month - 1 && result.getDate() === day ? result : null
 }
 
 export function parseKoreanDate(text: string, today: Date, anchor: Date | null = null): string | null {
@@ -210,11 +212,7 @@ export function parseDateRange(text: string, today: Date): { start: string; end:
 }
 
 export function parseDueDate(text: string, today: Date): string | null {
-  const withoutTime = text.replace(TIME_RANGE, ' ')
-  const deadline = new RegExp(`(${DATE_PHRASE})\\s*까지`).exec(withoutTime)
-  if (!deadline) return null
-  const date = parseDatePhrase(deadline[1] ?? '', today, null)
-  return date ? formatISODate(date) : null
+  return readDeadline(text, today)?.date ?? null
 }
 
 export function parseDuration(text: string): number | null {
@@ -332,6 +330,8 @@ export function parseScheduleText(text: string, context: ParseContext): ParsedSc
   const today = context.today
   let rest = text.replace(/\s+/g, ' ').trim().replace(/한\s*시간/g, '1시간')
   const original = rest
+  const deadline = readDeadline(rest, today)
+  if (deadline) rest = deadline.rest
 
   let startTime: string | null = null
   let endTime: string | null = null
@@ -368,7 +368,7 @@ export function parseScheduleText(text: string, context: ParseContext): ParsedSc
 
   let date: string | null = null
   let endDate: string | null = null
-  let dueDate: string | null = null
+  let dueDate: string | null = deadline?.date ?? null
   const span = parseDateRange(rest, today)
   if (span) {
     date = span.start
@@ -376,7 +376,7 @@ export function parseScheduleText(text: string, context: ParseContext): ParsedSc
     const range = new RegExp(`(${DATE_PHRASE})\\s*부터\\s*(?:시작해서\\s*)?(${DATE_PHRASE})\\s*까지`).exec(rest)
     if (range) rest = rest.replace(range[0], ' ')
   } else {
-    dueDate = parseDueDate(rest, today)
+    dueDate = deadline?.date ?? parseDueDate(rest, today)
     if (dueDate) {
       const deadline = new RegExp(`(${DATE_PHRASE})\\s*까지`).exec(rest)
       if (deadline) rest = rest.replace(deadline[0], ' ')
@@ -391,7 +391,7 @@ export function parseScheduleText(text: string, context: ParseContext): ParsedSc
   }
 
   rest = rest.replace(/[^\s,]+\s*카테고리|카테고리\s*[^\s,]+/g, ' ')
-  const title = rest.replace(/[,\s]+/g, ' ').trim()
+  const title = rest.replace(/[,\s]+/g, ' ').trim().replace(/^(\S+?)이가\s+(.+?)\s*주는\s*거\s*확인$/, '$1이 $2 전달 확인')
 
   const hintedEvent = scoreHints(original, EVENT_HINTS)
   const hintedTask = scoreHints(original, TASK_HINTS)
@@ -399,7 +399,7 @@ export function parseScheduleText(text: string, context: ParseContext): ParsedSc
   const eventScore = hintedEvent + learned.eventScore
   const taskScore = hintedTask + learned.taskScore
   const hasTime = Boolean(startTime)
-  const type = chooseKind(eventScore, taskScore, hasTime, Boolean(dueDate), Boolean(date))
+  const type = chooseKind(eventScore, taskScore, hasTime, Boolean(deadline || dueDate), Boolean(date))
   const hasDate = Boolean(date || dueDate || endDate)
   const categoryId = learned.categoryId ?? matchCategory(original, context.categories ?? [])
   const resolvedDate = date ?? (dueDate && type === 'task' ? dueDate : null) ?? context.fallbackDate ?? formatISODate(today)
@@ -416,6 +416,7 @@ export function parseScheduleText(text: string, context: ParseContext): ParsedSc
       date: resolvedDate,
       startTime,
       endTime,
+      dueTime: type === 'task' ? deadline?.time ?? null : null,
       dueDate: type === 'task' ? dueDate ?? (endDate && endDate !== resolvedDate ? endDate : null) : null,
       endDate: type === 'event' && endDate && endDate !== resolvedDate ? endDate : null,
       categoryId,

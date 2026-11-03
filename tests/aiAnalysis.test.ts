@@ -8,7 +8,7 @@ import { createOpenAIAnalysisProvider } from '../packages/parse/src/analysisProv
 import { resolveScheduleAnalysis } from '../packages/parse/src/resolve.ts'
 import { createScheduleHandler } from '../supabase/functions/parse-schedule/handler.ts'
 import { analyzeScheduleFromText, parseScheduleFromText } from '../packages/api/src/ai.ts'
-import { reviewedWorkInput } from '../src/features/ai/review.ts'
+import { reviewedWorkInput, weeklyRequested } from '../src/features/ai/review.ts'
 import { conversationIntent } from '../src/features/ai/conversation.ts'
 import { readSpokenTimeRange } from '../packages/parse/src/timeRange.ts'
 import { normalizeRepeatDays, repeatsOn } from '../packages/types/src/recurrence.ts'
@@ -109,6 +109,69 @@ test('single explicit weekly range supports prefix notation and stays in rule pr
   assert.match(result.items[0].id,/^weekly-/)
 })
 
+test('weekday timetable without 매주 splits into one weekly event per weekday', async () => {
+  const input = '화요일 오전 9~13시, 목/금 9to6 근로'
+  for (const options of [{}, { provider: { analyze: async () => { throw new AnalysisError() } } }]) {
+    const result = await resolveScheduleAnalysis(input, { today: new Date(2026, 9, 15) }, options)
+    assert.equal(result.items.length, 3)
+    assert.deepEqual(result.items.map(item => [item.draft.title, item.draft.date, item.draft.startTime, item.draft.endTime]), [
+      ['근로', '2026-10-20', '09:00', '13:00'], ['근로', '2026-10-15', '09:00', '18:00'], ['근로', '2026-10-16', '09:00', '18:00']])
+    assert.ok(result.items.every(item => weeklyRequested(input, item)))
+    const thursday = reviewedWorkInput(result.items[1], result.items[1].draft, false, [], 'weekly', [], true)
+    assert.equal(thursday.repeat, 'weekly')
+    assert.ok(repeatsOn(thursday, '2026-10-22') && !repeatsOn(thursday, '2026-10-23'))
+  }
+})
+
+test('weekday lists and unit-less ranges share the title across every weekday', async () => {
+  const today = new Date(2026, 9, 15)
+  for (const [input, dates, end] of [
+    ['월수금 9-18 근로', ['2026-10-19', '2026-10-21', '2026-10-16'], '18:00'],
+    ['화·목·금 오전 9시부터 오후 6시 알바', ['2026-10-20', '2026-10-15', '2026-10-16'], '18:00'],
+    ['근로 화요일 9-13시, 목/금 9-18시', ['2026-10-20', '2026-10-15', '2026-10-16'], null],
+    ['화, 목 9시~18시 근로', ['2026-10-20', '2026-10-15'], '18:00'],
+  ] as const) {
+    const result = await resolveScheduleAnalysis(input, { today })
+    assert.deepEqual(result.items.map(item => item.draft.date), dates, input)
+    assert.ok(result.items.every(item => item.id.startsWith('weekly-') && item.draft.startTime === '09:00'), input)
+    if (end) assert.ok(result.items.every(item => item.draft.endTime === end), input)
+  }
+  assert.deepEqual([readSpokenTimeRange('9~13시')?.endTime, readSpokenTimeRange('9to6', { bare: true })?.endTime, readSpokenTimeRange('9-18', { bare: true })?.endTime], ['13:00', '18:00', '18:00'])
+  assert.equal(readSpokenTimeRange('9-18'), null)
+  assert.equal(readSpokenTimeRange('9-13일 출장', { bare: true }), null)
+  assert.equal(readSpokenTimeRange('2026-10-15 회의', { bare: true }), null)
+})
+
+test('class timetable keeps every same-day range as its own weekly event', async () => {
+  const input = '화요일 오후 14시~16시50분 인공지능프로젝트 수업, 수요일 오전 10~12:50 컴보안 수업, 14:00~16:50분 졸작 수업'
+  for (const options of [{}, { provider: { analyze: async () => { throw new AnalysisError() } } }]) {
+    const result = await resolveScheduleAnalysis(input, { today: new Date(2026, 10, 3) }, options)
+    assert.deepEqual(result.items.map(item => [item.draft.title, item.draft.date, item.draft.startTime, item.draft.endTime]), [
+      ['인공지능프로젝트 수업', '2026-11-03', '14:00', '16:50'], ['컴보안 수업', '2026-11-04', '10:00', '12:50'], ['졸작 수업', '2026-11-04', '14:00', '16:50']])
+    assert.ok(result.items.every(item => weeklyRequested(input, item) && !item.uncertainties.length))
+    assert.equal(result.items[2].evidence.date, '수요일')
+  }
+  assert.deepEqual([readSpokenTimeRange('오후 14시~16시50분')?.endTime, readSpokenTimeRange('14:00~16:50분')?.endTime, readSpokenTimeRange('10~12:50', { bare: true })?.startTime], ['16:50', '16:50', '10:00'])
+  assert.equal(readSpokenTimeRange('오전 14시~16시'), null)
+  // Same-day ranges split even when the titles are not a timetable; the weekday carries over but recurrence does not.
+  const plan = await resolveScheduleAnalysis('수요일 오전 10~12:50 회의, 14:00~16:50분 병원', { today: new Date(2026, 10, 3) })
+  assert.deepEqual(plan.items.map(item => [item.draft.title, item.draft.date, item.draft.startTime, item.draft.endTime, item.id.includes('weekly-')]), [
+    ['회의', '2026-11-04', '10:00', '12:50', false], ['병원', '2026-11-04', '14:00', '16:50', false]])
+})
+
+test('single weekday, dated or differently titled clauses do not become a weekly timetable', async () => {
+  const today = new Date(2026, 9, 15)
+  const single = await resolveScheduleAnalysis('화요일 오후 3시 회의', { today })
+  assert.equal(single.items.length, 1)
+  assert.ok(!weeklyRequested('화요일 오후 3시 회의', single.items[0]))
+  const mixed = await resolveScheduleAnalysis('화요일 9-13시 회의, 목요일 3시~5시 병원', { today })
+  assert.deepEqual(mixed.items.map(item => [item.draft.title, item.draft.startTime, item.draft.endTime]), [['회의', '09:00', '13:00'], ['병원', '15:00', '17:00']])
+  // Meridiem-less 3시~5시 is only a suggestion until the user confirms it.
+  assert.throws(() => reviewedWorkInput(mixed.items[1], mixed.items[1].draft, false, []), { code: 'TIME_CONFIRMATION_REQUIRED' })
+  assert.deepEqual([readSpokenTimeRange('3시~5시')?.estimated, readSpokenTimeRange('10시~12시')?.estimated, readSpokenTimeRange('09:00~11:00')?.estimated, readSpokenTimeRange('9시부터 13시')?.estimated], [true, true, false, false])
+  assert.ok(mixed.items.every(item => !item.id.includes('weekly-')))
+})
+
 test('simple dates, deadlines, time ranges never invoke the real transport', async () => {
   let calls = 0
   const provider = createOpenAIAnalysisProvider({ key: 'mock', fetch: async () => { calls++; return modelResponse() } })
@@ -179,7 +242,6 @@ test('schema rejects missing fields, invalid dates/times, unknown properties and
     value => { value.items[0].draft.categoryId = 'invented' },
     value => { value.items[0].evidence.date = '2026-10-14' },
     value => { value.items[0].evidence.date = '회의' },
-    value => { value.items[1].uncertainties = [] },
   ]
   for (const mutate of mutations) {
     const value = fixture()
@@ -215,7 +277,8 @@ test('API failure stops analysis, never falls back to a collapsed schedule, and 
   }
   const timeout = createOpenAIAnalysisProvider({ key: 'mock', fetch: async () => { throw new DOMException('timeout', 'TimeoutError') } })
   await assert.rejects(resolveScheduleAnalysis(text, context, { provider: timeout }), { code: 'AI_UNAVAILABLE' })
-  await assert.rejects(resolveScheduleAnalysis(text, context), { code: 'AI_NOT_CONFIGURED' })
+  // Explicitly dated independent clauses can now be resolved without AI.
+  assert.equal((await resolveScheduleAnalysis(text, context)).items.length, 2)
   assert.deepEqual(existing, [{ id: 'existing', title: '기존 일정' }])
 })
 

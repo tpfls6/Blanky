@@ -2,7 +2,7 @@ import type { ScheduleAnalysis, TemporalField } from './ai.ts'
 
 const string = { type: 'string', minLength: 1, maxLength: 1000 } as const
 const nullable = { type: ['string', 'null'], minLength: 1, maxLength: 1000 } as const
-const temporal = ['date', 'startTime', 'endTime', 'dueDate', 'endDate'] as const
+const temporal = ['date', 'startTime', 'endTime', 'dueDate', 'dueTime', 'endDate'] as const
 const object = (properties: Record<string, unknown>) => ({
   type: 'object', properties, required: Object.keys(properties), additionalProperties: false,
 })
@@ -14,11 +14,12 @@ export const SCHEDULE_ANALYSIS_SCHEMA = object({
     type: { type: 'string', enum: ['event', 'task'] },
     confidence: { type: 'number', minimum: 0, maximum: 1 },
     source: { type: 'string', enum: ['rule', 'personal_rule', 'ai'] },
-    draft: object({ title: string, ...Object.fromEntries(temporal.map(key => [key, {
+    draft: object({ title: string, description: string, ...Object.fromEntries(temporal.map(key => [key, {
       type: ['string', 'null'], pattern: key.endsWith('Time') ? '^([01]\\d|2[0-3]):[0-5]\\d$' : '^\\d{4}-\\d{2}-\\d{2}$',
     }])), categoryId: nullable }),
     evidence: object(Object.fromEntries(temporal.map(key => [key, nullable]))),
     categoryReason: nullable,
+    priorityRecommendation: object({priority: {type:'string',enum:['high','medium','low']}, reason: string}),
     uncertainties: { type: 'array', maxItems: 20, items: object({
       field: { type: 'string', enum: [...temporal, 'title', 'type', 'categoryId'] }, reason: string,
     }) },
@@ -53,7 +54,8 @@ function check(value: unknown, schema: Schema): void {
     value.forEach(item => check(item, schema.items!))
   } else if (kind === 'object') {
     const row = value as Record<string, unknown>
-    if (schema.required?.some(key => !Object.hasOwn(row, key))) invalid()
+    // dueTime was added to v1; legacy persisted drafts/evidence omit it.
+    if (schema.required?.some(key => key !== 'dueTime' && key !== 'description' && key !== 'priorityRecommendation' && !Object.hasOwn(row, key))) invalid()
     for (const key of Object.keys(row)) {
       const child = schema.properties?.[key]
       if (!child && schema.additionalProperties === false) invalid()
@@ -84,18 +86,23 @@ export function validateScheduleAnalysis(value: unknown, options: { text?: strin
       if (!field && evidence) invalid()
       if (evidence && options.text && !options.text.includes(evidence)) invalid()
       if (field && evidence) {
-        const cue = key.endsWith('Time') ? /\d{1,2}\s*(?:시|:)|정오|자정|오전|오후|저녁|밤|\d+\s*(?:시간|분)/ : /오늘|내일|모레|주말|요일|이번\s*주|다음\s*주|\d+\s*(?:월|일)|\d{4}-\d{2}-\d{2}/
-        const abbreviatedWeekday = !key.endsWith('Time') && /^[월화수목금토일]$/.test(evidence) && !!options.text && new RegExp(`(?:^|[\\s,，/])${evidence}(?=[/\\s,，]|$)`).test(options.text)
+        if (key === 'dueTime' && !/오전|오후|저녁|밤|\d{1,2}:\d{2}|(?:1[3-9]|2[0-3])\s*시/.test(evidence)) invalid()
+        const cue = key.endsWith('Time') ? /\d{1,2}\s*(?:시|:)|정오|자정|오전|오후|저녁|밤|\d+\s*(?:시간|분)|^\d{1,2}\s*(?:~|〜|–|-|to)\s*\d{1,2}$/i : /오늘|내일|모레|주말|요일|이번\s*주|다음\s*주|\d+\s*(?:월|일)|\d{4}-\d{2}-\d{2}/
+        // Abbreviated weekdays and lists of them (목, 목/금, 화·목·금, 월수금) count only as a standalone weekday run in the text.
+        const day = '[월화수목금토일](?:요일)?', sep = '\\s*[/·・,，、]?\\s*'
+        const abbreviatedWeekday = !key.endsWith('Time') && new RegExp(`^${day}(?:${sep}${day})*$`).test(evidence) && !!options.text &&
+          new RegExp(`(?<![가-힣])(?:${day}${sep})*${evidence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:${sep}${day})*(?![가-힣])`).test(options.text)
         if (!cue.test(evidence) && !abbreviatedWeekday) invalid()
       }
     }
-    if (item.type === 'event' && item.draft.dueDate) invalid()
+    if (item.draft.dueTime && !item.draft.dueDate) invalid()
+    if (item.type === 'event' && (item.draft.dueDate || item.draft.dueTime)) invalid()
     if (item.type === 'task' && item.draft.endDate) invalid()
     if (item.draft.endTime && !item.draft.startTime) invalid()
     if (item.draft.endDate && (!item.draft.date || item.draft.endDate < item.draft.date)) invalid()
     if (item.draft.startTime && item.draft.endTime && item.draft.endTime <= item.draft.startTime && (!item.draft.endDate || item.draft.endDate === item.draft.date)) invalid()
     const unknown = (key: TemporalField) => item.uncertainties.some(entry => entry.field === key)
-    if (!options.placementPending && !item.draft.date && !unknown('date')) invalid()
+    if (!options.placementPending && item.type === 'event' && !item.draft.date && !unknown('date')) invalid()
     if (!options.placementPending && item.type === 'event' && !item.draft.startTime && !unknown('startTime')) invalid()
   }
   const edges = new Map<string, string[]>()
