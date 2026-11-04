@@ -10,6 +10,7 @@ import { resolveLayout } from '../../features/pages/layout.ts'
 import { EmptyState } from '../../components/common/EmptyState.tsx'
 import { ExampleCard } from '../../features/onboarding/Example.tsx'
 import { PageTour } from '../../features/onboarding/Onboarding.tsx'
+import { useSaveAndClose } from '../../hooks/useSaveAndClose.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -67,7 +68,7 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
     try {
     const id = source
       ? await source.add({ title: t('custom.unnamed'), body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' ? null : activeFolder })
-      : library.addMemo({ title: '새 메모', body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' ? null : activeFolder, tags: [] })
+        : library.addMemo({ title: '새 메모', body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' ? null : activeFolder, tags: [] })
     setSelectedId(id)
     } catch (error) { setCreateError(error instanceof Error ? error.message : t('custom.saveFailed')) }
   }
@@ -206,8 +207,9 @@ function MemoEditor({
   const [title, setTitle] = useState(memo?.title ?? '')
   const [body, setBody] = useState(memo?.body ?? '')
   const [categoryId, setCategoryId] = useState<string | null>(memo?.categoryId ?? null)
+  const validCategoryId = categories.some(category => category.id === categoryId) ? categoryId : null
   const [saved, setSaved] = useState('')
-  const [saveError, setSaveError] = useState('')
+  const { busy, error: saveError, run } = useSaveAndClose()
   const formRef = useRef<HTMLFormElement>(null)
 
   useLayoutEffect(() => {
@@ -241,25 +243,28 @@ function MemoEditor({
     <form
       ref={formRef}
       className="memo-editor"
-      onSubmit={async (event) => {
+      onSubmit={(event) => {
         event.preventDefault()
-        setSaveError('')
-        try {
-        if (onSave) await onSave(id, { title, body, categoryId })
-        else updateMemo(id, { title, body, categoryId, tags: memo.tags })
-        setSaved('저장되었습니다.')
-        } catch (error) { setSaveError(error instanceof Error ? error.message : '저장하지 못했습니다.') }
+        // The editor is its own tab on phones, so a save returns to the list there; on wider screens it stays open beside the list.
+        void run(async () => {
+          if (onSave) await onSave(id, { title, body, categoryId: validCategoryId })
+          else updateMemo(id, { title, body, categoryId: validCategoryId, tags: memo.tags })
+          return true
+        }, () => {
+          setSaved('저장되었습니다.')
+          if (window.matchMedia('(max-width: 767px)').matches) onBack()
+        })
       }}
     >
       {saveError ? <p role="alert" className="text-sm text-red-500">{saveError}</p> : null}
-      <button data-tour="memo-back" data-theme-slot="button" type="button" onClick={onBack} className="text-sm text-neutral-400 md:hidden">
+      <button data-tour="memo-back" data-theme-slot="button" type="button" disabled={busy} onClick={onBack} className="text-sm text-neutral-400 md:hidden">
         목록
       </button>
       <div className="memo-toolbar">
-        {hideCategory ? <span className="sr-only">{titleLabel}</span> : <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} />}
+        {hideCategory ? <span className="sr-only">{titleLabel}</span> : <CategoryPicker categories={categories} value={validCategoryId} onChange={setCategoryId} />}
         <div className="memo-toolbar-actions">
         <button data-theme-slot="button" type="button" onClick={onDelete} className="btn btn-ghost">삭제</button>
-        <button data-theme-slot="button-primary" type="submit" className="btn btn-primary" title="저장 (Ctrl+S)">저장</button>
+        <button data-theme-slot="button-primary" type="submit" className="btn btn-primary" title="저장 (Ctrl+S)" disabled={busy}>{busy ? '저장 중…' : '저장'}</button>
         </div>
       </div>
       <div className="memo-writing-area">

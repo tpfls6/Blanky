@@ -687,6 +687,8 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const removeCategory = useCallback((id: string) => {
+    const droppingIds = new Set(data.categories.filter(category => category.id === id || category.parentId === id).map(category => category.id))
+    const affectedRecords = data.records.filter(record => record.values.kind === pageTypeMarker('memo') && typeof record.values.categoryId === 'string' && droppingIds.has(record.values.categoryId))
     setData((current) => {
       const dropping = new Set(
         current.categories
@@ -702,10 +704,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         memos: current.memos.map((memo) =>
           memo.categoryId && dropping.has(memo.categoryId) ? { ...memo, categoryId: null } : memo,
         ),
+        records: current.records.map(record => record.values.kind === pageTypeMarker('memo') && typeof record.values.categoryId === 'string' && dropping.has(record.values.categoryId)
+          ? { ...record, values: { ...record.values, categoryId: '' }, updatedAt: new Date().toISOString() } : record),
       }
     })
     mirrorCategoryDelete(id)
-  }, [])
+    for (const record of affectedRecords) mirrorRecordSave({ ...record, values: { ...record.values, categoryId: '' } }, false)
+  }, [data.categories, data.records])
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
     setData((current) => ({ ...current, settings: { ...current.settings, ...patch } }))
@@ -800,11 +805,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const commitCollectionRecord = useCallback(async (typeId: string, id: string | null, input: { title: string; values: Record<string, FieldValue> }) => {
     const page = data.customPages.find(row => row.id === typeId && row.template)
     const type = data.recordTypes.find(row => row.id === typeId) ?? (page ? {
-      id: page.id, name: page.name, description: page.description, icon: page.icon,
+      id: page.id, name: page.name, description: pageTypeMarker(page.template!), icon: page.icon,
       color: DEFAULT_SWATCH, blocks: [], version: 1,
     } : undefined)
     if (!type || !input.title.trim()) throw new Error('기록의 제목과 컬렉션을 확인해 주세요.')
     const before = id ? data.records.find(row => row.id === id && row.typeId === typeId) : null
+    if (id && data.records.some(row => row.id === id && row.typeId !== typeId)) throw new Error('다른 페이지의 기록은 변경할 수 없습니다.')
     if (id && !before && !page) throw new Error('기록이 변경되었어요. 다시 열어 주세요.')
     const now = new Date().toISOString()
     let saved: CustomRecord = { id: id ?? crypto.randomUUID(), typeId, title: input.title.trim(), values: input.values, templateVersion: type.version, createdAt: before?.createdAt ?? now, updatedAt: now }
@@ -818,7 +824,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       }
       let exists = Boolean(before)
       if (page && id && !exists) {
-        try { await repository.getCustomRecord(id); exists = true }
+        try {
+          const stored = await repository.getCustomRecord(id)
+          if (stored.recordTypeId !== typeId) throw new Error('다른 페이지의 기록은 변경할 수 없습니다.')
+          exists = true
+        }
         catch (error) { if (!(error instanceof AppError) || error.code !== 'CUSTOM_RECORD_NOT_FOUND') throw error }
       }
       const row = exists ? await repository.updateCustomRecord(saved.id, { title: saved.title, values: saved.values, templateVersion: saved.templateVersion })

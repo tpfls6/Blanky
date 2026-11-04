@@ -1,5 +1,7 @@
 import { replanTasks as replanOnServer } from '@blanky/api'
-import { parseScheduleFromText as parseOnServer, analyzeScheduleFromText as analyzeOnServer } from '@blanky/api'
+import { parseScheduleFromText as parseOnServer, analyzeScheduleFromText as analyzeOnServer, analyzeIntentsFromText as intentsOnServer } from '@blanky/api'
+import { extractIntents, needsIntentAI, type IntentExtraction } from '@blanky/parse'
+import { mergeIntentResults } from '../../../packages/parse/src/intentAnalysis.ts'
 import type { NaturalLanguageScheduleRequest } from '@blanky/types'
 import type { ParsedSchedule } from '@blanky/parse'
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase/client.ts'
@@ -41,3 +43,18 @@ export async function parseScheduleFromText(
 
 export async function replanRemaining(token:string,edits:import('@blanky/types').PlannerEdit[]){return replanOnServer(getSupabaseClient(),{mode:'remaining',token,edits})}
 export async function inspectPlannerConflicts(){if(!isSupabaseConfigured)return [];return (await replanOnServer(getSupabaseClient(),{mode:'inspect'})).conflicts}
+
+/**
+ * Rules first. The AI split runs only when the rules left a schedule-like clause unread, and any AI
+ * failure (offline, old deployment, invalid output) keeps the rule result instead of guessing.
+ */
+export async function analyzeIntents(text: string, today: Date): Promise<IntentExtraction> {
+  const rules = extractIntents(text, today)
+  if (!needsIntentAI(rules) || !isSupabaseConfigured) return rules
+  try {
+    const ai = await intentsOnServer(getSupabaseClient(), { text, timezone: 'Asia/Seoul', today })
+    return mergeIntentResults(rules, ai)
+  } catch {
+    return rules
+  }
+}

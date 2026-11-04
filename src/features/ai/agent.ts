@@ -87,7 +87,7 @@ export function planDedupe(items: readonly WorkItem[], scope?: { start?: string;
   }
 }
 
-export function planConflicts(items: readonly WorkItem[], start: string, end: string): AgentPlan {
+export function planConflicts(items: readonly WorkItem[], start: string, end: string, choice?: { keepTitles?: string[]; dropTitles?: string[] }): AgentPlan {
   const scoped = items.filter(item => inRange(item, start, end))
   const pairs = findConflicts(scoped.map(asSighting))
   const index = byId(scoped)
@@ -96,6 +96,31 @@ export function planConflicts(items: readonly WorkItem[], start: string, end: st
     const a = index.get(pair.aId), b = index.get(pair.bId)
     if (a) kept.push(a)
     if (b) kept.push(b)
+  }
+  // "A만 남기고" / "B는 지워": in each overlapping pair, drop the side the user did not keep.
+  const keep = new Set(choice?.keepTitles ?? []), drop = new Set(choice?.dropTitles ?? [])
+  if (keep.size || drop.size) {
+    const dropped = new Map<string, WorkItem>()
+    const skipped: AgentSkip[] = []
+    for (const pair of pairs) {
+      const a = index.get(pair.aId), b = index.get(pair.bId)
+      if (!a || !b) continue
+      for (const [item, other] of [[a, b], [b, a]] as const) {
+        if (drop.has(item.title) || (keep.has(other.title) && !keep.has(item.title))) dropped.set(item.id, item)
+      }
+    }
+    const actions: AgentAction[] = []
+    for (const item of dropped.values()) {
+      if (isGoogleOriginWork(item)) skipped.push({ title: item.title, reason: 'Google에서 가져온 일정은 원본을 지우지 않았어요.' })
+      else actions.push({ op: 'delete', item, reason: '겹치는 일정 정리' })
+    }
+    return {
+      title: actions.length ? `겹치는 일정 중 ${actions.length}건을 지울게요.` : '지울 겹치는 일정이 없어요.',
+      mode: actions.length ? 'preview' : 'auto',
+      actions,
+      skipped,
+      kept: kept.filter(item => !dropped.has(item.id)),
+    }
   }
   return {
     title: pairs.length ? `겹치는 일정 ${pairs.length}건을 찾았어요. 제목이 달라 중복이 아니에요.` : '겹치는 일정이 없어요.',

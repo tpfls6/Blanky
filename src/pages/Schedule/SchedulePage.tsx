@@ -23,6 +23,7 @@ import { AnalysisReview } from '../../components/schedule/AnalysisReview.tsx'
 import { RepeatPicker } from '../../components/schedule/RepeatPicker.tsx'
 import type { ScheduleAnalysis } from '@blanky/types'
 import { taskNavKey } from '../../state/storage.ts'
+import { useSaveAndClose } from '../../hooks/useSaveAndClose.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
@@ -90,6 +91,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
   const [busy, setBusy] = useState(false)
   const [analysis, setAnalysis] = useState<{ id: string; result: ScheduleAnalysis; input: string } | null>(null)
   const [analysisError, setAnalysisError] = useState('')
+  const review = useSaveAndClose()
   const draftOpen = draft !== null
 
   useEffect(() => {
@@ -97,12 +99,13 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing) return
       event.preventDefault()
+      if (review.locked.current) return
       setDraft(null)
       setReviewOpen(false)
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [draftOpen])
+  }, [draftOpen, review.locked])
 
   const events = useMemo(() => eventDates(library.items), [library.items])
   const taskMarks = useMemo(() => taskDates(library.items), [library.items])
@@ -223,16 +226,23 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
       )
     }
     if (block.type === 'quick-input') {
+      // The popover closes only after the server confirms the save; a failure keeps the draft open.
       const saveReview = () => {
         if (!draft) return
         const saved = saveDraft(draft)
-        if (!saved) return
-        if (draft.id) library.updateItem(draft.id, saved)
-        else library.addItem(saved)
-        void recordScheduleFeedback(draft)
-        setDraft(null)
-        setReviewOpen(false)
+        if (!saved) return review.setError('제목과 날짜를 확인해 주세요.')
+        const before = draft.id ? library.items.find(item => item.id === draft.id) ?? null : null
+        if (draft.id && !before) return review.setError('삭제된 항목이에요.')
+        void review.run(() => {
+          const next = before ? { ...before, ...saved } : createWorkItem(saved)
+          return next ? library.commitWork(before, next) : null
+        }, () => {
+          void recordScheduleFeedback(draft)
+          setDraft(null)
+          setReviewOpen(false)
+        })
       }
+      const closeDraft = () => { if (!review.busy) { setDraft(null); review.setError('') } }
       return (
         <div className="relative z-20">
           <form onSubmit={analyze} className="composer-line flex w-full items-center gap-2">
@@ -245,7 +255,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-300"
             />
             <span className="shrink-0 text-xs text-neutral-400">자동 분류</span>
-            <button type="button" className="btn btn-ghost shrink-0" onClick={() => { setAnalysis(null); setDraft(draftFromParsed({type:'event',source:'rule',confidence:1,draft:{title:'',date:selected,startTime:null,endTime:null,dueDate:null,endDate:null,categoryId:null}},'',selected,library.categories)); setReviewOpen(true) }}>직접 추가</button>
+            <button type="button" className="btn btn-ghost shrink-0" disabled={review.busy} onClick={() => { review.setError(''); setAnalysis(null); setDraft(draftFromParsed({type:'event',source:'rule',confidence:1,draft:{title:'',date:selected,startTime:null,endTime:null,dueDate:null,endDate:null,categoryId:null}},'',selected,library.categories)); setReviewOpen(true) }}>직접 추가</button>
             <button data-theme-slot="button-primary" type="submit" className="btn btn-primary shrink-0 px-3" disabled={busy || !text.trim()}>
               {busy ? '분류' : '전송'}
             </button>
@@ -276,22 +286,23 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
                   <span className="truncate">{reviewLine(draft, library.categories)}</span>
                 </button>
                 <Link to={ROUTES.recurring} className="shrink-0 text-xs text-neutral-400 hover:text-accent-text">반복 일정</Link>
-                <button data-theme-slot="button" type="button" className="btn btn-ghost shrink-0" onClick={() => setDraft(null)}>
+                <button data-theme-slot="button" type="button" className="btn btn-ghost shrink-0" disabled={review.busy} onClick={closeDraft}>
                   취소
                 </button>
-                <button data-theme-slot="button-primary" type="button" className="btn btn-primary shrink-0 px-3" onClick={saveReview}>
-                  확인
+                <button data-theme-slot="button-primary" type="button" className="btn btn-primary shrink-0 px-3" disabled={review.busy} onClick={saveReview}>
+                  {review.busy ? '저장 중…' : '확인'}
                 </button>
               </div>
+              {review.error ? <p role="alert" className="px-3 pb-2 text-sm text-red-600">{review.error}</p> : null}
               <div className="fold" style={{ gridTemplateRows: reviewOpen ? '1fr' : '0fr', opacity: reviewOpen ? 1 : 0 }}>
-                <div inert={reviewOpen ? undefined : true}>
+                <fieldset className="min-w-0" disabled={review.busy} inert={reviewOpen ? undefined : true}>
                   <DraftEditor
                     bare
                     draft={draft}
                     categories={library.categories}
                     onChange={setDraft}
                     seriesHref={draft.id && draft.repeat && draft.repeat !== 'none' ? `${ROUTES.recurring}?id=${encodeURIComponent(draft.id)}&date=${selected}` : undefined}
-                    onCancel={() => setDraft(null)}
+                    onCancel={closeDraft}
                     onDelete={
                       draft.id
                         ? async () => {
@@ -303,7 +314,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
                     }
                     onSave={saveReview}
                   />
-                </div>
+                </fieldset>
               </div>
             </div>
           ) : null}

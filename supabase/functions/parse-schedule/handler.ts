@@ -2,6 +2,8 @@ import { resolveScheduleAnalysis } from '../../../packages/parse/src/resolve.ts'
 import { PlannerRequiredError } from '../../../packages/parse/src/intentRouter.ts'
 import { createOpenAIAnalysisProvider } from '../../../packages/parse/src/analysisProvider.ts'
 import type { AnalysisProvider } from '../../../packages/parse/src/analysisProvider.ts'
+import { createOpenAIIntentProvider, type IntentProvider } from '../../../packages/parse/src/intentAnalysis.ts'
+import { formatISODate } from '../../../packages/utils/src/date.ts'
 import { AnalysisError } from '../../../packages/types/src/aiSchema.ts'
 import type { CategoryRef, LearnedRule } from '../../../packages/parse/src/model.ts'
 
@@ -16,6 +18,7 @@ export function createScheduleHandler(deps: {
   authorize: (request: Request) => Promise<boolean>
   loadPersonal: (request: Request) => Promise<{ categories: CategoryRef[]; rules: LearnedRule[] }>
   provider?: AnalysisProvider
+  intentProvider?: IntentProvider
   log?: (entry: Record<string, unknown>) => void
 }) {
   return async (request: Request): Promise<Response> => {
@@ -33,13 +36,21 @@ export function createScheduleHandler(deps: {
       try { body = JSON.parse(raw) } catch { throw new AnalysisError('INVALID_INPUT', '입력 내용을 확인해 주세요.') }
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new AnalysisError('INVALID_INPUT', '입력 내용을 확인해 주세요.')
       const payload = body as Record<string, unknown>
-      if (Object.keys(payload).some(key => !['text', 'timezone', 'format'].includes(key)) || (payload.format !== undefined && payload.format !== 'analysis-v1')) throw new AnalysisError('INVALID_INPUT', '지원하지 않는 입력 형식이에요.')
+      if (Object.keys(payload).some(key => !['text', 'timezone', 'format'].includes(key)) || (payload.format !== undefined && payload.format !== 'analysis-v1' && payload.format !== 'intents-v1')) throw new AnalysisError('INVALID_INPUT', '지원하지 않는 입력 형식이에요.')
       const text = typeof payload.text === 'string' ? payload.text.trim() : ''
       textLength = text.length
       if (!text || text.length > 8000) throw new AnalysisError('INVALID_INPUT', '1~8000자 이내로 입력해 주세요.')
       const timezone = typeof payload.timezone === 'string' ? payload.timezone : 'Asia/Seoul'
       let today: Date
       try { today = zonedToday(timezone) } catch { throw new AnalysisError('INVALID_INPUT', '시간대 설정을 확인해 주세요.') }
+      // Intent analysis reads only the sentence; saved schedules are matched on the client.
+      if (payload.format === 'intents-v1') {
+        if (!deps.intentProvider && deps.getEnv('AI_PROVIDER') === 'local') throw new AnalysisError('AI_NOT_CONFIGURED', 'AI 분석이 아직 설정되지 않았어요.')
+        const provider = deps.intentProvider ?? createOpenAIIntentProvider({ key: deps.getEnv('OPENAI_API_KEY'), model: deps.getEnv('OPENAI_MODEL') })
+        const intents = await provider.analyze({ text, today: formatISODate(today), timezone })
+        deps.log?.({ requestId, source: 'intents', count: Array.isArray((intents as { intents?: unknown[] }).intents) ? (intents as { intents: unknown[] }).intents.length : 0, ok: true, latencyMs: Date.now() - started, textLength })
+        return json(intents)
+      }
       const personal = await deps.loadPersonal(request)
       const threshold = Number(deps.getEnv('AI_CONFIDENCE_THRESHOLD'))
       const result = await resolveScheduleAnalysis(text, { today, ...personal }, {

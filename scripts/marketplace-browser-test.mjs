@@ -149,20 +149,22 @@ try {
   const pageId = await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages.find(p => p.name==="영화 기록").id')
   log('installed movie page ' + pageId + ' from ' + await evaluate('location.pathname'))
   await navigate(base + '/pages/' + pageId)
-  await wait('document.querySelector("[data-tour=save-template]")', 'user page chrome')
+  // Template pages render as a record notebook (see NotebookCollection).
+  await wait('document.querySelector(".notebook[data-notebook] .notebook-add")', 'user page chrome')
   await wait('[...document.querySelectorAll("p,td,h3,button")].some(el => el.textContent.includes("기생충"))', 'sample on page')
   await shot('03-installed-page')
 
-  await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="추가")?.click()')
-  await wait('document.querySelector("input.text-2xl")', 'record form')
-  await evaluate('(() => { const el = document.querySelector("input.text-2xl"); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set; set.call(el, "인터스텔라"); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); })()')
-  await evaluate('document.querySelector("form")?.requestSubmit()')
-  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title==="인터스텔라" || Object.values(r.values).includes("인터스텔라"))', 'user record saved')
+  const added = '듄: 파트 2'
+  await evaluate('document.querySelector(".notebook-add").click()')
+  await wait('document.querySelector("dialog.notebook-dialog[open] input:not([type=hidden])")', 'record form')
+  await evaluate(`(() => { const el = document.querySelector('dialog.notebook-dialog [data-record-role=title] input') ?? document.querySelector('dialog.notebook-dialog input:not([type=hidden])'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(el, ${q(added)}); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); })()`)
+  await evaluate('document.querySelector("dialog.notebook-dialog form").requestSubmit()')
+  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title===' + q(added) + ' || Object.values(r.values).includes(' + q(added) + '))', 'user record saved')
   log('added installer record')
 
   await navigate(base + '/pages/' + pageId)
-  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title==="인터스텔라")', 'record after refresh')
-  await wait('[...document.querySelectorAll("td,p,h2,h3,button")].some(el => el.textContent.includes("인터스텔라"))', 'record visible after refresh')
+  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title===' + q(added) + ')', 'record after refresh')
+  await wait('[...document.querySelectorAll("td,p,h2,h3,button")].some(el => el.textContent.includes(' + q(added) + '))', 'record visible after refresh')
   log('record survived refresh')
   await shot('04-after-refresh')
 
@@ -170,13 +172,13 @@ try {
   await wait('document.querySelector("h1")?.textContent.includes("스토어에 공유")', 'publish form')
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim()==="게시 요청")?.click()')
   await wait('location.pathname.startsWith("/store/templates/") && !location.pathname.includes("publish")', 'published listing')
-  const listingId = await evaluate('location.pathname.split("/")[2]')
+  const listingId = await evaluate('location.pathname.split("/")[3]')
   log('published listing ' + listingId)
   await shot('05-published')
 
   const sourceId = await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).customPages[0].id')
   await navigate(base + '/pages/' + sourceId)
-  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title==="인터스텔라")', 'installer data independent after publish')
+  await wait('JSON.parse(localStorage.getItem(' + q(library) + ')).records.some(r => r.title===' + q(added) + ')', 'installer data independent after publish')
   log('installed records stayed after publish')
 
   await finish(true, { pageId, listingId })

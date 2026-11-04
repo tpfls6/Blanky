@@ -26,13 +26,14 @@ function matches(query: string, page: { name: string; description?: string }) {
   return page.name.toLowerCase().includes(text) || (page.description ?? '').toLowerCase().includes(text)
 }
 
-function PageRow({ page }: { page: UserPage }) {
+function PageRow({ page, onEdit }: { page: UserPage; onEdit: (page: UserPage) => void }) {
   const { t } = useI18n()
   const confirm = useConfirm()
   const { records, removeUserPage, updateUserPage } = useLibrary()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(page.name)
   const [icon, setIcon] = useState(page.icon)
+  const [description, setDescription] = useState(page.description ?? '')
 
   const remove = async () => {
     const count = recordsForPage(records, page.id).length
@@ -53,18 +54,31 @@ function PageRow({ page }: { page: UserPage }) {
         </div>
       </div>
       <div className="mt-3 flex gap-1">
-        <button type="button" className="btn btn-ghost" onClick={() => { setName(page.name); setIcon(page.icon); setEditing(!editing) }}>{t('edit')}</button>
+        <button type="button" className="btn btn-ghost" onClick={() => {
+          // Template pages edit in the full editor with a live preview, like when they were made.
+          if (page.template) return onEdit(page)
+          setName(page.name); setIcon(page.icon); setDescription(page.description ?? ''); setEditing(!editing)
+        }}>{t('edit')}</button>
         <button type="button" className="btn btn-ghost" onClick={() => void remove()}>{t('delete')}</button>
       </div>
-      {editing ? <form className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3" onSubmit={event => {
+      {editing ? <form className="mt-3 grid gap-3 border-t border-line pt-3" onSubmit={event => {
         event.preventDefault()
         if (!name.trim()) return
-        updateUserPage(page.id, { name: name.trim(), icon })
+        updateUserPage(page.id, { name: name.trim(), icon, description: description.trim() })
         setEditing(false)
       }}>
-        <IconPicker value={icon} onChange={setIcon} />
-        <input aria-label={t('custom.pageName')} required value={name} onChange={event => setName(event.target.value)} className="field min-w-0 flex-1" />
-        <button className="btn btn-line" type="submit">{t('save')}</button>
+        <div className="flex items-center gap-2">
+          <IconPicker value={icon} onChange={setIcon} />
+          <input aria-label={t('custom.pageName')} required value={name} onChange={event => setName(event.target.value)} className="field min-w-0 flex-1" />
+        </div>
+        <label className="block text-xs">
+          <span className="text-neutral-400">{t('custom.pageDescription')}</span>
+          <textarea value={description} onChange={event => setDescription(event.target.value)} rows={2} className="field mt-1 w-full" />
+        </label>
+        <div className="flex justify-end gap-2">
+          <button className="btn btn-ghost" type="button" onClick={() => setEditing(false)}>{t('cancel')}</button>
+          <button className="btn btn-line" type="submit">{t('save')}</button>
+        </div>
       </form> : null}
     </article>
   )
@@ -141,9 +155,24 @@ export function CustomPage() {
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') === 'layout' ? 'layout' : params.get('tab') === 'themes' ? 'themes' : 'templates'
   const group = params.get('group') === 'custom' ? 'custom' : 'basic'
-  const { customPages, addUserPage } = useLibrary()
+  const { customPages, addUserPage, updateUserPage } = useLibrary()
   const [query, setQuery] = useState('')
   const [wizard, setWizard] = useState<PageTemplateKind | true | false>(false)
+  const [editPage, setEditPage] = useState<UserPage | null>(null)
+
+  if (editPage?.template) {
+    return (
+      <CreatePageWizard
+        key={editPage.id}
+        page={{ ...editPage, template: editPage.template }}
+        onCancel={() => setEditPage(null)}
+        onCreate={({ name, icon, description, fieldLabels }) => {
+          updateUserPage(editPage.id, { name, icon, description, fieldLabels })
+          setEditPage(null)
+        }}
+      />
+    )
+  }
 
   if (wizard) {
     return (
@@ -191,7 +220,7 @@ export function CustomPage() {
             {group === 'basic' ? (
               basicPages.length ? (
                 <div className="grid gap-3 xl:grid-cols-2">
-                  {basicPages.map((page) => <PageRow key={page.id} page={page} />)}
+                  {basicPages.map((page) => <PageRow key={page.id} page={page} onEdit={setEditPage} />)}
                 </div>
               ) : <p className="mt-3 text-sm text-neutral-400">{t('custom.emptyPages')}</p>
             ) : (
@@ -199,7 +228,7 @@ export function CustomPage() {
                 <TemplateImport dropzone={false} hideEmpty={customOnly.length > 0} />
                 {customOnly.length ? (
                   <div className="mt-4 grid gap-3 xl:grid-cols-2">
-                    {customOnly.map((page) => <PageRow key={page.id} page={page} />)}
+                    {customOnly.map((page) => <PageRow key={page.id} page={page} onEdit={setEditPage} />)}
                   </div>
                 ) : null}
               </>

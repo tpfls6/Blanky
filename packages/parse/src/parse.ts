@@ -101,7 +101,8 @@ function minuteValue(half: boolean, digits: string | undefined): number {
 const EN_WEEKDAY: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }
 
 function parseDatePhrase(phrase: string, today: Date, anchor: Date | null): Date | null {
-  const text = phrase.replace(/\s+/g, ' ').trim()
+  // "이번주 금요일" and "이번 주 금요일" are the same phrase; spacing is optional in everyday Korean.
+  const text = phrase.replace(/\s+/g, ' ').replace(/(이번|다음)\s*주/, '$1 주').trim()
   const lower = text.toLowerCase()
   if (text === '오늘' || lower === 'today') return today
   if (text === '어제' || lower === 'yesterday') return addDays(today, -1)
@@ -150,6 +151,14 @@ export function parseKoreanDate(text: string, today: Date, anchor: Date | null =
   if (!match) return null
   const date = parseDatePhrase(match[0], today, anchor)
   return date ? formatISODate(date) : null
+}
+
+/** Every resolvable date phrase with its position, so callers can tell source from destination dates. */
+export function findDatePhrases(text: string, today: Date): { phrase: string; index: number; date: string }[] {
+  return [...text.matchAll(new RegExp(DATE_PHRASE, 'g'))].flatMap(match => {
+    const date = parseDatePhrase(match[0], today, null)
+    return date ? [{ phrase: match[0], index: match.index ?? 0, date: formatISODate(date) }] : []
+  })
 }
 
 function clockFromMatch(meridiem: string | undefined, hour: string | undefined, minute: string | undefined, half: boolean, inherited: Meridiem | null): number | null {

@@ -50,7 +50,7 @@ export function googleColorIdFromHex(value: string | null | undefined): string |
   if (!hex) return null
   const swatch = SWATCH_COLOR_ID[hex]
   if (swatch) return swatch
-  let best = GOOGLE_EVENT_COLORS[0]
+  let best: (typeof GOOGLE_EVENT_COLORS)[number] = GOOGLE_EVENT_COLORS[0]
   let bestDistance = Number.POSITIVE_INFINITY
   for (const color of GOOGLE_EVENT_COLORS) {
     const next = distance(hex, color.hex)
