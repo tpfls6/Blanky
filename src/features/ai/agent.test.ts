@@ -58,3 +58,15 @@ test('dedupe keeps one copy, ignores other titles and times, and stays inside th
   assert.ok(scoped.kept.some(row => row.id === 'new-1' || row.id === 'new-2'))
   assert.equal(planDedupe([before, beforeCopy, after, afterCopy], { start: '2026-10-29' }).actions.some(action => action.item.date === '2026-10-23'), false)
 })
+
+test('conflict choices drop the side the user did not keep', () => {
+  const items = [item('w', '근로'), item('c', '수업'), item('g', '회의', { changeSource: 'calendar_sync' })]
+  const keep = planConflicts(items, '2026-10-28', '2026-10-28', { keepTitles: ['근로'] })
+  assert.equal(keep.mode, 'preview')
+  assert.deepEqual(keep.actions.map(action => action.item.id).sort(), ['c'])
+  assert.deepEqual(keep.skipped.map(skip => skip.title), ['회의'])
+  assert.ok(keep.kept.every(row => row.id !== 'c'))
+  const drop = planConflicts(items, '2026-10-28', '2026-10-28', { dropTitles: ['수업'] })
+  assert.deepEqual(drop.actions.map(action => action.item.id), ['c'])
+  assert.deepEqual(planConflicts(items, '2026-10-28', '2026-10-28', { keepTitles: ['없음'] }).actions, [])
+})

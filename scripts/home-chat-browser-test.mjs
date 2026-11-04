@@ -153,7 +153,8 @@ try {
   await button('확인 후 저장', '(' + lastAssistant + ')')
   await wait('document.querySelector("#home-chat-panel [data-analysis-item]")', 'review form')
   await fill('#home-chat-panel [data-analysis-item] input[type=time]', '15:00')
-  await button('확인 후 저장', 'document.querySelector("#home-chat-panel [data-analysis-item]")')
+  // A single item saves from the review dialog's footer, outside the item fieldset.
+  await button('확인 후 저장', 'document.querySelector("dialog[data-analysis-review]")')
   await wait(items(owner) + '.some(i=>i.title==="치과")', 'reviewed save')
   assert.equal(await evaluate(items(owner) + '.find(i=>i.title==="치과").startTime'), '15:00')
   await wait(lastStatus + ' === "saved"', 'review settled')
@@ -187,7 +188,6 @@ try {
   await wait('!document.querySelector("dialog[open]")', 'dialog closed after save')
   assert.equal(await evaluate(items(owner) + '.filter(i=>i.title==="팀 회의 변경").length'), 1)
   await wait(chip('팀 회의 변경'), 'chip shows edit')
-  await wait('[...document.querySelectorAll("[data-home-calendar] [data-work-chip], [data-home-calendar] button")].length > 0', 'calendar rendered')
   await evaluate(chip('팀 회의 변경') + '.click()')
   await wait('document.querySelector("dialog[open][data-work-edit]")', 'edit dialog again')
   await key('Escape')

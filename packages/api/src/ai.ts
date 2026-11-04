@@ -7,6 +7,8 @@ import { routeInput, PlannerRequiredError } from '../../parse/src/intentRouter.t
 import type { ScheduleAnalysis } from '../../types/src/ai.ts'
 import { AnalysisError, validateScheduleAnalysis } from '../../types/src/aiSchema.ts'
 import { isRecord, readNullableString, readNumber, readString } from './guards.ts'
+import { validateIntentAnalysis } from '../../parse/src/intentAnalysis.ts'
+import type { IntentExtraction } from '../../parse/src/intents.ts'
 
 export const PARSE_SCHEDULE_FUNCTION = 'parse-schedule'
 
@@ -107,5 +109,26 @@ export async function analyzeScheduleFromText(
   } catch (error) {
     if (error instanceof AnalysisError) throw new AppError(error.code, error.message)
     throw error
+  }
+}
+
+/** AI intent split for sentences the rule layer could not read; the server never sees saved schedules. */
+export async function analyzeIntentsFromText(
+  client: SupabaseClient<Database>,
+  request: NaturalLanguageScheduleRequest & { today?: Date },
+): Promise<IntentExtraction> {
+  const text = request.text.trim()
+  if (!text) throw new AppError('INVALID_INPUT', '입력 내용을 확인해주세요.')
+  const { data, error } = await client.functions.invoke(PARSE_SCHEDULE_FUNCTION, {
+    body: { text, timezone: request.timezone, format: 'intents-v1' },
+  })
+  if (error) throw await errorFromInvoke(error)
+  if (isRecord(data) && data.error) mapParsedSchedule(data)
+  try {
+    // The server already validated; the client checks again so a stale deployment cannot slip through.
+    return validateIntentAnalysis(data, text, request.today ?? new Date())
+  } catch (caught) {
+    if (caught instanceof AnalysisError) throw new AppError(caught.code, caught.message)
+    throw caught
   }
 }

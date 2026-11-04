@@ -1,5 +1,5 @@
 export { getCurrentUserId, signInWithPassword, signInWithGoogle, signOut } from './auth.ts'
-export { PARSE_SCHEDULE_FUNCTION, mapParsedSchedule, parseScheduleFromText, analyzeScheduleFromText } from './ai.ts'
+export { PARSE_SCHEDULE_FUNCTION, mapParsedSchedule, parseScheduleFromText, analyzeScheduleFromText, analyzeIntentsFromText } from './ai.ts'
 export { createCategoryRepository, mapCategoryRow } from './categoryRepository.ts'
 export type { CategoryInput, CategoryRepository } from './categoryRepository.ts'
 export { AppError, mapDbError } from './errors.ts'

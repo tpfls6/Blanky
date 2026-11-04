@@ -4,9 +4,24 @@ export type PageTemplateKind = (typeof PAGE_TEMPLATES)[number]
 
 export const FIELD_KEYS = {
   diary: ['date', 'mood', 'weather', 'title', 'body', 'tags'],
-  reading: ['title', 'author', 'rating', 'note', 'image'],
+  reading: [
+    'title', 'author', 'rating', 'note', 'image', 'status', 'startedAt', 'finishedAt', 'tags', 'category',
+    'item', 'unit', 'library', 'shelf', 'highlight', 'memo', 'tagline',
+    'statusWant', 'statusReading', 'statusDone', 'statusStopped',
+  ],
   memo: ['title', 'body'],
 } as const
+
+/** Keys that rename words used across the page (buttons, headings, messages) rather than one input. */
+export const TEXT_KEYS: { [K in PageTemplateKind]: readonly (typeof FIELD_KEYS)[K][number][] } = {
+  diary: [],
+  reading: ['item', 'unit', 'library', 'shelf', 'highlight', 'memo', 'tagline', 'statusWant', 'statusReading', 'statusDone', 'statusStopped'],
+  memo: [],
+}
+
+export function isTextKey(template: PageTemplateKind, key: string): boolean {
+  return (TEXT_KEYS[template] as readonly string[]).includes(key)
+}
 
 export type FieldKey<T extends PageTemplateKind = PageTemplateKind> = (typeof FIELD_KEYS)[T][number]
 
@@ -25,6 +40,22 @@ export const DEFAULT_FIELD_LABELS: { [K in PageTemplateKind]: Record<(typeof FIE
     rating: '평점',
     note: '독서 감상',
     image: '이미지',
+    status: '독서 상태',
+    startedAt: '시작일',
+    finishedAt: '완독일',
+    tags: '책 태그',
+    category: '책 종류',
+    item: '책',
+    unit: '권',
+    library: '서재',
+    shelf: '책장',
+    highlight: '문장',
+    memo: '메모',
+    tagline: '읽고, 기억하고, 나만의 책장에 담아요.',
+    statusWant: '읽을 예정',
+    statusReading: '읽는 중',
+    statusDone: '완독',
+    statusStopped: '중단',
   },
   memo: {
     title: '제목',
@@ -46,7 +77,7 @@ export function coerceFieldLabels(value: unknown, template: PageTemplateKind | n
   const labels: Record<string, string> = {}
   for (const key of FIELD_KEYS[template]) {
     const next = row[key]
-    if (typeof next === 'string' && next.trim()) labels[key] = next.trim().slice(0, 40)
+    if (typeof next === 'string' && next.trim()) labels[key] = next.trim().slice(0, 80)
   }
   return labels
 }

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import { applyDocumentLocale, guestOrBrowserLocale } from './i18n/storage.ts'
 import { isSupabaseConfigured } from './services/supabase/client.ts'
+import { registerServiceWorker } from './pwa/register.ts'
 import './styles/index.css'
 
 applyDocumentLocale(guestOrBrowserLocale())
@@ -44,6 +45,14 @@ if (!document.documentElement.dataset.scrollHint) {
     }, 700)
   }, { capture: true, passive: true })
 }
+
+// iOS Safari zooms into any focused field under 16px and does not zoom back.
+// maximum-scale stops that auto zoom; iOS still allows pinch zoom regardless.
+if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+  document.querySelector('meta[name=viewport]')?.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover')
+}
+
+registerServiceWorker()
 
 createRoot(rootElement).render(
   <StrictMode>

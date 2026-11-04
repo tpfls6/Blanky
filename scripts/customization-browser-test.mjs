@@ -120,7 +120,7 @@ try {
       localStorage.setItem('blanky.library.' + owner, JSON.stringify({
         categories: [],
         items: [],
-        settings: { locale: 'ko', customTemplatesGuideSeen: true },
+        settings: { locale: 'ko', customTemplatesGuideSeen: true, onboardingDone: true, onboardingPages: ['home', 'diary', 'reading', 'memo', 'store', 'custom', 'settings'] },
         customPages: [],
         pageTemplates: [],
         recordTypes: [],

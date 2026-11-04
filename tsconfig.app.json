@@ -29,5 +29,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Unit tests beside the code run under Node (`npm test`), like packages/**/*.test.ts.
+  "exclude": ["src/**/*.test.ts"]
 }

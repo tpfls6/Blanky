@@ -60,8 +60,11 @@
     "pickTemplate": "Which template should this page use?",
     "namePage": "Name and icon",
     "pageName": "Page name",
+    "pageDescription": "Page description",
     "renameFields": "Field labels",
     "renameHint": "Only the labels on screen change. Saved records stay the same.",
+    "textLabels": "Page wording",
+    "textLabelsHint": "Renaming a word updates the buttons, headings and messages that use it.",
     "preview": "Preview",
     "previewField": "Input",
     "create": "Create page",
@@ -353,6 +356,19 @@
       "travel": "Travel",
       "reading": "Reading",
       "free": "Freeform"
+    },
+    "myTemplates": "My templates",
+    "emptyRegistered": "You have not registered a template yet.",
+    "emptySource": "There is no page to share yet. Create a page first.",
+    "viewDetail": "View details",
+    "loadError": "Could not load templates.",
+    "status": {
+      "draft": "Draft",
+      "pending_review": "In review",
+      "published": "Published",
+      "unlisted": "Unlisted",
+      "rejected": "Rejected",
+      "archived": "Archived"
     }
   }
 }

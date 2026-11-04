@@ -32,5 +32,10 @@
   "source": {
     "ai": "AI",
     "manual": "Manual"
+  },
+  "pwa": {
+    "updateReady": "A new version is ready.",
+    "reload": "Reload",
+    "offline": "You are offline. Saving and loading resume once you reconnect."
   }
 }

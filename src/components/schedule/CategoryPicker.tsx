@@ -1,5 +1,4 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
 import { ChevronDown } from 'lucide-react'
 import { IconView } from '../../constants/icons.ts'
 import type { WorkspaceCategory } from '../../types/work.ts'
@@ -11,7 +10,7 @@ type CategoryPickerProps = {
   onChange: (id: string | null) => void
 }
 
-// Fixed to the viewport so scroll containers and dialogs never clip the menu.
+// The native popover uses the top layer while staying inside its owning dialog.
 function placeMenu(anchor: DOMRect): CSSProperties {
   const margin = 8
   const gap = 4
@@ -79,9 +78,16 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
 
   const ready = open && place !== null
 
+  useLayoutEffect(() => {
+    if (!ready) return
+    const menu = menuRef.current
+    menu?.showPopover()
+    inputRef.current?.focus()
+    return () => { if (menu?.matches(':popover-open')) menu.hidePopover() }
+  }, [ready])
+
   useEffect(() => {
     if (!ready) return
-    inputRef.current?.focus()
     const onPointer = (event: PointerEvent) => {
       const target = event.target as Node
       if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
@@ -97,6 +103,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
     onChange(id || null)
     setOpen(false)
     setQuery('')
+    buttonRef.current?.focus()
   }
 
   return (
@@ -105,6 +112,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
         ref={buttonRef}
         type="button"
         aria-expanded={open}
+        aria-haspopup="listbox"
         aria-controls={listId}
         onClick={() => {setActive(0);setOpen(valueNow=>!valueNow)}}
         className="field flex w-full items-center justify-between gap-2 text-left"
@@ -112,8 +120,16 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
         <span className="truncate">{label}</span>
         <ChevronDown className="size-3.5 shrink-0 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
       </button>
-      {open && place ? createPortal(
-        <div ref={menuRef} className="menu fixed z-[60] flex flex-col p-1.5" style={place}>
+      {open && place ? (
+        <div ref={menuRef} popover="manual" className="menu fixed z-[60] flex flex-col p-1.5" style={{ inset: 'auto', margin: 0, ...place }}
+          onKeyDown={event => {
+            if (event.key !== 'Escape') return
+            event.preventDefault()
+            event.stopPropagation()
+            setOpen(false)
+            setQuery('')
+            buttonRef.current?.focus()
+          }}>
           <input data-theme-slot="input"
             ref={inputRef}
             value={query}
@@ -123,11 +139,6 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
             placeholder="검색"
             onChange={(event) => {setQuery(event.target.value);setActive(0)}}
             onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.stopPropagation()
-                setOpen(false)
-                return
-              }
               if (event.key === 'ArrowDown') {
                 event.preventDefault()
                 setActive((index) => Math.min(index + 1, Math.max(options.length - 1, 0)))
@@ -172,8 +183,7 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
               )
             })}
           </div>
-        </div>,
-        document.body,
+        </div>
       ) : null}
     </div>
   )

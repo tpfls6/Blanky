@@ -141,7 +141,7 @@ export function CategorySection() {
         />
         <button
           type="button"
-          className="text-xs text-neutral-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+          className="text-xs text-neutral-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
           onClick={async () => {
             if (!await confirm(`${category.name}을 삭제할까요? 일정과 메모는 남고, 분류만 풀립니다.`)) return
             removeCategory(category.id)

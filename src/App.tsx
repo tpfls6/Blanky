@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { ConfirmProvider } from './state/ConfirmProvider.tsx'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout.tsx'
+import { AppStatusNotice } from './components/layout/AppStatusNotice.tsx'
 import { ROUTES } from './constants/routes.ts'
 const ForgotPage=lazy(()=>import('./pages/Auth/AuthPages.tsx').then(module=>({default:module.ForgotPage})))
 const LoginPage=lazy(()=>import('./pages/Auth/AuthPages.tsx').then(module=>({default:module.LoginPage})))
@@ -113,7 +114,7 @@ export default function App() {
     <BrowserRouter>
       <SessionProvider>
         <LibraryProvider>
-          <ThemeProvider><ConfirmProvider><RouteLoadBoundary><Suspense fallback={<AppLoading />}><AppRoutes /></Suspense></RouteLoadBoundary></ConfirmProvider></ThemeProvider>
+          <ThemeProvider><ConfirmProvider><RouteLoadBoundary><Suspense fallback={<AppLoading />}><AppRoutes /></Suspense></RouteLoadBoundary><AppStatusNotice /></ConfirmProvider></ThemeProvider>
         </LibraryProvider>
       </SessionProvider>
     </BrowserRouter>

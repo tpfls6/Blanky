@@ -7,7 +7,7 @@ type Preview = { collections: CustomRecordType[]; records: CustomRecord[] }
 
 const PreviewContext = createContext<Preview | null>(null)
 
-export function TemplatePreviewProvider({ snapshot, children }: { snapshot: TemplateSnapshot; children: ReactNode }) {
+export function TemplatePreviewProvider({ snapshot, children }: { snapshot: Pick<TemplateSnapshot, 'samples' | 'collections'>; children: ReactNode }) {
   const records: CustomRecord[] = snapshot.samples.map((sample, index) => ({
     id: 'preview-' + index,
     typeId: sample.collectionId,

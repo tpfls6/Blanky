@@ -132,6 +132,9 @@ try {
   await button('직접 추가');
   await wait('document.querySelector("form.max-h-80")','manual schedule editor');
   await fill('form.max-h-80 input:not([type])','수동 반복 검증');
+  // The manual editor starts as 종일; 시각 reveals the time fields.
+  await evaluate(`[...document.querySelectorAll('form.max-h-80 [aria-label="시간"] button')].find(b=>b.textContent.trim()==='시각').click()`);
+  await wait('document.querySelector("form.max-h-80 input[type=time]")','manual time fields');
   await fill('form.max-h-80 input[type=time]','09:00');
   await evaluate(`(()=>{const input=document.querySelectorAll('form.max-h-80 input[type=time]')[1];Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'18:00');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await evaluate(`(()=>{const select=document.querySelector('form.max-h-80 select[aria-label="반복"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'weekly');select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
@@ -150,12 +153,16 @@ try {
   assert.equal(await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).memos.some(row=>row.body==="오후 3시 날짜없는회의")'), false, 'undated event is not a memo');
   await button('저장 안 함');
   const before = await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items');
-  await fill('#home-entry', '이번 주 공부 계획 세워줘');
-  await click('button[aria-label="보내기"]');
-  await wait('JSON.parse(localStorage.getItem('+q(library)+')).memos.some(row=>row.body==="이번 주 공부 계획 세워줘")', 'Planner failure memo fallback');
-  await fill('#home-entry', '내일 오후 3시 회의하고 5시 운동');
-  await click('button[aria-label="보내기"]');
-  await wait('JSON.parse(localStorage.getItem('+q(library)+')).memos.some(row=>row.body==="내일 오후 3시 회의하고 5시 운동")', 'analysis failure memo fallback');
+  // A schedule request that cannot be analysed fails visibly: no memo, and the words go back into the input.
+  for (const request of ['이번 주 공부 계획 세워줘', '내일 오후 3시 회의하고 5시 운동']) {
+    const sent = await evaluate('document.querySelectorAll("#home-chat-panel [data-chat-message]").length');
+    await fill('#home-entry', request);
+    await click('button[aria-label="보내기"]');
+    await wait('document.querySelectorAll("#home-chat-panel [data-chat-message]").length>='+(sent+2)+'&&[...document.querySelectorAll("#home-chat-panel [data-chat-message]")].at(-1)?.dataset.chatStatus==="failed"', 'failure shown: '+request);
+    assert.equal(await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).memos.some(row=>row.body==='+q(request)+')'), false, 'schedule request not filed as memo: '+request);
+    assert.equal(await evaluate('document.querySelector("#home-entry").value'), request, 'input restored');
+    await fill('#home-entry', '');
+  }
   assert.deepEqual(await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items'), before, 'failed analysis must not change schedules');
   for (const path of ['/diary','/reading','/schedule']) {
     await navigate(base + path);
@@ -180,18 +187,21 @@ try {
   await evaluate('(async()=>{const harness=await import("/.tmp/ai-tests/review-harness.jsx");harness.mount('+q(mock)+')})()');
   await wait('document.querySelectorAll("#ai-harness [data-analysis-item]").length===2','multi-item review');
   assert.ok(await evaluate('document.querySelector("#ai-harness").textContent.includes("회의 후 작업")'));
-  await evaluate('(()=>{const btn=document.querySelector("#ai-harness [data-analysis-item=a] button");btn.click();btn.click()})()');
+  await evaluate('(()=>{const btn=[...document.querySelectorAll("#ai-harness [data-analysis-item=a] button")].find(b=>b.textContent.trim()==="확인 후 저장");btn.click();btn.click()})()');
   await wait('document.querySelector("#ai-harness [role=alert]")?.textContent.includes("추정")','estimated time requires confirmation');
   assert.equal(await evaluate('window.aiSaved.length'),0);
   await click('#ai-harness [data-analysis-item=a] input[type=checkbox]');
-  await evaluate('(()=>{const btn=document.querySelector("#ai-harness [data-analysis-item=a] button");btn.click();btn.click()})()');
+  await evaluate('(()=>{const btn=[...document.querySelectorAll("#ai-harness [data-analysis-item=a] button")].find(b=>b.textContent.trim()==="확인 후 저장");btn.click();btn.click()})()');
   await wait('window.aiSaved.length===1','first item saved once');
   await pause(120);
-  await click('#ai-harness [data-analysis-item=b] button');
+  // Items are paged in the review dialog: go to the second one, then save it.
+  await evaluate('[...document.querySelectorAll("#ai-harness button")].find(b=>b.textContent.trim()==="다음").click()');
+  await wait('!document.querySelector("#ai-harness [data-analysis-item=b]").closest("[hidden]")','second item shown');
+  await evaluate('[...document.querySelectorAll("#ai-harness [data-analysis-item=b] button")].find(b=>b.textContent.trim()==="확인 후 저장").click()');
   await wait('document.querySelector("#ai-harness [role=alert]")?.textContent.includes("날짜")','second item requires date');
   assert.equal(await evaluate('window.aiSaved.length'),1);
   await fill('#ai-harness [data-analysis-item=b] input[type=date]','2026-10-16');
-  await click('#ai-harness [data-analysis-item=b] button');
+  await evaluate('[...document.querySelectorAll("#ai-harness [data-analysis-item=b] button")].find(b=>b.textContent.trim()==="확인 후 저장").click()');
   await wait('window.aiSaved.length===2','second item saved after date confirmation');
   assert.equal(await evaluate('window.aiSaved[1].kind'),'task');
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});

@@ -3,6 +3,8 @@ import { StarRating } from './StarRating.tsx'
 import type { PageReadingItem } from '../../features/pages/pageRecords.ts'
 import { fieldLabel, type PageTemplateKind } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
+import { readingText } from './readingText.ts'
+import { SAVE_FAILED } from '../../utils/saveAndClose.ts'
 import './reading.css'
 
 function Cover({ title, image }: { title: string; image: string }) {
@@ -49,6 +51,7 @@ export function ReadingCatalog({
   }, [items, query])
 
   const label = (key: string) => fieldLabel(template, key, labels)
+  const text = readingText(labels)
   const edit = (patch: Partial<PageReadingItem>) => {
     const base = current ?? blank()
     setDraft({ ...base, ...patch, updatedAt: new Date().toISOString() })
@@ -60,6 +63,7 @@ export function ReadingCatalog({
       <header className="reading-heading">
         <div>
           <h1>{heading}</h1>
+          <p>{label('tagline')}</p>
         </div>
         <button
           type="button"
@@ -71,14 +75,14 @@ export function ReadingCatalog({
             setSelectedId(next.id)
           }}
         >
-          + {t('custom.addRecord')}
+          + {text.item} 추가 · 검색
         </button>
       </header>
       {error ? <p role="alert" className="reading-error">{error}</p> : null}
       <div className="reading-layout">
         <aside className="reading-sidebar" aria-label={heading}>
-          <input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('custom.searchRecords')} aria-label={t('custom.searchRecords')} />
-          <p className="reading-muted">{visible.length}</p>
+          <input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={'내 ' + text.library + '에서 제목, ' + label('author') + ' 검색'} aria-label={'내 ' + text.library + ' 검색'} />
+          <p className="reading-muted">{visible.length}{text.unit}</p>
           {visible.length === 0 ? <p className="reading-muted">{t('custom.emptyRecords')}</p> : null}
           {visible.map((item) => (
             <button
@@ -102,7 +106,8 @@ export function ReadingCatalog({
               onSubmit={async (event) => {
                 event.preventDefault()
                 const next = { ...(draft ?? current), updatedAt: new Date().toISOString() }
-                await onSave(next)
+                // A failed save keeps the draft so nothing typed is lost.
+                try { await onSave(next) } catch (error) { setStatus(error instanceof Error ? error.message : SAVE_FAILED); return }
                 setDraft(null)
                 setSelectedId(next.id)
                 setStatus(t('builder.saved'))

@@ -142,7 +142,9 @@ try {
 
   await fill('#home-entry', '중복 일정 삭제해줘')
   await evaluate('document.querySelector(' + q('button[aria-label="보내기"]') + ').click()')
-  await wait('document.body.textContent.includes("중복 일정이 없어요") || document.body.textContent.includes("추가로 정리할 중복 일정이 없어요")', 'second pass idle')
+  // With no copies left, overlapping rows with different titles are only reported, never deleted.
+  await wait('document.body.textContent.includes("중복 일정이 없어요") || document.body.textContent.includes("추가로 정리할 중복 일정이 없어요") || document.body.textContent.includes("제목이 달라 중복이 아니에요")', 'second pass idle')
+  assert.equal(await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).items.length'), 2, 'second pass deletes nothing')
   assert.equal(await evaluate('[...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="실행")'), false)
   assert.equal(await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).items.length'), 2, 'second pass deletes nothing')
 

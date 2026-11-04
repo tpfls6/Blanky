@@ -1,23 +1,24 @@
 {
+  "id": "/",
   "name": "Blanky",
   "short_name": "Blanky",
+  "description": "일정, 할 일, 일기, 독서, 메모를 한곳에 기록하는 Blanky",
+  "lang": "ko",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
+  "categories": ["productivity", "lifestyle"],
   "icons": [
-    {
-      "src": "/icons/blanky-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/blanky-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "/icons/blanky-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/blanky-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/blanky-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/blanky-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "일정", "url": "/schedule", "icons": [{ "src": "/icons/blanky-192.png", "sizes": "192x192" }] },
+    { "name": "일기", "url": "/diary", "icons": [{ "src": "/icons/blanky-192.png", "sizes": "192x192" }] },
+    { "name": "메모", "url": "/memo", "icons": [{ "src": "/icons/blanky-192.png", "sizes": "192x192" }] }
   ]
 }

@@ -1,6 +1,7 @@
 import type { ScheduleAnalysis } from '../../../packages/types/src/ai.ts'
 import type { WorkItem } from '../../types/work.ts'
 import type { AgentPlan } from './agent.ts'
+import type { IntentPlan } from './intentPlan.ts'
 import type { AutoSaveInput, AutoSaveReview } from './autoSave.ts'
 
 export type ChatStatus = 'working' | 'saved' | 'review' | 'failed' | 'confirm' | 'done'
@@ -15,6 +16,8 @@ export type ChatMessage = {
   before?: WorkItem
   undoIds?: string[]
   preview?: AgentPlan
+  /** Intent plan waiting for 실행: recurring edits, deletes, conflicts or open questions. */
+  intentPlan?: IntentPlan
   choices?: string[]
   /** Ambiguous or conflicting analysis items waiting for confirmation. */
   review?: { analysis: ScheduleAnalysis; input: string; rows: AutoSaveReview[] }

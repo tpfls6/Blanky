@@ -13,13 +13,16 @@ import { analyzeSchedules } from '../../services/schedule/index.ts'
 import { AnalysisReview } from '../../components/schedule/AnalysisReview.tsx'
 import { validatePlanningRecommendation, type PlanningRecommendation, type PlannerDraft, type ScheduleAnalysis } from '@blanky/types'
 import { PlannerPreview } from '../../components/schedule/PlannerPreview.tsx'
-import { processAiInput, approvePlanner, getPlannerSchedules, routeInput, replanRemaining } from '../../services/ai/index.ts'
+import { processAiInput, approvePlanner, getPlannerSchedules, routeInput, replanRemaining, analyzeIntents } from '../../services/ai/index.ts'
 import type { BusySchedule } from '../../../packages/scheduling/src/engine.ts'
 import { useSession } from '../../state/useSession.ts'
 import { createWorkItem, occursOn } from '../../utils/work.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { shiftISO, todayISO } from '../../utils/date.ts'
-import { captureIntent, shouldSaveAnalysisAsMemo } from '../../utils/captureIntent.ts'
+import { captureIntent, hasScheduleSignal, shouldSaveAnalysisAsMemo } from '../../utils/captureIntent.ts'
+import { describeIntentPlan, describeIntentRun, planIntents, runIntentPlan, type IntentPlan } from '../../features/ai/intentPlan.ts'
+import { commitSeriesChange, isRecurring } from '../../features/schedule/seriesEdit.ts'
+import { needsIntentPlan } from '../../../packages/parse/src/intents.ts'
 import { Onboarding } from '../../features/onboarding/Onboarding.tsx'
 import { ROUTES } from '../../constants/routes.ts'
 import { homeChatKey } from '../../state/storage.ts'
@@ -133,6 +136,16 @@ export function HomePage() {
       patch(id,{status:'failed',text:`저장하지 못했어요. ${error instanceof Error?error.message:''}\n다시 시도해도 같은 항목이 두 번 저장되지 않아요.`.trim()})
     }
   }
+  /** Each action runs on its own; the message lists what landed, what failed and what is still asked. */
+  const runPlan=async(id:string,plan:IntentPlan)=>{
+    patch(id,{status:'working',intentPlan:undefined})
+    const run=await runIntentPlan(plan,{items:library.items,
+      commitChange:changes=>commitSeriesChange(changes,(before,after)=>library.commitWork(before,after,'ai_chat')),
+      createBatch:inputs=>library.createWorkBatch(inputs),
+      saveRecord:(record,kind)=>{const error=library.saveCapture(record,kind);if(error)throw new Error(error)}})
+    lastId.current=run.saved.at(-1)?.id??lastId.current
+    patch(id,{status:run.failed.length?'failed':'saved',text:describeIntentRun(plan,run),items:run.saved})
+  }
   const exclusive=async(task:()=>Promise<void>)=>{
     if(locked.current)return
     locked.current=true;setBusy(true)
@@ -157,9 +170,23 @@ export function HomePage() {
       if(type!=='auto' && type!=='schedule' && type!=='task') { const error=library.saveCapture(input,type);append({role:'assistant',text:error ?? '기록을 저장했습니다.'});return }
       if(['planner','reschedule'].includes(routeInput(input).route) && !pending.current){await generatePlanner(input);append({role:'assistant',text:'계획을 추천했어요. 확인·수정한 뒤 적용해 주세요. 아직 저장하지 않았어요.'});return}
       const intent=conversationIntent(input,library.items,lastId.current,new Date(),library.categories,pending.current)
+      // Changes to saved schedules and sentences with several intents go through one plan; list/cleanup commands keep their own flow.
+      if(!pending.current && !['list','dedupe','conflicts','summarize','move_incomplete'].includes(intent.type)) {
+        const extraction=await analyzeIntents(input,new Date())
+        // A single, non-recurring update or delete the old flow already understood keeps its own confirm UI.
+        const simple=extraction.intents.length===1&&(intent.type==='update'||intent.type==='delete')&&!isRecurring(intent.item)
+        if(needsIntentPlan(extraction)&&!simple) {
+          fallbackToMemo=false
+          const plan=planIntents(extraction,library.items,{today:todayISO(),lastId:lastId.current})
+          const targets=plan.actions.flatMap(action=>action.op==='change'?[action.target]:[])
+          if(plan.mode==='auto') {const id=append({role:'assistant',text:describeIntentPlan(plan),status:'working'});await runPlan(id,plan)}
+          else append({role:'assistant',text:describeIntentPlan(plan),items:targets,status:plan.actions.length?'confirm':'review',intentPlan:plan.actions.length?plan:undefined})
+          return
+        }
+      }
       if(intent.type==='reply') {
         if(/지울지/.test(intent.text)) pending.current={kind:'clarify'}
-        if(type==='auto' && !/(삭제|중복|겹치|지워|빼줘|남겨|남기|옮겨|delete|duplicate|overlap|remove)/i.test(input) && !pending.current) {fallbackToMemo=false;saveRecord(input,'memo')}
+        if(type==='auto' && !/(삭제|중복|겹치|지워|빼줘|남겨|남기|옮겨|delete|duplicate|overlap|remove)/i.test(input) && !pending.current && !hasScheduleSignal(input)) {fallbackToMemo=false;saveRecord(input,'memo')}
         else {fallbackToMemo=false;append({role:'assistant',text:intent.text})}
       }
       else if(intent.type==='list') {
@@ -171,12 +198,11 @@ export function HomePage() {
       else if(intent.type==='create') {
         pending.current=null
         const result = await analyzeSchedules(intent.text, library.categories, new Date())
-        if(type==='auto' && shouldSaveAnalysisAsMemo(result.items)) {
+        if(type==='auto' && shouldSaveAnalysisAsMemo(result.items,input)) {
           fallbackToMemo=false;saveRecord(input,'memo');return
         }
         if(!result.items.length) {
-          if(type!=='auto') throw new Error('일정을 찾지 못했어요. 입력 내용을 확인해 주세요.')
-          fallbackToMemo=false;saveRecord(input,'memo');return
+          throw new Error('일정을 찾지 못했어요. 날짜·시간을 넣어 다시 입력해 주세요. 메모로 남기려면 메모를 선택해 주세요.')
         }
         fallbackToMemo=false
         const plan=planAutoSave(result,input,library.items,library.categories.map(category=>category.id),type==='task'?'task':type==='schedule'?'event':undefined)
@@ -222,7 +248,8 @@ export function HomePage() {
       }
     } catch(error) {
       let failure=error
-      if(fallbackToMemo) {
+      // A sentence about a schedule is never filed as a memo just because analysis failed.
+      if(fallbackToMemo && !hasScheduleSignal(input)) {
         try {saveRecord(input,'memo');return} catch(saveError) {failure=saveError}
       }
       setText(current=>current||input);append({role:'assistant',text:failure instanceof Error ? failure.message : '저장하지 못했어요. 다시 시도해 주세요.',status:'failed'})
@@ -231,8 +258,8 @@ export function HomePage() {
   }
   const openItem=(item:WorkItem)=>setEditing(item)
   // The review modal keeps the analysis it opened with; the message settles when it closes.
-  const reviewSaved=useRef<WorkItem[]>([])
-  const startReview=(message:Message)=>{reviewSaved.current=[];setReviewing({id:message.id,analysis:reviewAnalysis(message.review!.analysis,message.review!.rows)})}
+  const reviewSaved=useRef<WorkItem[]>([]),reviewAll=useRef(false)
+  const startReview=(message:Message)=>{reviewSaved.current=[];reviewAll.current=false;setReviewing({id:message.id,analysis:reviewAnalysis(message.review!.analysis,message.review!.rows)})}
   const finishReview=(id:string,all:boolean)=>{
     const saved=reviewSaved.current
     reviewSaved.current=[];setReviewing(null)
@@ -257,13 +284,15 @@ export function HomePage() {
         {message.review.rows.every(row=>row.input)&&<button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>void exclusive(()=>autoSave(message.id,message.review!.rows.map(row=>row.input!),0))}>그대로 저장</button>}
         <button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>patch(message.id,{review:undefined,status:'done',text:savedText(message.items?.length??0,0)?`${savedText(message.items?.length??0,0)} 나머지는 저장하지 않았어요.`:'저장하지 않았어요.'})}>저장 안 함</button>
       </div>}
-      {reviewing?.id===message.id&&<AnalysisReview key={message.id} analysis={reviewing.analysis} originalText={message.review.input} categories={library.categories} onClose={()=>finishReview(message.id,false)}
-        onSaveAll={async inputs=>{const saved=await library.createWorkBatch(inputs);reviewSaved.current=saved;finishReview(message.id,true);return saved}}
-        onSave={async input=>{const item=createWorkItem(input,{inferEndTime:false});if(!item)return null;const saved=await library.commitWork(null,item,'ai_chat');if(saved){lastId.current=saved.id;reviewSaved.current=[...reviewSaved.current,saved];if(reviewing.analysis.items.length===1)finishReview(message.id,true);else setMessages(current=>current.map(row=>row.id===message.id?{...row,items:[...(row.items??[]),saved]}:row))}return saved}}/>}
+      {reviewing?.id===message.id&&<AnalysisReview key={message.id} analysis={reviewing.analysis} originalText={message.review.input} categories={library.categories} onClose={()=>finishReview(message.id,reviewAll.current)}
+        onSaveAll={async inputs=>{const saved=await library.createWorkBatch(inputs);reviewSaved.current=saved;reviewAll.current=true;return saved}}
+        onSave={async input=>{const item=createWorkItem(input,{inferEndTime:false});if(!item)return null;const saved=await library.commitWork(null,item,'ai_chat');if(saved){lastId.current=saved.id;reviewSaved.current=[...reviewSaved.current,saved];if(reviewing.analysis.items.length===1)reviewAll.current=true;else setMessages(current=>current.map(row=>row.id===message.id?{...row,items:[...(row.items??[]),saved]}:row))}return saved}}/>}
     </>}
     {message.status==='failed'&&message.retry?.length?<button type="button" className="btn btn-ghost mt-2 text-blue-600" disabled={busy} onClick={()=>void exclusive(()=>autoSave(message.id,message.retry!,message.review?.rows.filter(row=>!message.retry!.some(input=>input.id===row.input?.id)).length??0))}>다시 시도</button>:null}
     {message.remove&&<div className="mt-2 flex gap-2"><button type="button" className="btn btn-ghost text-red-600" disabled={busy} onClick={()=>void exclusive(async()=>{const target=library.items.find(item=>item.id===message.remove!.id);if(!target){patch(message.id,{remove:undefined,status:'done',text:'이미 삭제된 항목이에요.'});return}try{await library.commitWork(target,null,'ai_chat');lastId.current=null;patch(message.id,{remove:undefined,status:'done',text:target.title+'을 휴지통으로 옮겼어요.',undoIds:[target.id]})}catch(error){patch(message.id,{status:'failed',text:error instanceof Error?error.message:'삭제하지 못했어요. 다시 시도해 주세요.'})}})}>삭제</button><button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>patch(message.id,{remove:undefined,status:'done',text:'삭제하지 않았어요.'})}>취소</button></div>}
     {message.choices?.length?<div className="mt-2 flex flex-wrap gap-2">{message.choices.map(title=><button type="button" key={title} className="btn btn-ghost text-blue-600" disabled={busy} onClick={()=>{const scope=pending.current&&pending.current.kind==='conflicts'?pending.current:{start:todayISO(),end:shiftISO(todayISO(),56)};const plan=planConflicts(library.items,scope.start,scope.end,{keepTitles:[title]});pending.current={kind:'conflicts',start:scope.start,end:scope.end,keepTitles:[title]};setMessages(current=>current.map(row=>row.id===message.id?{...row,text:describePlan(plan),items:[...plan.kept,...plan.actions.map(action=>action.item)],preview:plan,choices:undefined}:row))}}>{title} 유지</button>)}</div>:null}
+    {message.intentPlan&&<div className="mt-2 flex gap-2"><button type="button" className="btn btn-ghost text-blue-600" disabled={busy} onClick={()=>void exclusive(()=>runPlan(message.id,message.intentPlan!))}>실행</button><button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>patch(message.id,{intentPlan:undefined,status:'done',text:`${message.text}
+실행하지 않았어요.`})}>취소</button></div>}
     {message.preview&&<div className="mt-2 flex gap-2"><button type="button" className="btn btn-ghost text-blue-600" disabled={busy} onClick={()=>void exclusive(()=>applyAgentPlan(message.preview!).then(result=>patch(message.id,{text:result.text,items:result.items,undoIds:result.undoIds,preview:undefined,status:'done'})))}>실행</button><button type="button" className="btn btn-ghost" disabled={busy} onClick={()=>{pending.current=null;patch(message.id,{text:'실행하지 않았어요.',preview:undefined,items:undefined,choices:undefined,status:'done'})}}>취소</button></div>}
     {message.undoIds?.length?<button type="button" className="btn btn-ghost mt-2 text-blue-600" disabled={busy} onClick={()=>void Promise.all(message.undoIds!.map(id=>library.restoreTrash(id))).then(()=>setMessages(current=>current.map(row=>row.id===message.id?{...row,text:row.text+'\n되돌렸습니다.',undoIds:undefined}:row)))}>되돌리기</button>:null}
   </div>

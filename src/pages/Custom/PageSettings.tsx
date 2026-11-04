@@ -1,8 +1,8 @@
 import { IconPicker } from '../../components/common/IconPicker.tsx'
 import type { UserPage } from '../../features/builder/schema.ts'
-import { DEFAULT_FIELD_LABELS, FIELD_KEYS, fieldLabel } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
+import { FieldLabelEditor } from './FieldLabelEditor.tsx'
 
 export function PageSettings({ page }: { page: UserPage }) {
   const { t } = useI18n()
@@ -20,17 +20,12 @@ export function PageSettings({ page }: { page: UserPage }) {
           aria-label={t('custom.pageName')}
         />
       </div>
-      {FIELD_KEYS[template].map((key) => (
-        <label key={key} className="block text-sm">
-          <span className="text-neutral-400">{DEFAULT_FIELD_LABELS[template][key as keyof (typeof DEFAULT_FIELD_LABELS)[typeof template]]}</span>
-          <input
-            value={page.fieldLabels[key] ?? ''}
-            onChange={(event) => updateUserPage(page.id, { fieldLabels: { ...page.fieldLabels, [key]: event.target.value } })}
-            placeholder={fieldLabel(template, key)}
-            className="field mt-1 w-full"
-          />
-        </label>
-      ))}
+      <FieldLabelEditor
+        template={template}
+        values={page.fieldLabels}
+        showDefaults
+        onChange={(key, value) => updateUserPage(page.id, { fieldLabels: { ...page.fieldLabels, [key]: value } })}
+      />
     </div>
   )
 }
