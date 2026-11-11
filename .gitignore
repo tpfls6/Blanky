@@ -36,18 +36,13 @@ dist-ssr
 
 .claude
 .cursor
-# UX review captures (analysis artifacts, keep proposal.md tracked)
-.audit/ux/**/*.png
-.audit/ux/**/summary.json
-.audit/ux/**/*.json
 
 # Scratch / test artifacts (screenshots, logs, build copies, npm cache)
 .tmp/
 scripts/.tmp-*
 
-# QA run evidence and agent decision logs (keep .audit/ux proposals tracked)
-.audit/runs/
-.audit/*.tsv
+# QA evidence, UX review proposals and agent decision logs (internal only)
+.audit/
 
 # Generated code-graph cache
 graphify-out/
@@ -57,3 +52,6 @@ graphify-out/
 
 # One-off implementation reports at repo root (docs/ is kept)
 /*_IMPLEMENTATION.md
+
+# Personal grant-application documents (not part of the app)
+application_work/
