@@ -1,4 +1,0 @@
-started 2026-10-28T08:22:04.603Z
-2026-10-28T08:22:13.214Z logged in as seeded local user
-2026-10-28T08:22:14.454Z screenshot 01-custom-hub.png
-2026-10-28T08:22:25.142Z FAIL Timed out: name field

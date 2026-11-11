@@ -1,9 +1,0 @@
-{
-  "surface": "home-supabase",
-  "steps": [
-    "auto-save-db",
-    "edit-delete-db",
-    "retry-idempotent-db",
-    "relogin-isolation"
-  ]
-}

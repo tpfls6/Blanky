@@ -1,1 +1,0 @@
-import{t as e}from"./react-vendor-CR5VJ85Q.js";var t=e();function n({children:e}){return(0,t.jsx)(`p`,{"data-theme-slot":`empty-state`,className:`py-8 text-sm text-neutral-400`,children:e})}export{n as t};
