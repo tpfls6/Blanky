@@ -62,3 +62,17 @@ test('batch create keeps client ids and a retried insert returns the rows alread
   assert.equal(retried[0].id, id)
   assert.equal(stored.length, 1)
 })
+test('removing one history row deletes only schedule_changes and reports a miss or a DB error', async () => {
+  const calls: string[] = []
+  let rows: unknown[] = [{ id: 'change' }]
+  let failure: unknown = null
+  const query = { delete() { calls.push('delete'); return this }, eq(column: string, value: string) { calls.push(column + '=' + value); return this },
+    async select() { return { data: failure ? null : rows, error: failure } } }
+  const repo = createScheduleRepository({ from: (table: string) => { calls.push(table); return query } } as unknown as SupabaseClient<Database>)
+  assert.equal(await repo.removeChange('change'), true)
+  assert.deepEqual(calls, ['schedule_changes', 'delete', 'id=change'])
+  rows = []
+  assert.equal(await repo.removeChange('missing'), false)
+  failure = { message: 'TypeError: Failed to fetch' }
+  await assert.rejects(repo.removeChange('change'), (error: { code?: string }) => error.code === 'NETWORK_ERROR')
+})

@@ -1,6 +1,7 @@
 import { sameBook, validateBookPatch, validateShelf, validateHighlight, validateNote } from '@blanky/types';
 import type { BookMetadata, Highlight, ReadingLibrary, ReadingNote, UserBook } from '@blanky/types';
 import { searchGoogleBooks, getGoogleBook, type ReadingRepository } from '@blanky/api';
+import { readingError } from './messages.ts';
 export type ReadingStore = ReadingLibrary & {
     highlights: Highlight[];
     notes: ReadingNote[];
@@ -23,14 +24,14 @@ export function createReadingStoreRepository(userId: string, storage: {
     const { read, save } = storage;
     const stamp = () => new Date().toISOString();
     const findBook = (s: ReadingStore, id: string) => { const b = s.books.find(b => b.id === id); if (!b)
-        throw new Error('책을 찾을 수 없습니다.'); return b; };
+        throw new Error(readingError('bookMissing')); return b; };
     const shelfCheck = (s: ReadingStore, id: string) => { if (!s.shelves.some(x => x.id === id))
-        throw new Error('책장을 찾을 수 없습니다.'); };
+        throw new Error(readingError('shelfMissing')); };
     const membership = (s: ReadingStore, bookId: string, shelfId: string) => { findBook(s, bookId); shelfCheck(s, shelfId); if (!s.memberships.some(m => m.user_book_id === bookId && m.shelf_id === shelfId))
         s.memberships.push({ user_id: userId, user_book_id: bookId, shelf_id: shelfId, created_at: stamp() }); };
     return {
         async updateBookMetadata(id, metadata) {
-            if (!metadata.title.trim()) throw new Error('책 제목을 입력해 주세요.');
+            if (!metadata.title.trim()) throw new Error(readingError('titleRequired'));
             const s = read(), b = findBook(s, id);
             Object.assign(b.book, metadata, { title: metadata.title.trim(), categories_fetched_at: stamp() });
             b.updated_at = stamp();
@@ -54,12 +55,12 @@ export function createReadingStoreRepository(userId: string, storage: {
         async removeBook(id) { const s = read(); s.books = s.books.filter(b => b.id !== id); s.memberships = s.memberships.filter(m => m.user_book_id !== id); s.highlights = s.highlights.filter(h => h.user_book_id !== id); s.notes = s.notes.filter(n => n.user_book_id !== id); await save(s); },
         async getShelves() { return read().shelves; },
         async createShelf(input) { validateShelf(input); if (!input.name.trim())
-            throw new Error('책장 이름을 입력해 주세요.'); const s = read(), now = stamp(), shelf = { ...input, id: crypto.randomUUID(), user_id: userId, created_at: now, updated_at: now }; s.shelves.push(shelf); await save(s); return shelf; },
+            throw new Error(readingError('shelfNameRequired')); const s = read(), now = stamp(), shelf = { ...input, id: crypto.randomUUID(), user_id: userId, created_at: now, updated_at: now }; s.shelves.push(shelf); await save(s); return shelf; },
         async updateShelf(id, input) { validateShelf(input); const s = read(); shelfCheck(s, id); if (!input.name.trim())
-            throw new Error('책장 이름을 입력해 주세요.'); const shelf = s.shelves.find(x => x.id === id)!; Object.assign(shelf, input, { updated_at: stamp() }); await save(s); return shelf; },
+            throw new Error(readingError('shelfNameRequired')); const shelf = s.shelves.find(x => x.id === id)!; Object.assign(shelf, input, { updated_at: stamp() }); await save(s); return shelf; },
         async reorderShelves(ids) {
             const s=read();
-            if(ids.length!==s.shelves.length || new Set(ids).size!==ids.length || ids.some(id=>!s.shelves.some(shelf=>shelf.id===id)))throw new Error('책장 순서를 다시 확인해 주세요.');
+            if(ids.length!==s.shelves.length || new Set(ids).size!==ids.length || ids.some(id=>!s.shelves.some(shelf=>shelf.id===id)))throw new Error(readingError('shelfOrder'));
             s.shelves.forEach(shelf=>{shelf.sort_order=ids.indexOf(shelf.id);shelf.updated_at=stamp()});await save(s);
         },
         async deleteShelf(id) { const s = read(); s.shelves = s.shelves.filter(x => x.id !== id); s.memberships = s.memberships.filter(m => m.shelf_id !== id); await save(s); },
@@ -67,19 +68,19 @@ export function createReadingStoreRepository(userId: string, storage: {
         async removeBookFromShelf(bookId, shelfId) { const s = read(); s.memberships = s.memberships.filter(m => !(m.user_book_id === bookId && m.shelf_id === shelfId)); await save(s); },
         async getHighlights(bookId) { return read().highlights.filter(h => h.user_book_id === bookId).sort((a, b) => b.created_at.localeCompare(a.created_at)); },
         async createHighlight(bookId, input, id = crypto.randomUUID()) { validateHighlight(input); const s = read(); findBook(s, bookId); if (!input.content.trim())
-            throw new Error('문장을 입력해 주세요.'); if (s.highlights.some(h => h.id === id))
-            throw new Error('이미 저장한 문장입니다.'); const now = stamp(), h = { ...input, id, user_id: userId, user_book_id: bookId, created_at: now, updated_at: now }; s.highlights.unshift(h); await save(s); return h; },
+            throw new Error(readingError('highlightRequired')); if (s.highlights.some(h => h.id === id))
+            throw new Error(readingError('highlightExists')); const now = stamp(), h = { ...input, id, user_id: userId, user_book_id: bookId, created_at: now, updated_at: now }; s.highlights.unshift(h); await save(s); return h; },
         async updateHighlight(id, input) { validateHighlight(input); const s = read(), h = s.highlights.find(h => h.id === id); if (!h)
-            throw new Error('문장을 찾을 수 없습니다.'); if (!input.content.trim())
-            throw new Error('문장을 입력해 주세요.'); Object.assign(h, input, { updated_at: stamp() }); await save(s); return h; },
+            throw new Error(readingError('highlightMissing')); if (!input.content.trim())
+            throw new Error(readingError('highlightRequired')); Object.assign(h, input, { updated_at: stamp() }); await save(s); return h; },
         async deleteHighlight(id) { const s = read(); s.highlights = s.highlights.filter(h => h.id !== id); await save(s); },
         async getReadingNotes(bookId) { return read().notes.filter(n => n.user_book_id === bookId).sort((a, b) => b.created_at.localeCompare(a.created_at)); },
         async createReadingNote(bookId, input, id = crypto.randomUUID()) { validateNote(input); const s = read(); findBook(s, bookId); if (!input.content.trim())
-            throw new Error('메모를 입력해 주세요.'); if (s.notes.some(n => n.id === id))
-            throw new Error('이미 저장한 메모입니다.'); const now = stamp(), n = { ...input, id, user_id: userId, user_book_id: bookId, created_at: now, updated_at: now }; s.notes.unshift(n); await save(s); return n; },
+            throw new Error(readingError('noteRequired')); if (s.notes.some(n => n.id === id))
+            throw new Error(readingError('noteExists')); const now = stamp(), n = { ...input, id, user_id: userId, user_book_id: bookId, created_at: now, updated_at: now }; s.notes.unshift(n); await save(s); return n; },
         async updateReadingNote(id, input) { validateNote(input); const s = read(), n = s.notes.find(n => n.id === id); if (!n)
-            throw new Error('메모를 찾을 수 없습니다.'); if (!input.content.trim())
-            throw new Error('메모를 입력해 주세요.'); Object.assign(n, input, { updated_at: stamp() }); await save(s); return n; },
+            throw new Error(readingError('noteMissing')); if (!input.content.trim())
+            throw new Error(readingError('noteRequired')); Object.assign(n, input, { updated_at: stamp() }); await save(s); return n; },
         async deleteReadingNote(id) { const s = read(); s.notes = s.notes.filter(n => n.id !== id); await save(s); },
         async refreshCategories() {
             const s=read(),pending=s.books.filter(b=>b.book.external_source==='google'&&!b.book.categories_fetched_at&&!b.book.categories?.length);

@@ -113,11 +113,17 @@ try {
     await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===390});
     await evaluate('[...document.querySelectorAll("button[aria-controls^=tasks-]")].filter(b=>b.getAttribute("aria-expanded")==="false").forEach(b=>b.click())');
     await pause(350);
+    // On phones the task list is the second pane of the schedule pager.
+    if (width===390) {
+      await wait('!!document.querySelector("[data-schedule-tab=tasks]")','mobile pager');
+      await click('[data-schedule-tab=tasks]');
+      await wait('!document.querySelector("[data-schedule-pane=tasks]").inert && Math.abs(document.querySelector("[data-schedule-pane=tasks]").getBoundingClientRect().left)<2','tasks pane');
+    }
     const recommendation='button[aria-label="No deadline \uC2DC\uAC04 \uCD94\uCC9C"]';
     assert.equal(await evaluate('(()=>{const button=document.querySelector('+q(recommendation)+');const date=button.previousElementSibling;const b=button.getBoundingClientRect(),d=date.getBoundingClientRect();return b.width>0&&b.width<100&&b.height>0&&b.height<32&&Math.abs(b.top-d.top)<10&&b.left>=d.right&&b.right<=innerWidth})()'),true,'compact recommendation beside date');
     await evaluate('document.querySelector('+q(recommendation)+').scrollIntoView({block:"center"})');
-    await mkdir('.audit/runs/task-completion',{recursive:true});
-    await writeFile('.audit/runs/task-completion/row-'+width+'.png',Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true})).data,'base64'));
+    await mkdir((process.env.BLANKY_AUDIT_DIR ?? '.audit/runs')+'/task-completion',{recursive:true});
+    await writeFile((process.env.BLANKY_AUDIT_DIR ?? '.audit/runs')+'/task-completion/row-'+width+'.png',Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true})).data,'base64'));
     const check='button[role="checkbox"][aria-label="No deadline \uC644\uB8CC"]';
     await click(check);
     await wait('document.querySelector('+q(check)+')?.getAttribute("aria-checked")==="true"','checked');
@@ -146,27 +152,33 @@ try {
       await pause(50);
     }
   }
+  // Phone and desktop are separate layouts, so an open recommendation does not survive crossing the breakpoint.
+  // Run the recommendation flow on one layout from start to apply.
+  const applyMobile=process.env.SCHEDULE_APPLY_MOBILE==='1';
+  if(!applyMobile) await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   const stored=()=>evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items');
   const choose=async(selector,value)=>evaluate('(()=>{const el=document.querySelector('+q(selector)+');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,"value").set.call(el,'+q(value)+');el.dispatchEvent(new Event("change",{bubbles:true}));})()');
   await evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent.includes("Deadline test")).click()');
   await wait('!!document.querySelector("form select")','editor loaded');
-  await choose('form select','high');await button('확인');
+  await choose('form select','high');await button('저장');
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.find(i=>i.id==="deadline").priority==="high"','priority saved');
   await navigate(base+'/schedule');await wait('document.body?.innerText.includes("Deadline test")','reloaded');
   assert.equal((await stored()).find(i=>i.id==='deadline').priority,'high');
   await choose('label select','high');
-  assert.equal(await evaluate('[...document.querySelectorAll("li")].some(el=>el.innerText.includes("No deadline"))'),false);
+  // The filter belongs to the task list; the timeline's day agenda ([data-day-tasks]) keeps every task of the day.
+  assert.equal(await evaluate('[...document.querySelectorAll("li")].some(el=>!el.closest("[data-day-tasks]")&&el.innerText.includes("No deadline"))'),false);
   await choose('label select','all');await button('우선순위 정렬');
   await fill('input[aria-label="일정 또는 할 일"]','내일까지 중요한 보고서 제출');
   await button('전송');
-  const review='section[aria-label="AI 분석 결과"]';
+  const review='dialog[data-analysis-review]';
   await wait('!!document.querySelector('+q(review)+')','AI review');
   assert.equal(await evaluate('document.querySelector('+q(review)+').innerText.includes("AI 추천")'),true);
   assert.equal(await evaluate('[...document.querySelector('+q(review)+').querySelectorAll("label")].find(l=>l.textContent.startsWith("우선순위")).querySelector("select").value'),'high');
   await evaluate('(()=>{const el=[...document.querySelector('+q(review)+').querySelectorAll("label")].find(l=>l.textContent.startsWith("우선순위")).querySelector("select");el.value="low";el.dispatchEvent(new Event("change",{bubbles:true}))})()');
   await button('확인 후 저장');
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.some(i=>i.title.includes("보고서")&&i.priority==="low")','AI priority override saved');
-  await button('닫기');
+  // The review dialog closes itself after the last item is saved.
+  await wait('!document.querySelector('+q(review)+')?.open','AI review closed');
   const before=await stored();
   await click('button[aria-label="No deadline \uC2DC\uAC04 \uCD94\uCC9C"]');
   await wait('!!document.querySelector("[data-planner-block]")','recommendation');
@@ -184,13 +196,9 @@ try {
   assert.equal(await evaluate('[...document.querySelectorAll("button")].find(b=>b.textContent.includes("선택한 0개 전체 적용")).disabled'),true);
   assert.deepEqual(await stored(),before,'excluding a recommendation must not write');
   await click('[data-planner-block] input[type="checkbox"]');
-  await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   assert.equal(await evaluate('document.documentElement.scrollWidth<=document.documentElement.clientWidth'),true);
-  await mkdir('.audit/runs/task-completion',{recursive:true});
-  await writeFile('.audit/runs/task-completion/mobile.png',Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true})).data,'base64'));
-  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
-  await writeFile('.audit/runs/task-completion/desktop.png',Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true})).data,'base64'));
-  if(process.env.SCHEDULE_APPLY_MOBILE==='1') await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await mkdir((process.env.BLANKY_AUDIT_DIR ?? '.audit/runs')+'/task-completion',{recursive:true});
+  await writeFile((process.env.BLANKY_AUDIT_DIR ?? '.audit/runs')+'/task-completion/'+(applyMobile?'mobile':'desktop')+'.png',Buffer.from((await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true})).data,'base64'));
   await button('\uC120\uD0DD\uD55C 1\uAC1C \uC804\uCCB4 \uC801\uC6A9');
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.find(i=>i.id==="plain").startTime','existing task applied');
   const after=await stored();assert.equal(after.length,before.length);

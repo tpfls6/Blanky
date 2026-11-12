@@ -11,11 +11,17 @@ export type Account = {
   avatar: string | null
 }
 
+/** `verify`: the account exists but waits for the emailed code. */
+export type SignupOutcome = { error: string } | { next: 'done' | 'verify'; email: string }
+
 export type SessionValue = {
   user: Account | null
   loading?: boolean
   authError?: string
-  signUp: (input: SignupInput) => string | null | Promise<string | null>
+  signUp: (input: SignupInput) => SignupOutcome | Promise<SignupOutcome>
+  /** Server accounts only: confirms a sign-up with the emailed code and signs in. */
+  verifySignup?: (email: string, code: string) => Promise<string | null>
+  resendSignup?: (email: string) => Promise<string | null>
   signIn: (email: string, password: string) => string | null | Promise<string | null>
   signInWithGoogle: () => string | null | Promise<string | null>
   signOut: () => void | Promise<void>

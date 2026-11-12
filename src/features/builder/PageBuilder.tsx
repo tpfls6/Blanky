@@ -57,7 +57,8 @@ export function PageBuilder({
   const { t } = useI18n()
   const { addRecordType } = useLibrary()
   const [settings, setSettings] = useState(false)
-  const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(() => findBlocksByText(blocks, find)[0] ?? blocks[0]?.id ?? null)
+  const [searched, setSearched] = useState(find)
   const selected = selectedId ? findBlock(blocks, selectedId)?.block ?? null : null
   const hits = findBlocksByText(blocks, find)
   const [menu, setMenu] = useState<Menu | null>(null)
@@ -67,9 +68,10 @@ export function PageBuilder({
   const history = useRef<History>(emptyHistory())
   const items = filterMenu(query)
 
-  useEffect(() => {
+  if (searched !== find) {
+    setSearched(find)
     if (hits[0]) setSelectedId(hits[0])
-  }, [find])
+  }
 
   useEffect(() => {
     if (!menu && !ctx) return

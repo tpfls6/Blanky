@@ -23,9 +23,9 @@ export type IsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7
  */
 export type Recurrence =
   | { freq: 'none' }
-  | { freq: 'daily'; until?: DateStr }
-  | { freq: 'weekly'; days: readonly [IsoWeekday, ...IsoWeekday[]]; until?: DateStr }
-  | { freq: 'monthly'; until?: DateStr }
+  | { freq: 'daily'; until?: DateStr; interval?: number }
+  | { freq: 'weekly'; days: readonly [IsoWeekday, ...IsoWeekday[]]; until?: DateStr; interval?: number }
+  | { freq: 'monthly'; until?: DateStr; interval?: number }
 
 export type PeerWhen =
   | { allDay: true; date: DateStr; endDate: DateStr | null }

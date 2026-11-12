@@ -35,7 +35,7 @@ const TOURS: Record<PageTourId, TourStep[]> = {
     { target: '[data-tour="layout-controls"]', prepare: 'layout', title: '블록 배치를 조정해요', body: '페이지를 고르고 블록 간격과 배치를 조정해요. 변경한 구성은 해당 페이지에 적용돼요.' },
   ],
   settings: [
-    { target: '[data-tour="settings-nav"]', title: '계정과 캘린더 연동', body: '설정 메뉴에서 계정, 캘린더, 입력·일정 설정을 골라요. 모바일에서는 펼침 메뉴를 사용해요.' },
+    { target: '[data-tour="settings-nav"]', title: '계정과 캘린더 연동', body: '설정 메뉴에서 계정, 캘린더, 입력·일정 설정을 골라요. 모바일에서는 위쪽 탭을 눌러 이동해요.' },
     { target: '[data-tour="settings-body"] select, [data-tour="settings-body"] button', title: '테마와 앱 설정', body: '현재 메뉴의 설정을 여기서 바꿔요. 일반 메뉴에서는 언어와 화면 테마를 고를 수 있어요.' },
   ],
 }

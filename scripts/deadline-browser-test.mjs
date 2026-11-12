@@ -85,10 +85,10 @@ try {
   const selector='input[data-deadline-test]';
   const mark=async(label)=>await evaluate('(()=>{const l=[...document.querySelectorAll("label")].find(l=>l.textContent.trim().startsWith('+q(label)+'));l.querySelector("input").setAttribute("data-deadline-test","");})()');
   await open();await mark('마감일');await fill(selector,'2026-12-01');await evaluate('document.querySelector('+q(selector)+').removeAttribute("data-deadline-test")');
-  await mark('마감 시각');await fill(selector,'15:00');await button('확인');
+  await mark('마감 시각');await fill(selector,'15:00');await button('저장');
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.find(i=>i.id==="deadline").dueTime==="15:00"','deadline saved');
   await navigate(base+'/schedule');await wait('document.body?.innerText.includes("2026-12-01 15:00")','deadline reload');
-  await open();await button('마감 해제');await button('확인');
+  await open();await button('마감 해제');await button('저장');
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.find(i=>i.id==="deadline").dueDate===null','deadline removed');
   const row=await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items.find(i=>i.id==="deadline")');assert.equal(row.dueTime,null);
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
 
 const started = new Date().toISOString()
-const evidenceDir = resolve('.audit/runs/pwa')
+const evidenceDir = resolve(process.env.BLANKY_AUDIT_DIR ?? '.audit/runs', 'pwa')
 await mkdir(evidenceDir, { recursive: true })
 const logLines = [`started ${started}`]
 function log(line) {
@@ -156,10 +156,10 @@ try {
   await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
   await navigate(base + '/schedule')
   await wait('document.querySelector("main h1, main h2, main [data-theme-slot]")', 'offline schedule renders')
-  await wait('document.querySelector(".app-status-notice")', 'offline notice')
+  await wait('document.querySelector(".app-status-notice p")', 'offline notice')
   await shot('01-offline-schedule')
   await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 })
-  await wait('!document.querySelector(".app-status-notice")', 'offline notice hides when back online')
+  await wait('!document.querySelector(".app-status-notice p")', 'offline notice hides when back online')
   log('offline start ok')
 
   // 5. A new deploy waits for the user, then takes over on reload.

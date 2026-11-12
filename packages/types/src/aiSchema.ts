@@ -30,9 +30,10 @@ export const SCHEDULE_ANALYSIS_SCHEMA = object({
   warnings: { type: 'array', maxItems: 20, items: string },
 })
 
+/** This package has no i18n: without a message the error carries its code, which the app translates. */
 export class AnalysisError extends Error {
   readonly code: string
-  constructor(code = 'AI_RESPONSE_INVALID', message = 'AI 분석 결과가 올바르지 않아 저장하지 않았어요. 다시 입력해 주세요.') {
+  constructor(code = 'AI_RESPONSE_INVALID', message: string = code) {
     super(message)
     this.name = 'AnalysisError'
     this.code = code
@@ -87,7 +88,7 @@ export function validateScheduleAnalysis(value: unknown, options: { text?: strin
       if (evidence && options.text && !options.text.includes(evidence)) invalid()
       if (field && evidence) {
         if (key === 'dueTime' && !/오전|오후|저녁|밤|\d{1,2}:\d{2}|(?:1[3-9]|2[0-3])\s*시/.test(evidence)) invalid()
-        const cue = key.endsWith('Time') ? /\d{1,2}\s*(?:시|:)|정오|자정|오전|오후|저녁|밤|\d+\s*(?:시간|분)|^\d{1,2}\s*(?:~|〜|–|-|to)\s*\d{1,2}$/i : /오늘|내일|모레|주말|요일|이번\s*주|다음\s*주|\d+\s*(?:월|일)|\d{4}-\d{2}-\d{2}/
+        const cue = key.endsWith('Time') ? /\d{1,2}\s*(?:시|:)|정오|자정|오전|오후|저녁|밤|\d+\s*(?:시간|분)|^\d{1,2}\s*(?:~|〜|–|-|to)\s*\d{1,2}$/i : /오늘|내일|모레|글피|주말|요일|이번\s*주|다음\s*주|\d+\s*(?:월|일)|\d{4}-\d{2}-\d{2}|매일|매\s*주|매\s*달|매\s*월|격주|평일|주중|마다/
         // Abbreviated weekdays and lists of them (목, 목/금, 화·목·금, 월수금) count only as a standalone weekday run in the text.
         const day = '[월화수목금토일](?:요일)?', sep = '\\s*[/·・,，、]?\\s*'
         const abbreviatedWeekday = !key.endsWith('Time') && new RegExp(`^${day}(?:${sep}${day})*$`).test(evidence) && !!options.text &&

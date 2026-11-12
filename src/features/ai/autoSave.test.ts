@@ -63,7 +63,34 @@ test('review analysis keeps only waiting items and shows our reasons', () => {
 })
 
 test('chip detail shows date, time and repeat briefly', () => {
-  assert.equal(chipDetail(saved({ repeat: 'weekly', repeatDays: [1, 3] })), '11/4(수) · 15:00–16:00 · 매주 월·수')
-  assert.equal(chipDetail(saved({ kind: 'task', startTime: null, endTime: null, dueDate: '2026-11-06', dueTime: '18:00' })), '11/6(금) 18:00까지')
-  assert.equal(chipDetail(saved({ startTime: null, endTime: null })), '11/4(수) · 종일')
+  const now = new Date(2026, 10, 4)
+  assert.equal(chipDetail(saved({ repeat: 'weekly', repeatDays: [1, 3] }), now), '11/4(수) · 15:00–16:00 · 매주 월·수')
+  assert.equal(chipDetail(saved({ kind: 'task', startTime: null, endTime: null, dueDate: '2026-11-06', dueTime: '18:00' }), now), '11/6(금) 18:00까지')
+  assert.equal(chipDetail(saved({ startTime: null, endTime: null }), now), '11/4(수) · 종일')
+})
+
+test('chip detail shows the year only for a day outside the current year', () => {
+  const now = new Date(2026, 10, 10)
+  assert.equal(chipDetail(saved({ date: '2027-01-05', startTime: '14:00', endTime: null }), now), '2027/1/5(화) · 14:00')
+  assert.equal(chipDetail(saved({ kind: 'task', startTime: null, endTime: null, dueDate: '2025-12-30', dueTime: null }), now), '2025/12/30(화)까지')
+  assert.equal(chipDetail(saved({ date: '2026-12-31', startTime: null, endTime: null }), now), '12/31(목) · 종일')
+})
+
+test('repeating tasks from natural language: rule, start day, interval and end', async () => {
+  const { resolveScheduleAnalysis } = await import('../../../packages/parse/src/resolve.ts')
+  const today = new Date(2026, 10, 5)
+  const save = async (text: string) => planAutoSave(await resolveScheduleAnalysis(text, { today, categories: [] }), text, [], [], undefined, ids).ready[0]
+  const vitamins = await save('매일 영양제 먹기')
+  assert.deepEqual([vitamins.kind, vitamins.title, vitamins.repeat, vitamins.date, vitamins.undated], ['task', '영양제 먹기', 'daily', '2026-11-05', undefined])
+  const recycling = await save('격주 화요일 분리수거')
+  assert.deepEqual([recycling.kind, recycling.repeat, recycling.repeatDays, recycling.repeatInterval, recycling.date], ['task', 'weekly', [2], 2, '2026-11-10'])
+  const plants = await save('3일마다 화분 물주기')
+  assert.deepEqual([plants.repeat, plants.repeatInterval], ['daily', 3])
+  const words = await save('12월 말까지 매일 영어 단어 외우기')
+  assert.deepEqual([words.title, words.repeatUntil], ['영어 단어 외우기', '2026-12-31'])
+  const report = await save('매주 금요일까지 회고 작성')
+  assert.deepEqual([report.kind, report.repeatDays, report.date, report.dueDate], ['task', [5], '2026-11-06', null])
+  // Meetings with a time stay events.
+  const meeting = await save('매주 화요일 오후 3시 팀 회의')
+  assert.deepEqual([meeting.kind, meeting.title, meeting.startTime, meeting.repeat], ['event', '팀 회의', '15:00', 'weekly'])
 })

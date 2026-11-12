@@ -12,7 +12,7 @@ export function routeInput(text: string, parsed?: ParsedSchedule, threshold = PA
       : { route: 'parser', reason: 'simple_schedule' }
   }
   if(/(재배치|다시\s*배치|일정.*(?:다시\s*짜|옮겨서\s*정리))/.test(input))return {route:'reschedule',intent:'RESCHEDULE',reason:'rescheduling_request'}
-  if (/(계획\s*(?:을\s*)?(?:세워|짜|만들|수립|해)|플랜|일정\s*(?:을\s*)?(?:알아서\s*)?짜|시간표\s*(?:를\s*)?(?:짜|만들)|추천|재배치|시간\s*찾아|일정.*정리해)/.test(input)) {
+  if (/(계획\s*(?:을\s*)?(?:좀\s*)?(?:세워|짜|만들|수립|해)|플랜|일정\s*(?:을\s*)?(?:알아서\s*)?짜|시간표\s*(?:를\s*)?(?:짜|만들)|추천|재배치|시간\s*찾아|일정.*정리해)/.test(input)) {
     return { route: 'planner', intent: 'PLAN_TASKS', reason: 'planning_request' }
   }
   // A range/duration is one schedule; conjunctions, conditions and separate clauses are not.

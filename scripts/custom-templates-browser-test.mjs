@@ -1,9 +1,12 @@
 import { readdir, mkdtemp, rm } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 
+// The sidebar names the custom hub with its navigation label (nav.custom), so a renamed menu needs no edit here.
+const navLabels = JSON.parse(readFileSync(new URL('../src/i18n/locales/ko/navigation.json', import.meta.url), 'utf8'))
 const base = process.env.CUSTOM_TEST_URL ?? 'http://127.0.0.1:5196'
 if (new URL(base).hostname !== '127.0.0.1') throw new Error('Test URL must be on loopback')
 const cache = join(homedir(), 'AppData', 'Local', 'ms-playwright')
@@ -124,7 +127,7 @@ try {
   assert.ok(layout.mainLeft > 100, 'main starts past sidebar, left=' + layout.mainLeft)
   assert.equal(layout.display, 'flex')
   const sideText = await evaluate('document.getElementById("app-sidebar").innerText')
-  assert.match(sideText, /커스텀 템플릿/)
+  assert.ok(sideText.includes(navLabels.custom), 'sidebar lists ' + navLabels.custom)
   assert.match(sideText, /페이지/)
   assert.equal(sideText.includes('기존 페이지'), true)
   assert.equal(sideText.includes('운동 기록'), false)
@@ -143,10 +146,15 @@ try {
   await evaluate('document.querySelector(\'a[href="/schedule"]\').click()')
   await wait('location.pathname === "/schedule"', 'schedule via sidebar')
   assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'sidebar stays on schedule')
-  for (const href of ['/activity', '/diary', '/reading', '/memo', '/store', '/settings/themes', '/trash', '/settings']) {
+  for (const href of ['/activity', '/diary', '/reading', '/memo', '/store', '/custom?tab=themes', '/trash', '/settings']) {
     const expected = href === '/settings' ? '/settings/general' : href
+    // 내 테마 left the sidebar (/settings/themes only redirects now); it is the 내 테마 tab of 커스텀, reached from there.
+    if (href === '/custom?tab=themes') {
+      await evaluate('document.querySelector(\'a[href="/custom"]\')?.click()')
+      await wait('location.pathname === "/custom"', 'custom before themes tab')
+    }
     await evaluate('document.querySelector(' + q('a[href="' + href + '"]') + ')?.click()')
-    await wait('location.pathname === ' + q(expected), href)
+    await wait('location.pathname + location.search === ' + q(expected), href)
     assert.ok((await evaluate('document.getElementById("app-sidebar").getBoundingClientRect().right')) > 100, 'sidebar stays on ' + href)
   }
   await evaluate('document.querySelector(\'a[href="/custom"]\').click()')

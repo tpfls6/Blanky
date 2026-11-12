@@ -1,11 +1,11 @@
-import { useLayoutEffect, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import type { UserPage as UserPageModel } from '../../features/builder/schema.ts'
 import { packDiary, packMemo, recordsForPage, unpackDiary, unpackMemo } from '../../features/pages/pageRecords.ts'
 import { createPageReadingRepository } from '../../features/pages/readingPageRepository.ts'
 import { readingService } from '../../services/reading/index.ts'
-import { DEFAULT_FIELD_LABELS, type PageTemplateKind } from '../../features/pages/templates.ts'
+import { initialFieldLabels, shownFieldLabels, type PageTemplateKind } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary, type LibraryValue } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
@@ -96,14 +96,19 @@ function readingController(userId: string, pageId: string) {
 function ReadingHost({ page }: { page: UserPageModel }) {
   const library = useLibrary()
   const { user } = useSession()
+  const { locale } = useI18n()
   const userId = user?.id ?? 'guest'
   const controller = useMemo(() => readingController(userId, page.id), [userId, page.id])
   useLayoutEffect(() => { controller.sync(library) }, [controller, library])
-  return <ReadingWorkspace key={page.id + userId} userId={userId} repository={controller.repo} heading={page.name} labels={page.fieldLabels} basePath={ROUTES.page(page.id)} />
+  const labels = useMemo(() => shownFieldLabels(page.template, page.fieldLabels, locale), [page.template, page.fieldLabels, locale])
+  const { trashReadingBook } = library
+  // A book deleted here goes to the trash with its quotes, notes and shelves, like on the reading page.
+  const trashBook = useCallback((id: string) => trashReadingBook(id, page.id), [trashReadingBook, page.id])
+  return <ReadingWorkspace key={page.id + userId} userId={userId} repository={controller.repo} trashBook={trashBook} heading={page.name} labels={labels} basePath={ROUTES.page(page.id)} />
 }
 
 function Body({ page }: { page: UserPageModel }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { updateUserPage } = useLibrary()
   const [pick, setPick] = useState(!page.template && page.blocks.length === 0)
   if (page.blocks.length && !page.template) {
@@ -120,7 +125,7 @@ function Body({ page }: { page: UserPageModel }) {
               type="button"
               className="chip"
               onClick={() => {
-                updateUserPage(page.id, { template: kind, fieldLabels: { ...DEFAULT_FIELD_LABELS[kind] } })
+                updateUserPage(page.id, { template: kind, fieldLabels: initialFieldLabels(kind, locale) })
                 setPick(false)
               }}
             >

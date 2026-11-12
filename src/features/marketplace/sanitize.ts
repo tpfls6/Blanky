@@ -11,7 +11,7 @@ import {
   type TemplateSnapshot,
 } from './schema.ts'
 
-const PII = /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})|(\+?\d[\d\s\-()]{8,}\d)|(sk-[A-Za-z0-9]{20,})|(Bearer\s+[A-Za-z0-9._\-]{12,})|(eyJ[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{10,})|(AIza[0-9A-Za-z_\-]{20,})|(supabase\.co\/storage\/v1\/object\/sign)/i
+const PII = /([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})|(\+?\d[\d\s\-()]{8,}\d)|(sk-[A-Za-z0-9]{20,})|(Bearer\s+[A-Za-z0-9._-]{12,})|(eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,})|(AIza[0-9A-Za-z_-]{20,})|(supabase\.co\/storage\/v1\/object\/sign)/i
 const SAFE_URL = /^https:\/\/[A-Za-z0-9][A-Za-z0-9.-]+(?::\d+)?(?:\/[^\s]*)?$/i
 
 export type SanitizeIssue = { code: string; message: string }

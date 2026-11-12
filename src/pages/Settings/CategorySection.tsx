@@ -123,7 +123,7 @@ export function CategorySection() {
   }, [notice])
 
   const fields = (category: WorkspaceCategory) => (
-    <div className="py-3">
+    <div className="category-row-fields py-3">
       <div className="group relative flex h-7 items-center gap-2">
         <GripVertical aria-hidden="true" strokeWidth={1.5} className="absolute top-1.5 -left-5 size-4 cursor-grab text-neutral-300 opacity-0 transition-opacity group-hover:opacity-100" />
         <IconPicker

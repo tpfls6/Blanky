@@ -5,7 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-const base = 'http://127.0.0.1:5178'
+const base = process.env.MEMO_TEST_URL ?? 'http://127.0.0.1:5178'
 if (new URL(base).hostname !== '127.0.0.1') throw new Error('Test URL must be on loopback')
 const cache = join(homedir(), 'AppData', 'Local', 'ms-playwright')
 const cached = (await readdir(cache).catch(() => [])).filter(name => name.startsWith('chromium_headless_shell-')).sort().at(-1)
@@ -65,8 +65,9 @@ const owner = '11111111-1111-4111-8111-111111111111'
 const library = 'blanky.library.' + owner
 
 try {
+ // The memo page tour is marked done: its modal spotlight (aria-modal) would take the editor click this test makes.
  await send('Page.enable'); await send('Runtime.enable');
- await send('Page.addScriptToEvaluateOnNewDocument',{source:  "localStorage.setItem('blanky.accounts.v1',JSON.stringify([{id:'11111111-1111-4111-8111-111111111111',name:'Test',nickname:'Test',email:'test@example.test',password:'test-only',avatar:null}]));localStorage.setItem('blanky.session.v1','11111111-1111-4111-8111-111111111111');localStorage.setItem('blanky.library.11111111-1111-4111-8111-111111111111',JSON.stringify({memos:[{id:'memo',title:'Test',body:'',tags:[],categoryId:null,createdAt:'2026-10-15',updatedAt:'2026-10-15'}],categories:[],items:[],settings:{}}));"});
+ await send('Page.addScriptToEvaluateOnNewDocument',{source:  "localStorage.setItem('blanky.accounts.v1',JSON.stringify([{id:'11111111-1111-4111-8111-111111111111',name:'Test',nickname:'Test',email:'test@example.test',password:'test-only',avatar:null}]));localStorage.setItem('blanky.session.v1','11111111-1111-4111-8111-111111111111');localStorage.setItem('blanky.library.11111111-1111-4111-8111-111111111111',JSON.stringify({memos:[{id:'memo',title:'Test',body:'',tags:[],categoryId:null,createdAt:'2026-10-15',updatedAt:'2026-10-15'}],categories:[],items:[],settings:{onboardingDone:true,onboardingPages:['memo']}}));"});
  await navigate(base+'/memo');
  await wait('!!document.querySelector(".memo-rich-content")','editor');
  await pause(100);

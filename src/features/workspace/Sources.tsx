@@ -21,6 +21,7 @@ const TO: Record<BlankySource, string> = {
   activity: ROUTES.activity,
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- helper shared with callers; fast refresh only
 export function sourceLabel(source: BlankySource): string {
   return LABEL[source]
 }

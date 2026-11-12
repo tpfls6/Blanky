@@ -1,5 +1,6 @@
 import type { ScheduleAnalysis } from '../../../packages/types/src/ai.ts'
 import type { WorkItem } from '../../types/work.ts'
+import type { CaptureRef } from '../../types/records.ts'
 import type { AgentPlan } from './agent.ts'
 import type { IntentPlan } from './intentPlan.ts'
 import type { AutoSaveInput, AutoSaveReview } from './autoSave.ts'
@@ -25,6 +26,14 @@ export type ChatMessage = {
   retry?: AutoSaveInput[]
   /** A delete asked for in chat runs only after the user confirms it here. */
   remove?: WorkItem
+  /** `items` are what this message saved, so each gets 보기 and 삭제 instead of a plain chip. */
+  saved?: boolean
+  /** Ids in `items` that were existing records this message changed; they get 보기 only, never 삭제. */
+  changed?: string[]
+  /** Memos, diaries and reading logs this message saved. */
+  records?: CaptureRef[]
+  /** Ids removed with this message's 삭제 buttons; their rows read 삭제됨. */
+  deleted?: string[]
 }
 
 const LIMIT = 200

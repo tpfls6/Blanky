@@ -1,0 +1,155 @@
+/* Home composer only. Global .chip / .icon-btn-primary / placeholder tokens stay untouched. */
+
+/* Readable secondary text (AA on --bg in light and dark); follows a theme's --muted. */
+.home-content .home-muted,
+.home-chat-panel .home-muted { color: var(--muted); }
+/* Placeholder at full --muted: still AA, but clearly lighter than typed --fg text. */
+.home-content .composer textarea::placeholder { color: var(--muted); opacity: 1; }
+
+/* Hierarchy: one title, one muted line, then the composer. The group sits a little above center. */
+.home-content { padding-bottom: calc(3rem + clamp(0px, 8vh, 96px)); }
+.home-content .home-header { margin-bottom: 24px; }
+.home-content .home-title { color: var(--fg); font-size: 22px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; }
+
+/*
+ * Target sizes: the visible chip stays small (28px mouse / 32px touch) while ::before stretches the
+ * clickable area to 36px / 44px. Row gaps are at least both overhangs, so neighbours never overlap.
+ */
+.home-content :is([data-tour='entry-types'] .chip, .home-history) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  height: 28px;
+  padding-inline: 10px;
+}
+.home-content :is([data-tour='entry-types'] .chip, .home-history)::before { content: ''; position: absolute; inset: -4px 0; }
+.home-content [data-tour='entry-types'] { gap: 8px 4px; }
+/* Selected is not color alone: a heavier label and an accent outline. */
+.home-content :is([data-tour='entry-types'] .chip, .home-history).chip-on { font-weight: 500; box-shadow: inset 0 0 0 1px var(--accent-border); }
+/* Personalization link: text-sized in the accent color, with the chips' 36px / 44px hit area. */
+.home-content .home-settings-link { position: relative; display: inline-flex; align-items: center; min-height: 28px; color: var(--accent-text); }
+.home-content .home-settings-link::before { content: ''; position: absolute; inset: -4px 0; }
+.home-content .home-settings-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+@media (pointer: fine) and (min-width: 768px) {
+  .home-content .composer .icon-btn-primary { width: 2.25rem; height: 2.25rem; }
+}
+@media (pointer: coarse), (max-width: 767px) {
+  .home-content :is([data-tour='entry-types'] .chip, .home-history) { min-width: 44px; min-height: 32px; height: 32px; touch-action: manipulation; }
+  .home-content :is([data-tour='entry-types'] .chip, .home-history)::before { inset: -6px 0; }
+  .home-content [data-tour='entry-types'] { gap: 12px 8px; }
+  .home-content .composer .icon-btn-primary { width: 44px; height: 44px; touch-action: manipulation; }
+  .home-content .home-aux { margin-top: 12px; }
+  .home-content .home-settings-link { min-height: 32px; touch-action: manipulation; }
+  .home-content .home-settings-link::before { inset: -6px 0; }
+}
+
+/* Saved results in the history: one row per record with 보기 and 삭제 (36px mouse, 44px touch). */
+.home-chat-panel .home-saved-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: var(--radius); }
+.home-chat-panel .home-saved-action { min-height: 36px; padding-inline: 10px; flex-shrink: 0; }
+.home-chat-panel .home-saved-view { color: var(--accent-text); font-weight: 500; }
+.home-chat-panel .home-saved-action[aria-disabled='true'] { opacity: 0.6; cursor: default; }
+.home-chat-panel .home-saved-action[aria-disabled='true']:hover { background: transparent; color: var(--muted); }
+/* 삭제됨 is a status, not a dimmed control: it stays at full --muted. */
+.home-chat-panel .home-saved-action[data-deleted] { opacity: 1; color: var(--muted); }
+.home-chat-panel .home-saved-error { color: var(--danger); }
+@media (pointer: coarse), (max-width: 767px) {
+  .home-chat-panel .home-saved-action { min-height: 44px; min-width: 44px; touch-action: manipulation; }
+}
+
+/* Conversation history panel. Shared: a surface column with a scrolling list. */
+.home-chat-panel { display: flex; flex-direction: column; background: var(--surface); }
+.home-chat-inner { display: flex; min-height: 0; flex: 1; flex-direction: column; background: var(--surface); }
+.home-chat-header { border-bottom: 1px solid var(--line); }
+.home-chat-list { overscroll-behavior: contain; }
+.home-chat-scrim { position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / 30%); opacity: 0; transition: opacity 200ms ease; }
+html.dark .home-chat-scrim { background: rgb(0 0 0 / 50%); }
+.home-chat-scrim[data-state='open'] { opacity: 1; }
+/* While sliding out, neither the panel nor the fading scrim catches taps meant for the page underneath. */
+.home-chat-scrim[data-state='closed'], .home-chat-panel[data-state='closed'] { pointer-events: none; }
+
+/* 768–1279px: a drawer over the page. Opens 240ms decelerating, closes 180ms accelerating. */
+.home-chat-panel[data-mode='overlay'] {
+  position: fixed;
+  inset-block: 0;
+  right: 0;
+  z-index: 40;
+  width: min(100vw, 24rem);
+  border-left: 1px solid var(--line);
+  opacity: 0;
+  transform: translateX(24px);
+  transition: transform 180ms cubic-bezier(.4, 0, 1, 1), opacity 180ms cubic-bezier(.4, 0, 1, 1);
+}
+.home-chat-panel[data-mode='overlay'][data-state='open'] {
+  opacity: 1;
+  transform: none;
+  transition: transform 240ms cubic-bezier(.2, 0, 0, 1), opacity 240ms cubic-bezier(.2, 0, 0, 1);
+}
+
+/* 1280px and up: a column beside the page. Its width animates on the same curve, so the centered
+   composer glides instead of jumping 192px; the content slides in from the right edge. */
+.home-chat-panel[data-mode='push'] {
+  flex-direction: row;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  width: 0;
+  overflow: hidden;
+  transition: width 180ms cubic-bezier(.4, 0, 1, 1);
+}
+.home-chat-panel[data-mode='push'][data-state='open'] { width: 24rem; transition: width 240ms cubic-bezier(.2, 0, 0, 1); }
+.home-chat-panel[data-mode='push'] .home-chat-inner {
+  width: 24rem;
+  flex: none;
+  border-left: 1px solid var(--line);
+  opacity: 0;
+  transform: translateX(24px);
+  transition: transform 180ms cubic-bezier(.4, 0, 1, 1), opacity 180ms cubic-bezier(.4, 0, 1, 1);
+}
+.home-chat-panel[data-mode='push'][data-state='open'] .home-chat-inner {
+  opacity: 1;
+  transform: none;
+  transition: transform 240ms cubic-bezier(.2, 0, 0, 1), opacity 240ms cubic-bezier(.2, 0, 0, 1);
+}
+
+/* Phones: a bottom sheet at 60dvh (92dvh expanded), never taller than the visible viewport. */
+.home-chat-panel[data-mode='sheet'] {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 50;
+  height: min(60dvh, calc(var(--mobile-viewport-height, 100dvh) - env(safe-area-inset-top) - 8px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 28px rgb(0 0 0 / 12%);
+  transform: translateY(100%);
+  transition: transform 200ms cubic-bezier(.4, 0, 1, 1), height 280ms cubic-bezier(.32, .72, 0, 1);
+}
+.home-chat-panel[data-mode='sheet'] .home-chat-inner { border-radius: inherit; }
+.home-chat-panel[data-mode='sheet'][data-expanded] { height: min(92dvh, calc(var(--mobile-viewport-height, 100dvh) - env(safe-area-inset-top) - 8px)); }
+.home-chat-panel[data-mode='sheet'][data-state='open'] {
+  transform: translateY(var(--sheet-drag, 0px));
+  transition: transform 280ms cubic-bezier(.32, .72, 0, 1), height 280ms cubic-bezier(.32, .72, 0, 1);
+}
+.home-chat-panel[data-mode='sheet'][data-dragging] { transition: none; }
+/* Handle and header take the drag; the list keeps its own scrolling. */
+.home-chat-panel[data-mode='sheet'] .home-chat-header { touch-action: none; cursor: grab; user-select: none; }
+.home-chat-handle { display: block; width: 36px; height: 4px; margin: 8px auto 0; border-radius: 2px; background: var(--line); }
+html.dark .home-chat-handle { background: var(--muted); }
+
+/* Reduced motion: no sliding or resizing, only a short fade. */
+@media (prefers-reduced-motion: reduce) {
+  .home-chat-scrim { transition-duration: 120ms; }
+  .home-chat-panel[data-mode='overlay'],
+  .home-chat-panel[data-mode='overlay'][data-state='open'],
+  .home-chat-panel[data-mode='sheet'],
+  .home-chat-panel[data-mode='sheet'][data-state='open'] { transform: none; transition: opacity 120ms linear; }
+  .home-chat-panel[data-mode='sheet'] { opacity: 0; }
+  .home-chat-panel[data-mode='sheet'][data-state='open'] { opacity: 1; }
+  .home-chat-panel[data-mode='push'],
+  .home-chat-panel[data-mode='push'][data-state='open'] { transition: none; }
+  .home-chat-panel[data-mode='push'] .home-chat-inner,
+  .home-chat-panel[data-mode='push'][data-state='open'] .home-chat-inner { transform: none; transition: opacity 120ms linear; }
+}

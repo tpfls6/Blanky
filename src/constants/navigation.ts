@@ -77,3 +77,19 @@ export function isRecordNav(id: string): boolean {
 
 export const STORE_NAV: NavItem = {id:'store',label:'Store',to:'/store',icon:Store}
 export const THEMES_NAV: NavItem = {id:'themes',label:'내 테마',to:'/settings/themes',icon:Palette}
+
+/** Phone bar order: these come first when visible; the rest of the bar fills in menu order. */
+export const MOBILE_CORE_IDS = ['home', 'schedule', 'memo', 'reading', 'diary'] as const
+export const MOBILE_BAR_SIZE = 5
+
+/** Splits menus into the phone tab bar and the full "more" page. */
+export function mobileTabs<T extends { id: string }>(items: readonly T[], preferredIds?: readonly string[]): { bar: T[]; rest: T[] } {
+  if (preferredIds !== undefined) {
+    const bar = [...new Set(preferredIds)].flatMap(id => items.filter(item => item.id === id)).slice(0, MOBILE_BAR_SIZE)
+    // Deleted pages and hidden menus cannot strand the user with an empty bar.
+    if (bar.length) return { bar, rest: items.filter(item => !bar.includes(item)) }
+  }
+  const core = MOBILE_CORE_IDS.flatMap((id) => items.filter((item) => item.id === id))
+  const bar = [...core, ...items.filter((item) => !core.includes(item))].slice(0, MOBILE_BAR_SIZE)
+  return { bar, rest: items.filter((item) => !bar.includes(item)) }
+}

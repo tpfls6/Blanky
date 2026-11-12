@@ -333,3 +333,15 @@ test('review requires a date and explicit unknown-time confirmation, preserves m
   assert.throws(() => reviewedWorkInput(item, { ...item.draft, startTime: null }, false, ['work']), { code: 'TIME_REQUIRED' })
   assert.equal(reviewedWorkInput(item, { ...item.draft, startTime: null }, true, ['work']).allDay, true)
 })
+
+test('review saves a dateless task undated, or on its deadline when one is set', () => {
+  const item = { ...fixture().items[0], type: 'task' as const }
+  const draft = { ...item.draft, date: null, startTime: null, endTime: null, dueDate: null, dueTime: null }
+  const undated = reviewedWorkInput(item, draft, false, ['work'])
+  assert.equal(undated.undated, true)
+  assert.equal(undated.date, '')
+  const due = reviewedWorkInput(item, { ...draft, dueDate: '2026-11-10' }, false, ['work'])
+  assert.equal(due.date, '2026-11-10')
+  assert.equal(due.undated, undefined)
+  assert.throws(() => reviewedWorkInput(item, draft, false, ['work'], 'weekly'), { code: 'DATE_REQUIRED' })
+})

@@ -44,3 +44,26 @@
 .memo-rich-content pre { background: var(--hover); padding: 12px; border-radius: 8px; overflow-x: auto; }
 .memo-rich-content > :first-child { margin-top: 0; }
 @media (prefers-reduced-motion: reduce) { .memo-writing-area { transition: none; } }
+.memo-list-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
+.memo-list-head .memo-list-label { margin-top: 0; }
+.memo-pick-toggle { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 2px 8px; border-radius: 8px; font-size: 12px; color: var(--muted); }
+.memo-pick-toggle:hover, .memo-pick-toggle[aria-pressed=true] { background: var(--accent-light); color: var(--accent-text); }
+.memo-pick-bar { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-top: 8px; padding: 6px 8px; border-radius: 10px; background: var(--hover); font-size: 12px; }
+.memo-pick-all { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.memo-pick-count { color: var(--muted); }
+.memo-pick-delete { margin-left: auto; gap: 4px; }
+.memo-pick-delete:not(:disabled) { color: #dc2626; }
+.memo-pick-bar input[type=checkbox], .memo-row-check { width: 16px; height: 16px; accent-color: var(--accent-color); cursor: pointer; }
+.memo-row-picking { display: flex; align-items: center; gap: 10px; }
+.memo-row-picking > button { padding-right: 0; }
+/* Phones: the edit/delete icons stay visible with a finger-sized hit area. */
+@media (max-width: 767px) {
+  .memo-row-actions, .memo-row-actions.reveal { top: 50%; transform: translateY(-50%); gap: 2px; opacity: 1; }
+  .memo-row-actions .icon-btn { width: 2.5rem; height: 2.5rem; }
+  .memo-row-actions .icon-btn svg { width: 1rem; height: 1rem; }
+  .memo-row > button { padding-right: 5.5rem; }
+  .memo-row-picking > button { padding-right: 0; }
+  .memo-pick-toggle { min-height: 36px; padding-inline: 10px; }
+  .memo-pick-delete { min-height: 36px; }
+  .memo-pick-bar input[type=checkbox], .memo-row-check { width: 20px; height: 20px; }
+}

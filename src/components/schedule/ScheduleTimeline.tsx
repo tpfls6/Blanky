@@ -64,7 +64,7 @@ export function ScheduleTimeline({ items, categories, day, hours, hourHeight, ed
       <div className="schedule-time-blocks">
         {placements.map(({ item, start, end, column, columns: count, span }) => {
           const height = (end - start) / 60 * hourHeight
-          const color = categories.find(category => category.id === item.categoryId)?.color || 'var(--accent-color)'
+          const color = item.calendarColor || categories.find(category => category.id === item.categoryId)?.color || 'var(--accent-color)'
           const done = item.status === 'done'
           const label = `${item.title} · ${clock(start)}–${clock(end)}`
           const open = expanded === item.id

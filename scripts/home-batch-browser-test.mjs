@@ -87,7 +87,7 @@ async function button(text) {
 
 const owner = '11111111-1111-4111-8111-111111111111'
 const library = 'blanky.library.' + owner
-const evidence = resolve('.audit/runs/nl-agent-batch')
+const evidence = resolve(process.env.BLANKY_AUDIT_DIR ?? '.audit/runs', 'nl-agent-batch')
 await mkdir(evidence, { recursive: true })
 
 try {

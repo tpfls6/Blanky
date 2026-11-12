@@ -68,7 +68,7 @@
 .reading-remove { margin-top:32px; }
 .reading-error { padding:12px; margin:16px 0; border:1px solid var(--line); border-radius:var(--radius); overflow-wrap:anywhere; }
 .reading-page button:focus-visible,.reading-page a:focus-visible,.reading-modal button:focus-visible { outline:2px solid var(--focus-outline); outline-offset:3px; }
-@media(max-width:700px) { .reading-layout{grid-template-columns:1fr}.reading-sidebar{border-right:0;border-bottom:1px solid var(--line);padding:16px;display:flex;gap:5px;flex-wrap:wrap}.reading-content{padding:20px}.reading-nav{width:auto}.reading-shelf-heading{width:100%;margin:10px 0 0;padding-top:10px}.reading-book-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 18px}.reading-heading{align-items:start}.reading-heading h1{font-size:24px}.reading-toolbar{flex-wrap:wrap}.reading-toolbar input{flex-basis:100%}.reading-detail-heading{gap:16px}.reading-detail-heading .reading-book-cover{width:100px}.reading-record{grid-template-columns:1fr}.reading-wide{grid-column:auto}.reading-modal{padding:18px}.reading-modal-backdrop{padding:12px} }
+@media(max-width:767px) { .reading-layout{grid-template-columns:1fr}.reading-sidebar{border-right:0;border-bottom:1px solid var(--line);padding:16px;display:flex;gap:5px;flex-wrap:wrap}.reading-content{padding:20px}.reading-nav{width:auto}.reading-shelf-heading{width:100%;margin:10px 0 0;padding-top:10px}.reading-book-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 18px}.reading-heading{align-items:start}.reading-heading h1{font-size:24px}.reading-toolbar{flex-wrap:wrap}.reading-toolbar input{flex-basis:100%}.reading-detail-heading{gap:16px}.reading-detail-heading .reading-book-cover{width:100px}.reading-record{grid-template-columns:1fr}.reading-wide{grid-column:auto}.reading-modal{padding:18px}.reading-modal-backdrop{padding:12px} }
 @media(prefers-reduced-motion:reduce) { .reading-book-card .reading-book-cover{transition:none} }
 
 /* Interactive ratings, shelf drop zones and searchable icon grid. */
@@ -108,10 +108,10 @@
 .reading-emoji-categories button[aria-pressed=true]{background:var(--accent-light);color:var(--accent-text)}
 .reading-list-heading h2 .reading-shelf-icon{margin-right:4px}
 .reading-toolbar select{max-width:240px}
-@media(max-width:700px){.reading-shelf{width:100%}.reading-book-card[data-reading-draggable]{touch-action:none}.reading-toolbar select{max-width:100%}}
+@media(max-width:767px){.reading-shelf{width:100%}.reading-book-card[data-reading-draggable]{touch-action:none}.reading-toolbar select{max-width:100%}}
 
 .reading-book-card{position:relative}.reading-book-drag-handle{position:absolute;right:4px;top:4px;z-index:1;display:flex;padding:6px;touch-action:none;cursor:grab;background:var(--surface);color:var(--muted);border:1px solid var(--line);border-radius:var(--radius)}
-@media(max-width:700px){.reading-book-card[data-reading-draggable]{touch-action:pan-y}}
+@media(max-width:767px){.reading-book-card[data-reading-draggable]{touch-action:pan-y}}
 
 /* Keep drag controls quiet until the item is hovered or keyboard-focused. */
 .reading-drag-handle,.reading-book-drag-handle { opacity:0; transition:opacity .15s; }
@@ -136,3 +136,16 @@
 .reading-icon-colors input{width:28px;height:28px;padding:0;border:0;background:transparent;cursor:pointer}
 .reading-example-shelf { margin-top: 8px; }
 .reading-example-book { max-width: 320px; }
+/* Status filters: part of the sidebar list on wide screens, small chips that wrap onto a second line on phones
+   (like Home's type chips: 32px visible, ::before stretches the hit area to 44px; row gaps cover the overhang). */
+.reading-status-filters { display:contents; }
+@media(max-width:767px) {
+ .reading-status-filters { display:flex; flex-wrap:wrap; gap:12px 8px; width:100%; padding:6px 0; }
+ .reading-status-filters .reading-nav { position:relative; flex:0 0 auto; width:auto; min-width:44px; min-height:32px; padding:5px 12px; gap:6px; border:1px solid var(--line); border-radius:999px; font-size:12.5px; white-space:nowrap; touch-action:manipulation; }
+ .reading-status-filters .reading-nav::before { content:''; position:absolute; inset:-6px 0; }
+ .reading-status-filters .reading-nav span:last-child { margin-left:0; font-size:11px; color:var(--muted); }
+ .reading-status-filters .reading-nav.selected { border-color:var(--accent-color); }
+ .reading-status-filters .reading-nav.selected span:last-child { color:inherit; }
+ .reading-heading { flex-direction:column; align-items:stretch; gap:14px; }
+ .reading-heading > .btn { width:100%; justify-content:center; text-align:center; min-height:44px; }
+}

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { User } from '@supabase/supabase-js'
-import { accountFromAuth, authErrorMessage } from '../../../src/services/auth/account.ts'
+import { accountFromAuth, authErrorMessage, forgetAccountData, signupOutcome } from '../../../src/services/auth/account.ts'
 import { retainLegacyLibrary } from '../../../src/services/auth/legacyLibrary.ts'
 import { libraryKey, USERS_KEY } from '../../../src/state/storage.ts'
 
@@ -34,7 +34,25 @@ test('legacy browser records are retained under authenticated identity without o
   assert.equal(storage.getItem(libraryKey(authUser.id))?.includes('legacy-secret'), false)
 })
 test('authentication failures explain unconfirmed email and demo/server account separation', () => {
-  assert.match(authErrorMessage({ code: 'email_not_confirmed', message: 'error' }), /확인 이메일/)
+  assert.match(authErrorMessage({ code: 'email_not_confirmed', message: 'error' }), /인증코드/)
   assert.match(authErrorMessage({ code: 'invalid_credentials', message: 'error' }), /데모 계정/)
   assert.match(authErrorMessage({ message: 'Failed to fetch' }), /인증 서버/)
+})
+
+test('sign-up outcome: session, fresh code, or an email that is already registered', () => {
+  assert.equal(signupOutcome({ user: { identities: [{}] }, session: {} }), 'signed_in')
+  assert.equal(signupOutcome({ user: { identities: [{}] }, session: null }), 'verify')
+  // Supabase hides existing confirmed accounts (password or Google) behind a user with no identities.
+  assert.equal(signupOutcome({ user: { identities: [] }, session: null }), 'exists')
+  assert.match(authErrorMessage({ code: 'otp_expired', message: 'Token has expired or is invalid' }), /만료/)
+  assert.match(authErrorMessage({ code: 'over_email_send_rate_limit', message: 'x' }), /잠시 후/)
+  assert.match(authErrorMessage({ code: 'invalid_credentials', message: 'x' }), /Google/)
+})
+
+test('deleted account leaves no browser data that a later sign-up could pick up', () => {
+  const values = new Map([['blanky.library.dead-id', '{}'], ['blanky.taskNav.dead-id', '{}'], ['blanky.library.other', '{}'], ['blanky.recentIcons', '[]']])
+  const storage = { get length() { return values.size }, key: (index: number) => [...values.keys()][index] ?? null, removeItem: (key: string) => { values.delete(key) } }
+  assert.equal(forgetAccountData('dead-id', storage), 2)
+  assert.deepEqual([...values.keys()], ['blanky.library.other', 'blanky.recentIcons'])
+  assert.equal(forgetAccountData('', storage), 0)
 })

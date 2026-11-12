@@ -80,3 +80,14 @@ DB 테스트는 테스트 트랜잭션을 롤백한다. 회원가입 자동 생�
 실제 DB 테스트는 미실행 상태다. 로컬 Supabase 컨테이너가 없어서 시작을 시도했으나
 Docker 이미지 다운로드에서 timeout/지연이 발생했고 PostgreSQL만 시작하는 재시도도 완료되지 않았다.
 운영 DB에는 적용하지 않았다. DB 마이그레이션과 pgTAP 검증을 완료한 뒤 배포해야 한다.
+
+## Phase 2–3 공유 캘린더 (2026-11-05)
+
+`20261105120000_shared_calendars.sql`: `calendar_members`(owner/editor/viewer, 사용자별 숨김·알림), `calendar_invitations`
+(이메일·링크, 링크 토큰은 SHA-256만 저장, 만료·취소·재발급), `notifications`(미읽음 dedupe), RLS를 멤버십 기반으로 교체,
+Realtime publication 추가. 개인/외부 캘린더는 기존처럼 소유자만 접근한다. 공유 일정은 플래너 스냅샷과 Google 동기화 대상에서 제외된다.
+
+- 배포 순서: `supabase db diff --linked`로 확인 → `supabase db push` → 웹 배포. 새 클라이언트는 `calendar_members`를 조회하므로 DB가 먼저다.
+- 이메일 초대는 서버에서 메일을 보내지 않는다. 가입된 주소면 앱 알림, 아니면 해당(인증된) 이메일로 로그인할 때 연결된다. 안내 메일은 초대자의 메일 앱(mailto)으로 보낸다.
+- 카테고리는 사용자별 데이터라 다른 멤버의 카테고리는 이름 없이 유지되고, 공유 일정 색상은 캘린더 색을 쓴다.
+- 검증: `npm run test:shared-calendar-sql`, `npm run test:shared-calendar-browser` (로컬 `supabase start` 필요, 루프백 외 URL 거부).

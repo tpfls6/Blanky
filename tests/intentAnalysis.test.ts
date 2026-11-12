@@ -332,3 +332,108 @@ test('AI only fills clauses the rules could not read', () => {
   assert.equal(merged.source, 'ai')
   assert.deepEqual(merged.intents.slice(read.intents.length).map(intent => [intent.id, intent.afterId]), [['ai-b', null]])
 })
+
+// The reported to-do list: six tasks, the Sunday deadline on the sharing task only, nothing filed as reading.
+const TODO_LIST = '현재 컴활 풀기, 논문 읽고 이번주 일요일까지 워크플로우 뭐한지랑 선택 이유 카톡방에 올리기 (IRIS 초파리 연구), stockmate 발표 숙지 1회, 블랭키 디벨롭, 블랭키 발표자료 만들기, 집가서 집 컴에 개발 환경 조성'
+
+test('a comma list of to-dos becomes one task each, never a reading record', () => {
+  assert.equal(captureIntent(TODO_LIST).type, 'conversation')
+  const extraction = extractIntents(TODO_LIST, TODAY)
+  assert.equal(needsIntentPlan(extraction), true)
+  assert.equal(needsIntentAI(extraction), false)
+  assert.deepEqual(extraction.intents.map(intent => [intent.kind, intent.title]), [
+    ['create_task', '컴활 풀기'],
+    ['create_task', '논문 읽고 워크플로우 뭐한지랑 선택 이유 카톡방에 올리기'],
+    ['create_task', 'stockmate 발표 숙지 1회'],
+    ['create_task', '블랭키 디벨롭'],
+    ['create_task', '블랭키 발표자료 만들기'],
+    ['create_task', '집 컴에 개발 환경 조성'],
+  ])
+  // The parenthetical and the situation are kept as notes, not as titles or clocks.
+  assert.equal(extraction.intents[1].note, 'IRIS 초파리 연구')
+  assert.equal(extraction.intents[5].note, '집가서')
+})
+
+test('the 일요일까지 deadline lands on the sharing task only; the rest save undated without a clock', () => {
+  const result = plan(TODO_LIST, [])
+  assert.equal(result.mode, 'auto')
+  assert.deepEqual(result.questions, [])
+  const inputs = result.actions.map(action => { assert.equal(action.op, 'create'); return action.op === 'create' ? action.input : null! })
+  assert.equal(inputs.length, 6)
+  assert.ok(inputs.every(input => input.kind === 'task' && input.startTime === null && input.endTime === null && input.dueTime === null))
+  assert.deepEqual(inputs.map(input => input.dueDate), [null, '2026-11-08', null, null, null, null])
+  assert.deepEqual(inputs.map(input => !!input.undated), [true, false, true, true, true, true])
+  assert.equal(inputs[1].date, '2026-11-08')
+  assert.match(inputs[1].description ?? '', /IRIS 초파리 연구/)
+  assert.match(inputs[5].description ?? '', /집가서/)
+})
+
+test('a deadline does not carry to later clauses, a plain day still does', () => {
+  const deadline = extractIntents('금요일까지 보고서 제출, 영어 단어 외우기', TODAY).intents
+  assert.deepEqual(deadline.map(intent => intent.date), ['2026-11-06', null])
+  const day = extractIntents('내일 장보기, 빨래하기', TODAY).intents
+  assert.deepEqual(day.map(intent => intent.date), ['2026-11-05', '2026-11-05'])
+})
+
+test('a situation without a clock is a note, never a time', () => {
+  const [task] = extractIntents('퇴근 후 운동하기', TODAY).intents
+  assert.equal(task.kind, 'create_task')
+  assert.equal(task.title, '운동하기')
+  assert.equal(task.note, '퇴근 후')
+  assert.equal(task.start, null)
+  // A clock still splits off the routine change as before.
+  assert.deepEqual(extractIntents('금요일 1시 퇴근하고 데이트 있어', TODAY).intents.map(intent => intent.kind), ['modify', 'create_event'])
+})
+
+test('mixed list: a task, an event and a memo are each saved as their own kind', () => {
+  const kinds = extractIntents('내일 3시 치과 예약, 금요일까지 과제 제출하기, 회의 내용 메모해 둬', TODAY).intents.map(intent => intent.kind)
+  assert.deepEqual(kinds, ['create_event', 'create_task', 'memo'])
+})
+
+test('a partial failure keeps what landed and retries only what failed', async () => {
+  const first = plan('목요일 수업 휴강이래 그리고 금요일 오후 3시 치과 예약 있어 그리고 토요일 오후 2시 테니스 약속 있어 그리고 우산 챙기라고 메모해 줘')
+  assert.deepEqual(first.actions.map(action => action.op).sort(), ['change', 'create', 'create', 'record'])
+  const stored = new Map<string, string>()
+  const records: string[] = []
+  let commits = 0
+  let tennisDown = true
+  const deps = (items: WorkItem[]) => ({
+    items,
+    commitChange: async () => { commits++; return { updated: [], created: [] } },
+    // One insert per call, like createMany: any bad row fails the whole call. Ids make a repeat match, not copy.
+    createBatch: async (inputs: { id: string; title: string }[]) => {
+      if (tennisDown && inputs.some(input => input.title.includes('테니스'))) throw new Error('네트워크 오류')
+      for (const input of inputs) stored.set(input.id, input.title)
+      return inputs.map(input => ({ ...meeting, id: input.id, title: input.title }))
+    },
+    saveRecord: (text: string) => { records.push(text) },
+  })
+  const run = await runIntentPlan(first, deps(ITEMS))
+  // The batch failed on one item; the other create still landed on its own.
+  assert.deepEqual([...stored.values()], ['치과 예약'])
+  assert.deepEqual(run.failed.map(row => row.label).filter(label => /테니스/.test(label)).length, 1)
+  assert.equal(run.failed.length, 1)
+  assert.deepEqual(run.remaining?.actions.map(action => action.op), ['create'])
+  assert.equal(commits, 1)
+  assert.equal(records.length, 1)
+
+  tennisDown = false
+  const retry = await runIntentPlan(run.remaining!, deps(ITEMS))
+  assert.equal(retry.failed.length, 0)
+  assert.equal(retry.remaining, null)
+  // Nothing that landed the first time ran again; nothing failed was dropped.
+  assert.equal(commits, 1)
+  assert.equal(records.length, 1)
+  assert.deepEqual([...stored.values()].sort(), ['치과 예약', '테니스 약속'])
+})
+
+test('a change skipped because its target moved is not offered for retry', async () => {
+  const run = await runIntentPlan(plan('토요일 약속 취소됐어'), {
+    items: [{ ...dinner, startTime: '19:00' }, work, lecture, meeting],
+    commitChange: async () => { throw new Error('must not run') },
+    createBatch: async () => [],
+    saveRecord: () => undefined,
+  })
+  assert.equal(run.failed.length, 1)
+  assert.equal(run.remaining, null)
+})

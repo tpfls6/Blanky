@@ -16,6 +16,8 @@ export type PlannerDependencies = {
   loadCategories: () => Promise<CategoryRef[]>
   loadManualHistory?: () => Promise<{title:string;duration:number;priority:PlanningTask['priority']}[]>
   now: string
+  /** Usage of the paid planning call, for logs only. */
+  usage?: () => Record<string, unknown>
 }
 /** No save/update/delete dependency exists. Caller authenticates before invoking. */
 export async function createPlanningRecommendation(request: PlanTasksRequest, deps: PlannerDependencies) {

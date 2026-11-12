@@ -34,7 +34,36 @@
     "inputTitle": "자연어 입력 및 분석",
     "inputHint": "홈 입력과 자동 분류 기본값을 설정합니다.",
     "behaviorTitle": "AI 동작 설정",
-    "behaviorHint": "분석 후 저장 방식을 선택합니다."
+    "behaviorHint": "분석 후 저장 방식을 선택합니다.",
+    "workHoursLabel": "AI 작업 시간 설정",
+    "workHoursTitle": "AI 작업 시간",
+    "workHoursHint": "사용자 설정을 AI 추천보다 우선 적용합니다.",
+    "openPlanner": "Planner 열기",
+    "planning": {
+      "workDays": "작업 가능한 요일",
+      "dayStart": "작업 시작",
+      "dayEnd": "작업 종료",
+      "maxDaily": "하루 최대 작업(분)",
+      "defaultDuration": "기본 소요시간(분)",
+      "advanced": "고급 설정",
+      "placement": "기본 배치 방식",
+      "placementEarliest": "가능한 빠른 시간",
+      "placementFocus": "선호 집중 시간 우선",
+      "focusStart": "집중 시간 시작",
+      "focusEnd": "집중 시간 종료",
+      "clearFocus": "집중 시간 지정 해제",
+      "breakMinutes": "작업 사이 휴식(분)",
+      "allowSplit": "긴 작업 분할 허용",
+      "useHistory": "최근 직접 수정 이력 참고",
+      "useHistoryHint": "같은 제목을 두 번 이상 직접 수정한 경우에만 최근 소요시간과 우선순위를 참고합니다. 자동 학습이 아니며 확인 후 적용합니다.",
+      "save": "개인화 설정 저장",
+      "saving": "저장 중…",
+      "saved": "개인화 설정을 저장했어요. 새 계획부터 적용됩니다.",
+      "saveFailed": "저장하지 못했어요. 설정을 유지했으니 다시 시도해 주세요.",
+      "notConnected": "로그인과 서버 연결을 확인해 주세요. 아직 저장하지 않았어요.",
+      "loginExpired": "로그인이 만료되었어요. 다시 로그인해 주세요.",
+      "invalid": "작업 가능 시간, 날짜 범위와 배치 설정을 확인해 주세요."
+    }
   },
   "calendar": {
     "label": "캘린더",
@@ -75,7 +104,7 @@
     "signOut": "로그아웃",
     "signOutFailed": "로그아웃하지 못했습니다. 다시 시도해 주세요.",
     "deleteAccount": "회원 탈퇴",
-    "deleteAccountConfirm": "계정을 삭제할까요? 이 기기의 기록도 함께 지워집니다."
+    "deleteAccountConfirm": "계정과 서버에 저장된 모든 기록을 바로 삭제합니다. 복구할 수 없으며, 같은 이메일로 다시 가입하면 빈 새 계정으로 시작합니다."
   },
   "appearance": {
     "label": "화면",
@@ -102,7 +131,16 @@
   "navigation": {
     "label": "탐색",
     "description": "사이드바 메뉴 순서와 표시를 바꿉니다.",
-    "sidebar": "사이드바",
+    "sidebar": "PC 사이드바 · 공통 메뉴 표시",
+    "mobileTitle": "모바일 하단 메뉴",
+    "mobileEdit": "메뉴 편집",
+    "mobileHint": "하단에 둘 메뉴를 최대 5개 선택하고 화살표로 순서를 바꾸세요. 나머지는 왼쪽 위 메뉴(더보기)에 표시됩니다. 아래 공통 메뉴에서 숨긴 항목은 모바일에서도 숨겨집니다. 변경 내용은 자동 저장됩니다.",
+    "mobilePreview": "모바일 하단 메뉴 미리보기",
+    "mobileSlot": "모바일 메뉴 {{count}}번",
+    "mobileEmpty": "하단에 표시하지 않음",
+    "mobileUp": "{{count}}번 메뉴 앞으로 이동",
+    "mobileDown": "{{count}}번 메뉴 뒤로 이동",
+    "mobileRestore": "모바일 메뉴 기본값으로 복원",
     "hint": "행을 끌어 순서를 바꿉니다. 커스텀 템플릿과 설정은 항상 아래에 둡니다.",
     "toggle": "{{name}} 표시",
     "restore": "기본값으로 복원"

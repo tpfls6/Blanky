@@ -2,7 +2,7 @@ import type { AnalysisItem, ScheduleAnalysis } from '../../../packages/types/src
 import { titlesMatch } from '../../../packages/scheduling/src/duplicates.ts'
 import type { WorkInput, WorkItem } from '../../types/work.ts'
 import { occursOn } from '../../utils/calendarMonth.ts'
-import { reviewedWorkInput, weeklyRequested } from './review.ts'
+import { requestedRule, reviewedWorkInput, withoutRepeatWords } from './review.ts'
 
 /** A save request keeps its ids so a retry after an unknown failure cannot create a second copy. */
 export type AutoSaveInput = WorkInput & { id: string }
@@ -11,14 +11,6 @@ export type AutoSaveReview = { item: AnalysisItem; reasons: string[]; input?: Au
 export type AutoSavePlan = { ready: AutoSaveInput[]; review: AutoSaveReview[] }
 
 const MERIDIEM = /오전|오후|아침|새벽|저녁|밤|낮|점심|정오|자정|\bam\b|\bpm\b|\d{1,2}:\d{2}/i
-
-/** 매일·매주·매달 in the request; weekly also covers rule-read timetables. */
-export function requestedRepeat(text: string, item: AnalysisItem): NonNullable<WorkInput['repeat']> {
-  if (item.type !== 'event') return 'none'
-  if (/매일|날마다/.test(text)) return 'daily'
-  if (/매달|매월/.test(text)) return 'monthly'
-  return weeklyRequested(text, item) ? 'weekly' : 'none'
-}
 
 /** "3시" without 오전·오후 reads as 03:00; early hours are confirmed instead of saved at night. */
 export function ambiguousHour(text: string, startTime: string | null): boolean {
@@ -46,7 +38,7 @@ export function saveConflicts(input: WorkInput, existing: readonly WorkItem[]): 
   const day = input.kind === 'task' ? input.dueDate ?? input.date : input.date
   for (const item of existing) {
     if (item.kind !== input.kind || !titlesMatch(item.title, input.title)) continue
-    const sameDay = item.kind === 'task' ? (item.dueDate ?? item.date) === day : occursOn(item, input.date)
+    const sameDay = item.kind === 'task' ? (input.undated ? !!item.undated : !item.undated && (item.dueDate ?? item.date) === day) : occursOn(item, input.date)
     if (sameDay && (item.startTime ?? null) === (input.startTime ?? null)) {
       reasons.push(`이미 같은 ${kindLabel(input.kind)} '${item.title}'이 있어요.`)
       return reasons
@@ -76,9 +68,11 @@ export function planAutoSave(analysis: ScheduleAnalysis, text: string, existing:
     let input: WorkInput | null = null
     if (!reasons.length) {
       try {
-        const repeat = requestedRepeat(text, item)
-        const title = repeat === 'none' ? item.draft.title : item.draft.title.replace(/^(매일|매주|매달|매월)\s*/, '') || item.draft.title
-        input = reviewedWorkInput(item, { ...item.draft, title }, false, categoryIds, repeat)
+        const rule = requestedRule(text, item, analysis.items.length === 1)
+        const title = rule.repeat === 'none' ? item.draft.title : withoutRepeatWords(item.draft.title)
+        // A repeating item without a date starts on the first day the rule fires.
+        const date = item.draft.date ?? (rule.repeat !== 'none' ? rule.start : null)
+        input = reviewedWorkInput(item, { ...item.draft, title, date, ...(rule.repeat !== 'none' ? { dueDate: null, dueTime: null } : {}) }, false, categoryIds, rule.repeat, rule.repeatDays, false, false, rule)
       } catch (error) {
         reasons.push(error instanceof Error ? error.message : '내용을 확인해 주세요.')
       }
@@ -111,13 +105,15 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const REPEAT_LABEL: Record<string, string> = { daily: '매일', weekly: '매주', monthly: '매달' }
 
 /** One chip line: date, time and repeat in the fewest words. */
-export function chipDetail(item: Pick<WorkItem, 'kind' | 'date' | 'startTime' | 'endTime' | 'dueDate' | 'dueTime' | 'repeat' | 'repeatDays'>): string {
+export function chipDetail(item: Pick<WorkItem, 'kind' | 'date' | 'startTime' | 'endTime' | 'dueDate' | 'dueTime' | 'repeat' | 'repeatDays' | 'undated'>, today: Date = new Date()): string {
+  // Only a day outside the current year shows its year: "2027/1/5(화)".
   const day = (iso: string) => {
-    const [, month, date] = iso.split('-').map(Number)
-    return `${month}/${date}(${WEEKDAYS[new Date(`${iso}T00:00:00`).getDay()]})`
+    const [year, month, date] = iso.split('-').map(Number)
+    return `${year !== today.getFullYear() ? `${year}/` : ''}${month}/${date}(${WEEKDAYS[new Date(`${iso}T00:00:00`).getDay()]})`
   }
   const parts: string[] = []
   if (item.kind === 'task' && item.dueDate) parts.push(`${day(item.dueDate)}${item.dueTime ? ' ' + item.dueTime : ''}까지`)
+  else if (item.undated) parts.push('날짜 없음')
   else parts.push(day(item.date))
   if (item.startTime) parts.push(item.endTime ? `${item.startTime}–${item.endTime}` : item.startTime)
   else if (item.kind === 'event') parts.push('종일')

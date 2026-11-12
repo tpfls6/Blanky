@@ -27,8 +27,7 @@ export function createTemplateRepository(client: SupabaseClient<Database>) {
       const limit = Math.min(Math.max(input.limit ?? 24, 1), 60)
       const offset = Math.max(input.offset ?? 0, 0)
       let q = client.from('template_listings').select('*')
-      if (input.mine) q = q
-      else q = q.eq('status', 'published')
+      if (!input.mine) q = q.eq('status', 'published')
       if (input.category) q = q.eq('category', input.category)
       if (input.language) q = q.eq('language', input.language)
       if (input.query?.trim()) {

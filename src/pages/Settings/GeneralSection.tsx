@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react'
+import { useEffect } from 'react'
 import { PAGE_TOURS, replayHref } from '../../features/onboarding/tourState.ts'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { APP_LOCALES, type AppLocale } from '../../i18n/locale.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
@@ -78,6 +79,12 @@ function CustomAccent({
 }
 
 export function GeneralSection() {
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (hash !== '#navigation') return
+    const frame = requestAnimationFrame(() => document.getElementById('navigation')?.scrollIntoView({ block: 'start' }))
+    return () => cancelAnimationFrame(frame)
+  }, [hash])
   const { t, locale, setLocale } = useI18n()
   const { settings, updateSettings } = useLibrary()
   const patch = (next: Partial<typeof settings>) => updateSettings(next)

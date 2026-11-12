@@ -102,7 +102,7 @@ const lastAssistant = '[...document.querySelectorAll("#home-chat-panel [data-cha
 const lastStatus = lastAssistant + '?.dataset.chatStatus'
 const panelOpen = 'getComputedStyle(document.querySelector("#home-chat-panel")).display !== "none"'
 const history = 'document.querySelector("[aria-controls=home-chat-panel]")'
-const evidence = resolve('.audit/runs/intent-plan')
+const evidence = resolve(process.env.BLANKY_AUDIT_DIR ?? '.audit/runs', 'intent-plan')
 await mkdir(evidence, { recursive: true })
 async function shot(name) { const result = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(evidence, name + '.png'), Buffer.from(result.data, 'base64')) }
 const steps = []

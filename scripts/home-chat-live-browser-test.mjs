@@ -96,7 +96,7 @@ const history = 'document.querySelector("[aria-controls=home-chat-panel]")'
 const panelOpen = 'getComputedStyle(document.querySelector("#home-chat-panel")).display !== "none"'
 const chip = title => '[...document.querySelectorAll("#home-chat-panel [data-work-chip]")].find(b=>!b.disabled&&b.textContent.includes(' + q(title) + '))'
 const messageCount = 'document.querySelectorAll("#home-chat-panel [data-chat-message]").length'
-const evidence = resolve('.audit/runs/home-chat-panel-live')
+const evidence = resolve(process.env.BLANKY_AUDIT_DIR ?? '.audit/runs', 'home-chat-panel-live')
 await mkdir(evidence, { recursive: true })
 const steps = []
 

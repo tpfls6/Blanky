@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 
 const started = new Date().toISOString()
-const evidenceDir = resolve('c:/Users/serin/Github/Blanky/.audit/runs/marketplace-store')
+const evidenceDir = resolve(process.env.BLANKY_AUDIT_DIR ?? 'c:/Users/serin/Github/Blanky/.audit/runs', 'marketplace-store')
 await mkdir(evidenceDir, { recursive: true })
 const logLines = [`started ${started}`]
 function log(line) {

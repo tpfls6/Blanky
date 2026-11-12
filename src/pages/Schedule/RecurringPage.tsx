@@ -157,6 +157,7 @@ type Form = {
   endTime: string
   repeat: RepeatRule
   repeatDays: number[]
+  repeatInterval: number
   date: string
   hasEnd: boolean
   repeatUntil: string
@@ -170,6 +171,7 @@ function formFrom(item: WorkItem, group?: SeriesGroup): Form {
     title: item.title, description: item.description, categoryId: item.categoryId,
     allDay: item.kind === 'event' && !item.startTime, startTime: item.startTime ?? '', endTime: item.endTime ?? '',
     repeat: item.repeat, repeatDays: item.repeat === 'weekly' ? (item.repeatDays?.length ? normalizeRepeatDays(item.repeatDays) : [isoWeekday(item.date)]) : [],
+    repeatInterval: item.repeatInterval ?? 1,
     date: start, hasEnd: Boolean(end), repeatUntil: end ?? '',
   }
 }
@@ -188,6 +190,7 @@ function patchFrom(item: WorkItem, form: Form, scope: SeriesScope, group: Series
   if (scope === 'this') return patch
   const original = formFrom(item, group)
   if (form.repeat !== item.repeat || form.repeatDays.join() !== original.repeatDays.join()) Object.assign(patch, { repeat: form.repeat, repeatDays: form.repeatDays })
+  if (form.repeatInterval !== original.repeatInterval) patch.repeatInterval = form.repeatInterval
   if (scope === 'all' && form.date !== original.date) patch.date = form.date
   const until = form.hasEnd ? form.repeatUntil || null : null
   if (until !== (original.hasEnd ? original.repeatUntil : null)) patch.repeatUntil = until
@@ -203,6 +206,7 @@ function SeriesEditor({ group, today, initialDate, categories, onBack, onCommit 
   onCommit: (changes: SeriesChange[]) => Promise<void>
 }) {
   const confirm = useConfirm()
+  const { addCategory } = useLibrary()
   const occurrences = useMemo(() => {
     const all = (from: string, to: string, limit: number) => [...new Set(group.segments.flatMap(row => occurrencesBetween(row, from, to, limit)))].sort()
     const around = all(shiftISO(today, -28), shiftISO(today, 365), 60).slice(0, 60)
@@ -240,7 +244,8 @@ function SeriesEditor({ group, today, initialDate, categories, onBack, onCommit 
 
   const validate = (): string => {
     if (!form.title.trim()) return '제목을 입력해 주세요.'
-    if (!form.allDay && !form.startTime) return '시작 시간을 입력하거나 종일로 바꿔 주세요.'
+    // A task may have no time at all; an event needs a time or all-day.
+    if (item.kind === 'event' && !form.allDay && !form.startTime) return '시작 시간을 입력하거나 종일로 바꿔 주세요.'
     if (form.startTime && form.endTime && form.endTime <= form.startTime && !form.allDay) return '종료 시간은 시작 시간보다 늦어야 합니다.'
     if (!ruleLocked && form.hasEnd && !form.repeatUntil) return '종료일을 입력하거나 종료일 없음을 선택해 주세요.'
     if (!ruleLocked && form.hasEnd && form.repeatUntil < seriesStart) return '종료일은 시작일보다 같거나 늦어야 합니다.'
@@ -315,7 +320,7 @@ function SeriesEditor({ group, today, initialDate, categories, onBack, onCommit 
         </>}
         <fieldset disabled={ruleLocked} className={`grid gap-3 sm:col-span-2 sm:grid-cols-2 ${ruleLocked ? 'opacity-50' : ''}`}>
           <div className="sm:col-span-2">
-            <RepeatPicker repeat={form.repeat} days={form.repeatDays} date={seriesStart} allowNone={false} hint={null} onChange={(repeat, repeatDays) => set({ repeat, repeatDays })} />
+            <RepeatPicker repeat={form.repeat} days={form.repeatDays} date={seriesStart} allowNone={false} hint={null} interval={form.repeatInterval} onIntervalChange={repeatInterval => set({ repeatInterval })} onChange={(repeat, repeatDays) => set({ repeat, repeatDays })} />
           </div>
           <label className="text-xs text-neutral-500">
             시작일
@@ -330,7 +335,7 @@ function SeriesEditor({ group, today, initialDate, categories, onBack, onCommit 
         </fieldset>
         <div className="text-xs text-neutral-500 sm:col-span-2">
           카테고리
-          <div className="mt-2"><CategoryPicker categories={categories} value={form.categoryId} onChange={categoryId => set({ categoryId })} /></div>
+          <div className="mt-2"><CategoryPicker categories={categories} value={form.categoryId} onChange={categoryId => set({ categoryId })} onCreate={name => addCategory(name, null)} /></div>
         </div>
         <label className="text-xs text-neutral-500 sm:col-span-2">
           설명

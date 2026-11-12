@@ -43,6 +43,7 @@ function readRow(value: unknown): Stored | null {
 }
 
 function publicOf(row: Stored): InstalledTemplatePackage {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- drops userId from the public shape
   const { userId: _, ...pkg } = row
   return pkg
 }

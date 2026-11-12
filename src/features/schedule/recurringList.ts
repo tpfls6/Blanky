@@ -7,15 +7,17 @@ export type SeriesFilter = 'active' | 'ended' | 'all'
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일']
 
 export function repeatSummary(item: WorkItem): string {
-  if (item.repeat === 'daily') return '매일'
-  if (item.repeat === 'monthly') return `매월 ${Number(item.date.slice(8))}일`
+  const every = item.repeatInterval && item.repeatInterval > 1 ? item.repeatInterval : 1
+  if (item.repeat === 'daily') return every > 1 ? `${every}일마다` : '매일'
+  if (item.repeat === 'monthly') return `${every > 1 ? `${every}개월마다` : '매월'} ${Number(item.date.slice(8))}일`
   if (item.repeat !== 'weekly') return '반복 없음'
   const days = normalizeRepeatDays(item.repeatDays)
   const list = days.length ? days : [isoWeekday(item.date)]
-  if (list.length === 7) return '매주 매일'
-  if (list.join() === '1,2,3,4,5') return '매주 평일'
-  if (list.join() === '6,7') return '매주 주말'
-  return `매주 ${list.map(day => WEEKDAYS[day - 1]).join('·')}`
+  const prefix = every === 2 ? '격주' : every > 1 ? `${every}주마다` : '매주'
+  if (list.length === 7) return `${prefix} 매일`
+  if (list.join() === '1,2,3,4,5') return `${prefix} 평일`
+  if (list.join() === '6,7') return `${prefix} 주말`
+  return `${prefix} ${list.map(day => WEEKDAYS[day - 1]).join('·')}`
 }
 
 export function timeSummary(item: Pick<WorkItem, 'startTime' | 'endTime' | 'allDay' | 'kind'>): string {

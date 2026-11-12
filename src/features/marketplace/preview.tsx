@@ -20,6 +20,7 @@ export function TemplatePreviewProvider({ snapshot, children }: { snapshot: Pick
   return <PreviewContext.Provider value={{ collections: snapshot.collections, records }}>{children}</PreviewContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- helper shared with callers; fast refresh only
 export function useTemplatePreview() {
   return useContext(PreviewContext)
 }

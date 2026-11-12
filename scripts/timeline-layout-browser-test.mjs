@@ -143,15 +143,16 @@ try {
   assert.equal(await evaluate('getComputedStyle(document.querySelector("[data-timeline-id=short1] .schedule-card-title")).webkitLineClamp'),'2');
   await checkNoCollisions();
   // Whole card opens details: clicking the time text (not the title) opens the editor.
-  const dialogs = 'document.querySelectorAll("[aria-expanded=true]").length'
+  const dialogs = 'document.querySelectorAll(".schedule-draft-panel[open]").length'
+  const escape = async () => { for (const type of ['keyDown', 'keyUp']) await send('Input.dispatchKeyEvent', { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }) }
   const before = await evaluate(dialogs)
   await evaluate(`document.querySelector('[data-timeline-id=later] .schedule-card-time').click()`)
   await wait(dialogs + '>' + before, 'time click opens details')
-  await evaluate('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}))'); await pause(100)
+  await escape(); await pause(100)
   await wait(dialogs + '===' + before, 'details closed')
   await evaluate(`document.querySelector('[data-timeline-id=later]').click()`)
   await wait(dialogs + '>' + before, 'card padding click opens details')
-  await evaluate('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}))'); await pause(100)
+  await escape(); await pause(100)
   await wait(dialogs + '===' + before, 'details closed again')
   // Truncated title expands in place without opening details, and collapses on a second click.
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:900,deviceScaleFactor:1,mobile:true});await pause(150)

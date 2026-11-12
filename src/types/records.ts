@@ -13,6 +13,16 @@ export type EntryType = 'auto' | 'schedule' | 'task' | 'diary' | 'memo' | 'readi
 
 export type ResolvedType = 'schedule' | 'task' | 'diary' | 'memo' | 'reading'
 
+/** The one record a Home capture created, so the chat can open or remove exactly that row. */
+export type CaptureRef =
+  | { kind: 'memo'; id: string; title: string }
+  | { kind: 'diary'; id: string; title: string }
+  /** A reading log; `newBook` marks a book the same capture started (kept for older refs: deleting the
+   *  last log no longer removes the book).
+   *  `previousPage` is the book's progress before this log, restored when no paged log is left;
+   *  `page` is the page this log recorded, shown on its chat row. */
+  | { kind: 'reading'; id: string; bookId: string; newBook: boolean; title: string; previousPage?: number; page?: number | null }
+
 export type Capture = {
   id: string
   content: string
@@ -57,6 +67,10 @@ export type Book = {
   totalPages: number
   status: BookStatus
   createdAt: string
+  /** How a finished book got there: `auto` from its reading logs (a 완독 capture, or a log reaching the
+   *  last page), `manual` set on the book itself. Books finished before this was kept have none, and
+   *  deleting a log never changes their status or progress. */
+  finishedBy?: 'manual' | 'auto'
 }
 
 export type ReadingLog = {
@@ -66,6 +80,11 @@ export type ReadingLog = {
   page: number | null
   note: string
   createdAt: string
+  /** The book's progress before a Home capture added this log (0 for the log that started the book).
+   *  Kept with the log so deleting logs in any order lands on the same page. */
+  previousPage?: number
+  /** The capture said the book was finished (완독), which raised the book to its last page. */
+  finished?: boolean
 }
 
 export type ThemeSetting = 'light' | 'dark' | 'system'
@@ -103,6 +122,8 @@ export type Settings = {
   accent: string
   savedAccents: string[]
   nav: NavPref[]
+  /** Pinned mobile tabs, in order. Unset preserves the existing default bar. */
+  mobileBarIds?: string[]
   weekStartsOn: 0 | 1
   defaultScheduleTab: ScheduleTab
   dayStartTime: string

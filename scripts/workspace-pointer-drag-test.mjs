@@ -8,7 +8,7 @@ const require = createRequire(resolve('.tmp/pw/package.json'))
 const { chromium } = require('playwright')
 
 const started = new Date().toISOString()
-const evidenceDir = resolve('c:/Users/serin/Github/Blanky/.audit/runs/workspace-builder-pointer')
+const evidenceDir = resolve(process.env.BLANKY_AUDIT_DIR ?? 'c:/Users/serin/Github/Blanky/.audit/runs', 'workspace-builder-pointer')
 await mkdir(evidenceDir, { recursive: true })
 const logLines = [`started ${started}`]
 function log(line) {

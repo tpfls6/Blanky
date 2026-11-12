@@ -11,11 +11,30 @@ export function useReadingDrag(onDrop:(drag:ReadingDrag,target:string)=>void,dis
  const cancel=()=>{if(pending.current?.dragging)suppressUntil.current=performance.now()+400;pending.current=null;setActive(null);setTarget(null)}
  const escape=(event:KeyboardEvent)=>{if(event.key==='Escape')cancel()}
  let frame=0;
- const scroll=()=>{const p=pending.current;if(p?.dragging){const dy=p.y<72?-12:p.y>window.innerHeight-72?12:0;if(dy){window.scrollBy(0,dy);const id=destination(p.x,p.y);setTarget(id===p.id&&p.kind==='shelf'?null:id)}}frame=p?.dragging?requestAnimationFrame(scroll):0};
+ // The page scrolls inside the app's <main>, not the window, and the phone nav covers the bottom edge.
+ const scroll=()=>{const p=pending.current;if(p?.dragging){const box=scrollBox(p.element),dy=edgeSpeed(p.y,box.top,box.bottom);if(dy){const before=box.element.scrollTop;box.element.scrollBy(0,dy);if(box.element.scrollTop!==before){const id=destination(p.x,p.y);setTarget(id===p.id&&p.kind==='shelf'?null:id)}}}frame=p?.dragging?requestAnimationFrame(scroll):0};
  window.addEventListener('pointermove',move,{passive:false});window.addEventListener('pointerup',end);window.addEventListener('pointercancel',cancel);window.addEventListener('blur',cancel);window.addEventListener('keydown',escape)
  return()=>{cancelAnimationFrame(frame);window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',cancel);window.removeEventListener('blur',cancel);window.removeEventListener('keydown',escape)}
  },[])
  const start=(event:ReactPointerEvent<HTMLElement>,drag:ReadingDrag)=>{if(disabled||event.button!==0||!event.isPrimary)return;pending.current={...drag,sx:event.clientX,sy:event.clientY,dragging:false,pointerId:event.pointerId,element:event.currentTarget,x:event.clientX,y:event.clientY}}
  const click=(event:MouseEvent)=>{if(performance.now()<suppressUntil.current){event.preventDefault();event.stopPropagation()}}
  return {active,target,start,click}
+}
+const EDGE=72,MAX_SPEED=18
+/** Faster the deeper the pointer sits inside the top or bottom edge zone. */
+export function edgeSpeed(y:number,top:number,bottom:number):number{
+ if(y<top+EDGE)return -Math.ceil(Math.min(1,(top+EDGE-y)/EDGE)*MAX_SPEED)
+ if(y>bottom-EDGE)return Math.ceil(Math.min(1,(y-(bottom-EDGE))/EDGE)*MAX_SPEED)
+ return 0
+}
+function scrollBox(element:HTMLElement):{element:Element;top:number;bottom:number}{
+ let node=element.parentElement
+ while(node&&node!==document.body){const style=getComputedStyle(node);if(/(auto|scroll)/.test(style.overflowY)&&node.scrollHeight>node.clientHeight)break;node=node.parentElement}
+ const scroller=node&&node!==document.body?node:document.scrollingElement??document.documentElement
+ const rect=scroller===document.scrollingElement?{top:0,bottom:window.innerHeight}:scroller.getBoundingClientRect()
+ let bottom=Math.min(rect.bottom,window.innerHeight)
+ const nav=document.querySelector<HTMLElement>('.mobile-nav')
+ const navBox=nav?.getBoundingClientRect()
+ if(navBox&&navBox.height>0&&navBox.top>0)bottom=Math.min(bottom,navBox.top)
+ return {element:scroller,top:Math.max(rect.top,0),bottom}
 }

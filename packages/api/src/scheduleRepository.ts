@@ -3,7 +3,7 @@ import type { Database } from './database.generated.ts'
 import { AppError, mapDbError } from './errors.ts'
 import { mapBatchError, parseScheduleBatchResult, type ScheduleBatchResult } from './scheduleBatch.ts'
 import { isCalendarDate } from '../../types/src/aiSchema.ts'
-import { normalizeRepeatDays } from '../../types/src/recurrence.ts'
+import { normalizeRepeatDays, normalizeRepeatInterval } from '../../types/src/recurrence.ts'
 import type {
   Priority,
   Schedule,
@@ -77,11 +77,14 @@ export function mapScheduleRow(value: unknown): Schedule {
     repeat: value.repeat_rule === 'daily' || value.repeat_rule === 'weekly' || value.repeat_rule === 'monthly' ? value.repeat_rule : 'none',
     repeatDays: normalizeRepeatDays(value.repeat_days),
     ...('repeat_until' in value ? { repeatUntil: readNullableString(value.repeat_until) } : {}),
+    ...('repeat_interval' in value ? { repeatInterval: normalizeRepeatInterval(value.repeat_interval) } : {}),
     ...('series_id' in value ? { seriesId: readNullableString(value.series_id) } : {}),
+    ...('undated' in value ? { undated: value.undated === true } : {}),
     id: requireString(value.id, 'id'),
     userId: requireString(value.user_id, 'user_id'),
     calendarId: requireString(value.calendar_id, 'calendar_id'),
     createdByUserId: readNullableString(value.created_by_user_id),
+    ...('updated_by_user_id' in value ? { updatedByUserId: readNullableString(value.updated_by_user_id) } : {}),
     title: requireString(value.title, 'title'),
     description: readNullableString(value.description) ?? '',
     date: requireString(value.date, 'date'),
@@ -131,7 +134,10 @@ function scheduleColumns(draft: ScheduleDraft) {
     repeat_days: draft.repeat === 'weekly' ? normalizeRepeatDays(draft.repeatDays) : [],
     // Sent only when known, so saves keep working before the repeat_until migration is applied.
     ...(draft.repeatUntil !== undefined ? { repeat_until: draft.repeat && draft.repeat !== 'none' ? draft.repeatUntil : null } : {}),
+    ...(draft.repeatInterval !== undefined ? { repeat_interval: draft.repeat && draft.repeat !== 'none' ? normalizeRepeatInterval(draft.repeatInterval) : 1 } : {}),
     ...(draft.seriesId !== undefined ? { series_id: draft.seriesId } : {}),
+    // Sent only when set, so dated saves keep working before the undated migration is applied.
+    ...(draft.undated !== undefined ? { undated: draft.kind === 'task' && draft.undated } : {}),
     change_source: draft.changeSource ?? 'manual',
     title: draft.title,
     description: draft.description ?? '',
@@ -168,6 +174,8 @@ export type ScheduleRepository = {
   remove: (id: string) => Promise<void>
   applyBatch: (key: string, deletes: string[]) => Promise<ScheduleBatchResult>
   listChanges: (scheduleId?: string) => Promise<ScheduleChange[]>
+  /** Deletes one history row only; the schedule itself is untouched. False when no row matched. */
+  removeChange: (id: string) => Promise<boolean>
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -292,6 +300,12 @@ export function createScheduleRepository(
       if (error) throw mapDbError(error)
       if (!Array.isArray(data)) return []
       return data.map(toScheduleChange)
+    },
+
+    async removeChange(id) {
+      const { data, error } = await client.from('schedule_changes').delete().eq('id', id).select('id')
+      if (error) throw mapDbError(error)
+      return Array.isArray(data) && data.length > 0
     },
   }
 }

@@ -1,7 +1,8 @@
 import { formatClock, parseClock } from '@blanky/utils'
-import { normalizeRepeatDays, repeatsOn } from '../../packages/types/src/recurrence.ts'
+import { normalizeRepeatDays, normalizeRepeatInterval, repeatsOn } from '../../packages/types/src/recurrence.ts'
 import { CATEGORIES } from '../data/mockWorkspace.ts'
 import { parseQuick } from './parseQuick.ts'
+import { todayISO } from './date.ts'
 import { occursOn } from './calendarMonth.ts'
 import type { Priority } from '@blanky/types'
 import type { CategoryKind, RepeatRule, WorkInput, WorkItem, WorkspaceCategory } from '../types/work.ts'
@@ -82,7 +83,12 @@ export function placedTimes(
 export function createWorkItem(input: WorkInput, options: { inferEndTime?: boolean } = {}): WorkItem | null {
   const title = input.title.trim()
   const startTime = input.startTime || null
-  if (!title || !input.date) return null
+  // A task with no date, deadline, time or repeat is a plain to-do; `date` then only records the save day.
+  const undated = input.kind === 'task' && !input.dueDate && !startTime && (input.repeat ?? 'none') === 'none' && (input.undated === true || !input.date)
+  // A repeating task with no date starts today.
+  const date = input.date || (input.kind === 'task' ? input.dueDate || (undated || (input.repeat ?? 'none') !== 'none' ? todayISO() : '') : '')
+  if (!title || !date) return null
+  input = { ...input, date }
 
   let endTime = input.endTime || null
   let duration = input.duration && input.duration > 0 ? input.duration : null
@@ -101,6 +107,7 @@ export function createWorkItem(input: WorkInput, options: { inferEndTime?: boole
 
   return {
     id: crypto.randomUUID(),
+    ...(input.calendarId ? { calendarId: input.calendarId } : {}),
     kind: input.kind,
     title,
     description: input.description?.trim() ?? '',
@@ -119,6 +126,9 @@ export function createWorkItem(input: WorkInput, options: { inferEndTime?: boole
     repeatDays: input.repeat === 'weekly' ? normalizeRepeatDays(input.repeatDays) : [],
     // Kept absent unless given, so rows from an un-migrated DB never send the column.
     ...(input.repeatUntil !== undefined ? { repeatUntil: input.repeat && input.repeat !== 'none' ? input.repeatUntil || null : null } : {}),
+    ...(input.repeatInterval !== undefined ? { repeatInterval: input.repeat && input.repeat !== 'none' ? normalizeRepeatInterval(input.repeatInterval) : 1 } : {}),
+    // Kept absent for dated rows that never were undated, so they save before the undated migration.
+    ...(undated ? { undated: true } : input.undated !== undefined ? { undated: false } : {}),
   }
 }
 
@@ -142,8 +152,8 @@ export function inCategory(
 }
 
 export function filterByWhen(item: WorkItem, filter: TaskFilter, today: string): boolean {
-  if (filter === 'today') return item.date === today && item.status !== 'done'
-  if (filter === 'upcoming') return item.date > today && item.status !== 'done'
+  if (filter === 'today') return !item.undated && item.date === today && item.status !== 'done'
+  if (filter === 'upcoming') return !item.undated && item.date > today && item.status !== 'done'
   if (filter === 'completed') return item.status === 'done'
   return true
 }

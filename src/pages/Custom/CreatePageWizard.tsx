@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { IconPicker } from '../../components/common/IconPicker.tsx'
 import {
-  DEFAULT_FIELD_LABELS,
+  initialFieldLabels,
   PAGE_TEMPLATES,
   type PageTemplateKind,
 } from '../../features/pages/templates.ts'
@@ -30,7 +30,7 @@ export function CreatePageWizard({
   onCancel: () => void
   onCreate: (input: PageDraft) => void
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const editing = Boolean(page)
   const kind = page?.template ?? initial ?? 'diary'
   const firstStep = editing ? 1 : 0
@@ -41,10 +41,10 @@ export function CreatePageWizard({
   const [name, setName] = useState(page?.name ?? (initial ? t(`custom.kind.${initial}`) : ''))
   const [icon, setIcon] = useState(page?.icon ?? ICONS[kind])
   const [description, setDescription] = useState(page?.description ?? '')
-  const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({ ...DEFAULT_FIELD_LABELS[kind], ...page?.fieldLabels })
+  const [fieldLabels, setFieldLabels] = useState<Record<string, string>>({ ...initialFieldLabels(kind, locale), ...page?.fieldLabels })
   const shown = preview
   const previewName = step === 0 ? t(`custom.kind.${shown}`) : name.trim() || t(`custom.kind.${template}`)
-  const previewLabels = step === 0 ? DEFAULT_FIELD_LABELS[shown] : fieldLabels
+  const previewLabels = step === 0 ? initialFieldLabels(shown, locale) : fieldLabels
   const finish = () => onCreate({ template, name: previewName, icon, description: description.trim(), fieldLabels })
   const stepTitle = step === 0 ? t('custom.pickTemplate') : step === 1 ? t('custom.namePage') : step === 2 ? t('custom.renameFields') : t('custom.preview')
 
@@ -53,7 +53,7 @@ export function CreatePageWizard({
     setPreview(next)
     setIcon(ICONS[next])
     setName(t(`custom.kind.${next}`))
-    setFieldLabels({ ...DEFAULT_FIELD_LABELS[next] })
+    setFieldLabels(initialFieldLabels(next, locale))
   }
 
   return (
@@ -135,6 +135,7 @@ export function CreatePageWizard({
               className="mt-3 px-6"
               template={template}
               values={fieldLabels}
+              showDefaults={locale !== 'ko'}
               onChange={(key, value) => setFieldLabels((current) => ({ ...current, [key]: value }))}
             />
           ) : null}

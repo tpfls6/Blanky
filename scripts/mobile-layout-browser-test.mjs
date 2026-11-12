@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 
 const started = new Date().toISOString()
-const evidenceDir = resolve('.audit/runs/mobile-layout')
+const evidenceDir = resolve(process.env.BLANKY_AUDIT_DIR ?? '.audit/runs', 'mobile-layout')
 await mkdir(evidenceDir, { recursive: true })
 const logLines = [`started ${started}`]
 function log(line) {
@@ -203,19 +203,19 @@ try {
   async function scenario(name, run) {
     try { const outcome = await run(); log(`${outcome === 'ok' ? 'ok  ' : 'FAIL'} scenario ${name}: ${outcome}`); if (outcome !== 'ok') failures.push('scenario/' + name) } catch (error) { log(`FAIL scenario ${name}: ${error.message}`); failures.push('scenario/' + name) }
   }
-  await scenario('more-sheet', async () => {
+  await scenario('more-page', async () => {
     await navigate(base + '/')
     await pause(700)
     const barCount = await evaluate('document.querySelectorAll(".mobile-nav > ul > li").length')
     if (barCount !== 5) return 'bar items ' + barCount
-    await evaluate('document.querySelector(".mobile-nav [aria-haspopup=dialog]").click()')
-    await pause(200)
-    const fit = await evaluate(fits('.mobile-nav-sheet[open]'))
-    await shot('scenario-more-sheet')
+    await evaluate('document.querySelector("[data-mobile-tab=more]").click()')
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-more-page]"))')); i++) await pause(100)
+    const fit = await evaluate('document.documentElement.scrollWidth <= innerWidth + 1 ? "ok" : "menu overflows"')
+    await shot('scenario-more-page')
     if (fit !== 'ok') return fit
-    await evaluate('[...document.querySelectorAll(".mobile-sheet-link")].find((a) => a.getAttribute("href") === "/settings").click()')
+    await evaluate('document.querySelector("[data-more-link=settings]").click()')
     await pause(700)
-    const state = await evaluate('location.pathname + "|" + Boolean(document.querySelector(".mobile-nav-sheet[open]")) + "|" + document.querySelector(".mobile-nav [aria-haspopup=dialog]").getAttribute("aria-current")')
+    const state = await evaluate('location.pathname + "|" + Boolean(document.querySelector("dialog[open]")) + "|" + document.querySelector("[data-mobile-tab=more]").getAttribute("aria-current")')
     return state === '/settings/general|false|page' ? 'ok' : state
   })
   await scenario('confirm-dialog', async () => {

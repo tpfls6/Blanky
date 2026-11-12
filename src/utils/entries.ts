@@ -6,6 +6,9 @@ import { createWorkItem } from './work.ts'
 import { parseQuick } from './parseQuick.ts'
 import { formatISODate } from './date.ts'
 import { captureIntent } from './captureIntent.ts'
+import { parseReading } from './readingParse.ts'
+
+export { parseReading }
 
 export function guessType(content: string): ResolvedType {
   const text = content.trim()
@@ -31,20 +34,6 @@ export function splitTags(text: string): { body: string; tags: string[] } {
   return { body, tags }
 }
 
-export function parseReading(content: string): {
-  title: string
-  page: number | null
-  total: number | null
-  note: string
-} {
-  const slash = /(\d+)\s*\/\s*(\d+)/.exec(content)
-  const pageMatch = /(\d+)\s*페이지/.exec(content)
-  const page = pageMatch ? Number(pageMatch[1]) : slash ? Number(slash[1]) : null
-  const total = slash ? Number(slash[2]) : null
-  const rawTitle = pageMatch ? content.slice(0, pageMatch.index).trim() : content.trim()
-  const title = rawTitle.replace(/[\s.]+$/g, '') || '제목 없는 책'
-  return { title, page, total, note: content.trim() }
-}
 
 function stamp(now: Date): string {
   return now.toISOString()
@@ -55,6 +44,8 @@ export function applyCapture(
   content: string,
   type: EntryType,
   now = new Date(),
+  /** Replaying the same ids lets a preview and the committed state agree on what was created. */
+  newId: () => string = () => crypto.randomUUID(),
 ): LibraryData {
   const trimmed = content.trim()
   if (!trimmed) return data
@@ -62,9 +53,9 @@ export function applyCapture(
 
   const createdAt = stamp(now)
   if (type.startsWith('custom:')) {
-    return addCustom(data, type.slice('custom:'.length), trimmed, createdAt, {
+    return addCustom(data, type.slice('custom:'.length), trimmed, createdAt, newId, {
       ...data,
-      captures: [...data.captures, { id: crypto.randomUUID(), content: trimmed, type, createdAt, resolvedType: null }],
+      captures: [...data.captures, { id: newId(), content: trimmed, type, createdAt, resolvedType: null }],
     })
   }
 
@@ -76,7 +67,7 @@ export function applyCapture(
     ...data,
     captures: [
       ...data.captures,
-      { id: crypto.randomUUID(), content: trimmed, type, createdAt, resolvedType: resolved },
+      { id: newId(), content: trimmed, type, createdAt, resolvedType: resolved },
     ],
   }
 
@@ -107,7 +98,7 @@ export function applyCapture(
       ...next,
       diaries: [
         {
-          id: crypto.randomUUID(),
+          id: newId(),
           date: draft.date,
           body,
           tags,
@@ -126,7 +117,7 @@ export function applyCapture(
       ...next,
       memos: [
         {
-          id: crypto.randomUUID(),
+          id: newId(),
           title: title || '메모',
           body,
           categoryId: null,
@@ -139,16 +130,16 @@ export function applyCapture(
     }
   }
 
-  return addReading(next, trimmed, now)
+  return addReading(next, trimmed, now, newId)
 }
 
-function addCustom(data: LibraryData, typeId: string, content: string, createdAt: string, next: LibraryData): LibraryData {
+function addCustom(data: LibraryData, typeId: string, content: string, createdAt: string, newId: () => string, next: LibraryData): LibraryData {
   const recordType = data.recordTypes.find((item) => item.id === typeId)
   if (!recordType) return data
   const key = captureTarget(recordType.blocks)
   const values: CustomRecord['values'] = key ? { [key]: content } : {}
   const record: CustomRecord = {
-    id: crypto.randomUUID(),
+    id: newId(),
     typeId,
     title: content.slice(0, 48) || recordType.name,
     values,
@@ -159,20 +150,23 @@ function addCustom(data: LibraryData, typeId: string, content: string, createdAt
   return { ...next, records: [record, ...next.records] }
 }
 
-function addReading(data: LibraryData, content: string, now: Date): LibraryData {
+function addReading(data: LibraryData, content: string, now: Date, newId: () => string): LibraryData {
   const parsed = parseReading(content)
   const key = parsed.title.replace(/\s/g, '')
   const existing = data.books.find((book) => book.title.replace(/\s/g, '') === key)
   const createdAt = stamp(now)
   const date = formatISODate(now)
-  const bookId = existing?.id ?? crypto.randomUUID()
+  const bookId = existing?.id ?? newId()
   const books = existing
     ? data.books.map((book) =>
         book.id === existing.id
           ? {
               ...book,
-              currentPage: Math.max(book.currentPage, parsed.page ?? book.currentPage),
+              author: book.author || parsed.author || '',
+              currentPage: Math.max(book.currentPage, parsed.page ?? book.currentPage, parsed.finished ? parsed.total ?? book.totalPages : 0),
               totalPages: parsed.total ?? book.totalPages,
+              // A book already finished keeps how it got there; otherwise this capture finished it.
+              ...(parsed.finished ? { status: 'done' as const, finishedAt: book.finishedAt ?? date, ...(book.status === 'done' ? {} : { finishedBy: 'auto' as const }) } : {}),
             }
           : book,
       )
@@ -180,13 +174,14 @@ function addReading(data: LibraryData, content: string, now: Date): LibraryData 
         {
           id: bookId,
           title: parsed.title,
-          author: '',
+          author: parsed.author ?? '',
           cover: null,
           startedAt: date,
-          finishedAt: null,
-          currentPage: parsed.page ?? 0,
+          finishedAt: parsed.finished ? date : null,
+          currentPage: parsed.page ?? (parsed.finished ? parsed.total ?? 0 : 0),
           totalPages: parsed.total ?? 0,
-          status: 'reading' as const,
+          status: parsed.finished ? 'done' as const : 'reading' as const,
+          ...(parsed.finished ? { finishedBy: 'auto' as const } : {}),
           createdAt,
         },
         ...data.books,
@@ -197,12 +192,14 @@ function addReading(data: LibraryData, content: string, now: Date): LibraryData 
     books,
     logs: [
       {
-        id: crypto.randomUUID(),
+        id: newId(),
         bookId,
         date,
         page: parsed.page,
         note: parsed.note,
         createdAt,
+        previousPage: existing?.currentPage ?? 0,
+        ...(parsed.finished ? { finished: true } : {}),
       },
       ...data.logs,
     ],

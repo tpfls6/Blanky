@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Search, Trash2, X } from 'lucide-react'
 import { formatDisplayDate } from '../../i18n/format.ts'
 import { localeTag } from '../../i18n/locale.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { WorkCard } from '../../components/schedule/WorkCard.tsx'
 import { categoryPath } from '../../utils/work.ts'
+import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
+import type { Activity } from '../../services/schedule/workStore.ts'
+import { RemoveRecordDialog } from './RemoveRecordDialog.tsx'
 
 const PAGE_SIZE = 10
 
@@ -17,6 +20,8 @@ export function ActivityPage() {
   const [view, setView] = useState<'summary' | 'detail'>('summary')
   const [page, setPage] = useState(1)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<Activity | null>(null)
+  const [notice, setNotice] = useState('')
   const filtered = useMemo(() => {
     const words = query.trim().toLocaleLowerCase('ko').split(/\s+/).filter(Boolean)
     return activities.filter(row => {
@@ -30,6 +35,11 @@ export function ActivityPage() {
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const days = [...new Set(visible.map(row => formatDisplayDate(locale, row.createdAt.slice(0, 10))))]
   const changePage = (next: number) => { setPage(next); setOpenId(null) }
+  // A sibling of the card toggle, so deleting never opens the record.
+  const removeButton = (row: Activity) => <button data-theme-slot="button" type="button" data-remove-activity={row.id} className="icon-btn shrink-0 text-neutral-400 hover:text-red-500"
+    aria-label={t('activity.remove', { title: (row.after ?? row.before)?.title || t('activity.previous') })} onClick={event => { event.stopPropagation(); setNotice(''); setRemoving(row) }}>
+    <ThemeIcon name="delete" fallback={Trash2} className="size-4" strokeWidth={1.5} />
+  </button>
 
   return <div className="mx-auto w-full max-w-3xl px-6 py-10">
     <h1 className="text-xl font-medium">{t('activity.title')}</h1>
@@ -45,6 +55,8 @@ export function ActivityPage() {
       </div>
       <p role="status" className="text-xs text-neutral-400">{t(query.trim() ? 'activity.resultCount' : 'activity.totalCount', { count: filtered.length })}</p>
     </div>
+    {notice && <p role="status" className="mt-3 text-sm text-neutral-500">{notice}</p>}
+    {removing && <RemoveRecordDialog activity={removing} onClose={() => setRemoving(null)} onDone={title => { setRemoving(null); setOpenId(null); setNotice(t('activity.removeDone', { title })) }} />}
     <div id="activity-panel" role="tabpanel" aria-labelledby={'activity-tab-' + view}>
       {!filtered.length && <p className="py-12 text-center text-sm text-neutral-400">{query.trim() ? t('activity.emptySearch') : t('activity.empty')}</p>}
       {days.map(day => <section key={day} className="mt-6">
@@ -54,10 +66,10 @@ export function ActivityPage() {
           const open = view === 'detail' || openId === row.id
           const metadata = new Date(row.createdAt).toLocaleTimeString(localeTag(locale), { hour: '2-digit', minute: '2-digit' }) + ' · ' + (row.source === 'ai_chat' ? t('source.ai') : t('source.manual')) + ' · ' + ACTION[row.action]
           return <li key={row.id} className={view === 'summary' ? 'rounded-xl border border-line bg-surface hover:bg-hover' : 'pb-3'}>
-            {view === 'summary' ? <button type="button" aria-expanded={open} aria-controls={'activity-record-' + row.id} className="flex w-full items-center gap-3 rounded-xl p-4 text-left" onClick={() => setOpenId(open ? null : row.id)}>
+            {view === 'summary' ? <div className="flex items-center pr-2"><button type="button" aria-expanded={open} aria-controls={'activity-record-' + row.id} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-4 text-left" onClick={() => setOpenId(open ? null : row.id)}>
               <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{snapshot?.title || t('activity.previous')}</p><p className="mt-1 truncate text-xs text-neutral-400">{metadata}{snapshot ? ' · ' + snapshot.date + (snapshot.startTime ? ' ' + snapshot.startTime : '') : ''}</p>{snapshot?.description && <p className="mt-2 line-clamp-1 text-sm text-neutral-500">{snapshot.description}</p>}</div>
               <ChevronDown aria-hidden="true" className={'size-4 shrink-0 text-neutral-400 transition-transform ' + (open ? 'rotate-180' : '')} />
-            </button> : <p className="mb-2 text-xs text-neutral-400">{metadata}</p>}
+            </button>{removeButton(row)}</div> : <div className="mb-2 flex items-center justify-between gap-2"><p className="min-w-0 truncate text-xs text-neutral-400">{metadata}</p>{removeButton(row)}</div>}
             <div id={'activity-record-' + row.id} hidden={!open} className={view === 'summary' && open ? 'border-t border-line p-3' : ''}>{open && (snapshot ? <WorkCard snapshot={snapshot} before={row.after ? row.before : null} deleted={row.action === 'deleted'} /> : <p className="text-sm text-neutral-400">{t('activity.noSnapshot', { id: row.entityId })}</p>)}</div>
           </li>
         })}</ul>

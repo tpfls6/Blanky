@@ -188,7 +188,13 @@ test('Google RRULE stays at the Blanky ceiling and skips the rest', () => {
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=DAILY']), { freq: 'daily' })
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=WEEKLY;BYDAY=MO,WE']), { freq: 'weekly', days: [1, 3] })
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=MONTHLY']), { freq: 'monthly' })
-  assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO']), { kind: 'unsupported' })
+  // Custom intervals round-trip; week counting other than Monday-start stays unsupported.
+  assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO']), { freq: 'weekly', days: [1], interval: 2 })
+  assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=DAILY;INTERVAL=3']), { freq: 'daily', interval: 3 })
+  assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO;WKST=SU']), { kind: 'unsupported' })
+  assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=DAILY;INTERVAL=0']), { kind: 'unsupported' })
+  assert.deepEqual(toGoogleRrule({ freq: 'monthly', interval: 2 }), ['RRULE:FREQ=MONTHLY;INTERVAL=2'])
+  assert.deepEqual(parseRecurrenceFromSchedule({ date: '2026-11-02', repeat: 'daily', repeatInterval: 1 }), { freq: 'daily' })
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=DAILY;COUNT=5']), { kind: 'unsupported' })
   // UNTIL is mirrored as repeat_until (see recurrenceUntil.test.ts); COUNT stays unsupported.
   assert.deepEqual(parseGoogleRecurrence(['RRULE:FREQ=MONTHLY;UNTIL=20261231']), { freq: 'monthly', until: '2026-12-31' })

@@ -22,3 +22,15 @@ test('ambiguous, mixed and recipe records default to memo without confirmation',
     assert.deepEqual(captureIntent(text), { type: 'memo', needsConfirmation: false }, text)
   }
 })
+test('planned reading is a task; only what was read is a reading record', () => {
+  for (const text of ['데미안 30페이지 읽었다', '데미안 완독', '어제 데미안 읽고 많이 울었다', '사피엔스 120/400', '노르웨이의 숲 130페이지까지 읽음. 나오코 부분이 인상적이었다.']) {
+    assert.equal(captureIntent(text).type, 'reading', text)
+  }
+  for (const text of ['논문 읽기', '책 읽기', '내일 데미안 읽어야 해', '논문 읽고 일요일까지 요약 올리기', '논문 읽고 워크플로우 카톡방에 올리기', '주말에 사피엔스 50페이지 읽기']) {
+    assert.equal(captureIntent(text).type, 'conversation', text)
+  }
+})
+test('a list of several to-dos goes to analysis even when one mentions reading', () => {
+  assert.equal(captureIntent('컴활 풀기, 논문 읽고 정리하기, 발표자료 만들기').type, 'conversation')
+  assert.equal(captureIntent('현재 컴활 풀기, 논문 읽고 이번주 일요일까지 워크플로우 뭐한지랑 선택 이유 카톡방에 올리기 (IRIS 초파리 연구), stockmate 발표 숙지 1회').type, 'conversation')
+})

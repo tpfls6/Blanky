@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './database.generated.ts'
 import { AppError, mapDbError } from './errors.ts'
 import type {
+  AppNotification,
+  AppNotificationType,
   DevicePushToken,
   PushPlatform,
 } from '../../types/src/notification.ts'
@@ -35,7 +37,40 @@ function toToken(value: unknown): DevicePushToken {
   }
 }
 
+const TYPES: AppNotificationType[] = [
+  'invite_received', 'invite_accepted', 'invite_declined',
+  'schedule_created', 'schedule_updated', 'schedule_deleted',
+  'member_removed', 'role_changed', 'ownership_transferred',
+]
+
+export function mapNotificationRow(value: unknown): AppNotification | null {
+  if (!isRecord(value)) return null
+  const type = TYPES.find(item => item === value.type)
+  const id = readString(value.id)
+  const createdAt = readString(value.created_at)
+  if (!type || !id || !createdAt) return null
+  const data = isRecord(value.data) ? value.data : {}
+  const text = (key: string) => readString(data[key]) ?? ''
+  return {
+    id, type, createdAt,
+    calendarId: readString(value.calendar_id) ?? null,
+    scheduleId: readString(value.schedule_id) ?? null,
+    actorName: text('actorName'),
+    title: text('title'),
+    calendarName: text('calendarName'),
+    calendarColor: readString(data.calendarColor) ?? null,
+    role: readString(data.role) ?? null,
+    invitationId: readString(data.invitationId) ?? null,
+    count: typeof value.count === 'number' ? value.count : 1,
+    readAt: readString(value.read_at) ?? null,
+  }
+}
+
 export type NotificationRepository = {
+  list: (limit?: number) => Promise<AppNotification[]>
+  markRead: (ids: string[]) => Promise<void>
+  markAllRead: () => Promise<void>
+  remove: (id: string) => Promise<void>
   registerToken: (input: {
     userId: string
     platform: PushPlatform
@@ -47,6 +82,29 @@ export function createNotificationRepository(
   client: SupabaseClient<Database>,
 ): NotificationRepository {
   return {
+    async list(limit = 50) {
+      const { data, error } = await client.from('notifications').select('*')
+        .order('created_at', { ascending: false }).limit(limit)
+      if (error) throw mapDbError(error)
+      return (data ?? []).flatMap(row => {
+        const item = mapNotificationRow(row)
+        return item ? [item] : []
+      })
+    },
+    async markRead(ids) {
+      if (!ids.length) return
+      const { error } = await client.from('notifications').update({ read_at: new Date().toISOString() })
+        .in('id', ids).is('read_at', null)
+      if (error) throw mapDbError(error)
+    },
+    async markAllRead() {
+      const { error } = await client.from('notifications').update({ read_at: new Date().toISOString() }).is('read_at', null)
+      if (error) throw mapDbError(error)
+    },
+    async remove(id) {
+      const { error } = await client.from('notifications').delete().eq('id', id)
+      if (error) throw mapDbError(error)
+    },
     async registerToken(input) {
       const { data, error } = await client
         .from('device_push_tokens')

@@ -1,6 +1,6 @@
 import { parseKoreanDate, parseKoreanTime } from './parse.ts'
 
-const day = String.raw`(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s*월\s*\d{1,2}\s*일|오늘|내일|모레|(?:이번\s*주|다음\s*주)?\s*[월화수목금토일]요일)`
+const day = String.raw`(?:\d{4}-\d{2}-\d{2}|(?:\d{4}\s*년\s*)?\d{1,2}\s*월\s*\d{1,2}\s*일|오늘|내일|모레|(?:이번\s*주|다음\s*주)?\s*[월화수목금토일]요일)`
 const clock = String.raw`(?:(?:오전|오후|저녁|밤)\s*)?(?:\d{1,2}:\d{2}|\d{1,2}\s*시(?:\s*(?:반|\d{1,2}\s*분))?)`
 const when = `${day}(?:\\s*${clock})?`
 const suffix = new RegExp(`(${when})\\s*(?:전까지|까지|제출\\s*기한|마감)`)

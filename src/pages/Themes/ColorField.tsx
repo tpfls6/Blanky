@@ -37,10 +37,10 @@ function drag(el: HTMLElement, event: ReactPointer, move: (x: number, y: number,
 export function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
     const [hex, setHex] = useState(value);
     const box = useRef<HTMLDetailsElement>(null);
-    const hue = useRef(0);
+    const [hue, setHue] = useState(0);
     const rgb = rgbOf(value);
-    const hsv = hsvOf(rgb.r, rgb.g, rgb.b, hue.current);
-    hue.current = hsv.h;
+    const hsv = hsvOf(rgb.r, rgb.g, rgb.b, hue);
+    if (hsv.h !== hue) setHue(hsv.h);
     useEffect(() => {
         const close = (event: PointerEvent) => {
             if (box.current?.open && !box.current.contains(event.target as Node)) box.current.open = false;
@@ -49,7 +49,7 @@ export function ColorField({ label, value, onChange }: { label: string; value: s
         return () => document.removeEventListener('pointerdown', close);
     }, []);
     const paint = (next: string) => { onChange(next); setHex(next); };
-    const setHsv = (h: number, s: number, v: number) => { hue.current = h; paint(hsvHex(h, s, v)); };
+    const setHsv = (h: number, s: number, v: number) => { setHue(h); paint(hsvHex(h, s, v)); };
     const channel = (key: 'r' | 'g' | 'b', n: number) => paint(hexOf(key === 'r' ? n : rgb.r, key === 'g' ? n : rgb.g, key === 'b' ? n : rgb.b));
     return (
         <details ref={box} className="color-choice">

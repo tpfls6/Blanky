@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { LayoutTemplate, Palette, PanelsTopLeft } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { PageTour } from '../../features/onboarding/Onboarding.tsx'
+import { TOUR_PARAM } from '../../features/onboarding/tourState.ts'
 
 const TABS = [
   { id: 'templates', key: 'custom.tabTemplates', icon: LayoutTemplate },
@@ -14,6 +15,9 @@ export function CustomizationLayout({ children }: { children: ReactNode }) {
   const { t } = useI18n()
   const [params, setParams] = useSearchParams()
   const tab = TABS.find(item => item.id === params.get('tab'))?.id ?? 'templates'
+  // The tour walks every tab and ends on 레이아웃, so a visit that named a tab (내 테마 opens ?tab=themes)
+  // keeps it and the tour waits for a visit without one; a replay link still starts it.
+  const [namedTab] = useState(() => params.has('tab'))
   const target = (id: string) => {
     const next = new URLSearchParams(params)
     if (id === 'templates') next.delete('tab')
@@ -40,7 +44,7 @@ export function CustomizationLayout({ children }: { children: ReactNode }) {
             {TABS.map(({ id, key }) => <option key={id} value={id}>{t(key)}</option>)}
           </select>
         </label>
-        <PageTour page="custom" />
+        {namedTab && params.get(TOUR_PARAM) !== '1' ? null : <PageTour page="custom" />}
         {children}
       </div>
     </div>

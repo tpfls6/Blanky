@@ -37,10 +37,39 @@ export function oauthRedirectError(url: URL): string | null {
   return prefix + '인증 서버가 실패 응답을 보냈습니다. 정확한 원인은 Supabase Authentication 로그에서 확인해 주세요.'
 }
 
+export const UNCONFIRMED_MESSAGE = '가입 인증이 끝나지 않은 이메일입니다. 메일로 받은 인증코드를 입력해 주세요.'
+
 export function authErrorMessage(error: { code?: string; message: string }): string {
-  if (error.code === 'invalid_credentials') return '이메일 또는 비밀번호가 올바르지 않습니다. 기존 데모 계정은 서버 계정과 별개이므로 회원가입이 필요할 수 있습니다.'
-  if (error.code === 'email_not_confirmed') return '가입 확인 이메일의 링크를 누른 뒤 로그인해 주세요.'
-  if (error.code === 'user_already_exists') return '이미 가입된 이메일입니다.'
+  // Google-only accounts have no password, so a password failure hints at Google without revealing which accounts exist.
+  if (error.code === 'invalid_credentials') return '이메일 또는 비밀번호가 올바르지 않습니다. Google로 가입했다면 "Google로 계속하기"를 이용해 주세요. 기존 데모 계정은 서버 계정과 별개입니다.'
+  if (error.code === 'email_not_confirmed') return UNCONFIRMED_MESSAGE
+  if (error.code === 'user_already_exists' || error.code === 'email_exists') return ALREADY_REGISTERED
+  if (error.code === 'otp_expired') return '인증코드가 올바르지 않거나 만료되었습니다. 코드를 확인하거나 새 코드를 받아 주세요.'
+  if (error.code === 'over_email_send_rate_limit' || error.code === 'over_request_rate_limit') return '요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.'
   if (/fetch|network/i.test(error.message)) return '인증 서버에 연결하지 못했습니다. 네트워크를 확인해 주세요.'
   return error.message
+}
+
+export const ALREADY_REGISTERED = '이미 가입된 이메일입니다. 로그인해 주세요. Google로 가입했다면 "Google로 계속하기"를 이용해 주세요.'
+
+/**
+ * With email confirmation on, Supabase answers a sign-up for an already confirmed email (password or Google)
+ * with a user that has no identities and sends no mail. An unconfirmed email gets a fresh code instead.
+ */
+export function signupOutcome(data: { user: { identities?: unknown[] | null } | null; session: unknown }): 'signed_in' | 'verify' | 'exists' {
+  if (data.session) return 'signed_in'
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return 'exists'
+  return 'verify'
+}
+
+/** Removes every browser key scoped to a deleted account, so nothing of it can attach to a later sign-up. */
+export function forgetAccountData(userId: string, storage: Pick<Storage, 'length' | 'key' | 'removeItem'> = localStorage): number {
+  if (!userId) return 0
+  const keys: string[] = []
+  for (let index = 0; index < storage.length; index++) {
+    const key = storage.key(index)
+    if (key?.includes(userId)) keys.push(key)
+  }
+  for (const key of keys) storage.removeItem(key)
+  return keys.length
 }

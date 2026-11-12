@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Plus } from 'lucide-react'
 import { IconView } from '../../constants/icons.ts'
 import type { WorkspaceCategory } from '../../types/work.ts'
 import { categoryPath } from '../../utils/work.ts'
@@ -8,6 +8,8 @@ type CategoryPickerProps = {
   categories: WorkspaceCategory[]
   value: string | null
   onChange: (id: string | null) => void
+  /** When set, a search with no exact match offers to create that category; returns the new id. */
+  onCreate?: (name: string) => string | undefined
 }
 
 // The native popover uses the top layer while staying inside its owning dialog.
@@ -28,9 +30,12 @@ type Option = {
   name: string
   depth: 0 | 1
   keywords: string
+  create?: boolean
 }
 
-export function CategoryPicker({ categories, value, onChange }: CategoryPickerProps) {
+const CREATE_ID = '__create__'
+
+export function CategoryPicker({ categories, value, onChange, onCreate }: CategoryPickerProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -58,8 +63,12 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
     const text = query.trim().toLocaleLowerCase('ko')
     const none: Option = { id: '', name: '없음', depth: 0, keywords: '' }
     if (!text) return [none, ...rows]
-    return rows.filter((option) => option.keywords.toLocaleLowerCase('ko').includes(text))
-  }, [categories, query])
+    const found = rows.filter((option) => option.keywords.toLocaleLowerCase('ko').includes(text))
+    const exact = categories.some((category) => category.name.trim().toLocaleLowerCase('ko') === text)
+    // A typed name that matches no category exactly can become a new top-level category.
+    if (!onCreate || exact) return found
+    return [...found, { id: CREATE_ID, name: query.trim(), depth: 0, keywords: '', create: true } satisfies Option]
+  }, [categories, query, onCreate])
 
   useLayoutEffect(() => {
     if (!open) return
@@ -100,6 +109,11 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
 
 
   const choose = (id: string | null) => {
+    if (id === CREATE_ID) {
+      const created = onCreate?.(query.trim())
+      if (!created) return
+      id = created
+    }
     onChange(id || null)
     setOpen(false)
     setQuery('')
@@ -160,6 +174,25 @@ export function CategoryPicker({ categories, value, onChange }: CategoryPickerPr
             {options.map((option, index) => {
               const selected = option.id === '' ? value === null : value === option.id
               const category = categories.find((item) => item.id === option.id)
+              if (option.create) return (
+                <button data-theme-slot="button"
+                  key={option.id}
+                  id={`${listId}-${option.id}`}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  data-category-create
+                  onMouseEnter={() => setActive(index)}
+                  onClick={() => choose(option.id)}
+                  className={[
+                    'mt-0.5 flex w-full items-center gap-1.5 rounded-md border-t border-line px-2 py-1.5 text-left text-sm text-accent-text transition-colors duration-150',
+                    index === active ? 'bg-accent-light' : '',
+                  ].join(' ')}
+                >
+                  <Plus className="size-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+                  <span className="min-w-0 truncate">'{option.name}' 카테고리 만들기</span>
+                </button>
+              )
               return (
               <button data-theme-slot="button"
                 key={option.id}

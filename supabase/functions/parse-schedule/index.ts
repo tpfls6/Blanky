@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { createScheduleHandler } from './handler.ts'
+import { createQuotaStore } from '../_shared/aiQuota.ts'
 import type { CategoryRef, LearnedRule, ScheduleKind } from '../../../packages/parse/src/model.ts'
 
 declare const Deno: {
@@ -44,6 +45,9 @@ async function loadPersonal(request: Request): Promise<{ categories: CategoryRef
   }
 }
 
+/** Verified user per request: the quota key comes from the JWT, never from the body. */
+const verifiedUsers = new WeakMap<Request, string>()
+
 Deno.serve(createScheduleHandler({
   getEnv: key => Deno.env.get(key),
   authorize: async request => {
@@ -53,8 +57,15 @@ Deno.serve(createScheduleHandler({
     try {
       const client = createClient(url, key)
       const { data, error } = await client.auth.getUser(token)
-      return !error && Boolean(data.user)
+      if (error || !data.user) return false
+      verifiedUsers.set(request, data.user.id)
+      return true
     } catch { return false }
+  },
+  quotaStore: async request => {
+    const url = Deno.env.get('SUPABASE_URL'), service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'), userId = verifiedUsers.get(request)
+    if (!url || !service || !userId) return null
+    return createQuotaStore(createClient(url, service, { auth: { persistSession: false } }), userId)
   },
   loadPersonal,
   log: entry => console.log(JSON.stringify(entry)),

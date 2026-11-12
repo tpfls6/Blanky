@@ -1,5 +1,6 @@
 export const ROUTES = {
   home: '/',
+  more: '/more',
   activity: '/activity',
   schedule: '/schedule',
   recurring: '/schedule/recurring',

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { accountFromAuth, authErrorMessage, oauthRedirectError } from '../services/auth/account.ts'
+import { ALREADY_REGISTERED, accountFromAuth, authErrorMessage, forgetAccountData, oauthRedirectError, signupOutcome } from '../services/auth/account.ts'
 import { signInWithGoogle as startGoogleSignIn } from '../services/auth/index.ts'
 import { getSupabaseClient } from '../services/supabase/client.ts'
 import { emailError, passwordError, signupErrors, type SignupInput } from '../utils/account.ts'
-import { SessionContext, type Account } from './useSession.ts'
+import { SessionContext, type Account, type SignupOutcome } from './useSession.ts'
 import { retainLegacyLibrary } from '../services/auth/legacyLibrary.ts'
 
 export function RemoteSessionProvider({ children }: { children: ReactNode }) {
@@ -55,12 +55,31 @@ export function RemoteSessionProvider({ children }: { children: ReactNode }) {
       return null
     } catch { return '인증 서버에 연결하지 못했습니다.' }
   }, [])
-  const signUp = useCallback(async (input: SignupInput) => {
+  const signUp = useCallback(async (input: SignupInput): Promise<SignupOutcome> => {
     const invalid = Object.values(signupErrors(input))[0]
-    if (invalid) return invalid
+    if (invalid) return { error: invalid }
+    const email = input.email.trim().toLowerCase()
     try {
-      const { error } = await getSupabaseClient().auth.signUp({ email: input.email.trim().toLowerCase(), password: input.password,
+      const { data, error } = await getSupabaseClient().auth.signUp({ email, password: input.password,
         options: { data: { name: input.name.trim(), nickname: input.nickname.trim() || input.name.trim() }, emailRedirectTo: window.location.origin } })
+      if (error) return { error: authErrorMessage(error) }
+      const outcome = signupOutcome(data)
+      if (outcome === 'exists') return { error: ALREADY_REGISTERED }
+      return { next: outcome === 'signed_in' ? 'done' : 'verify', email }
+    } catch { return { error: '인증 서버에 연결하지 못했습니다.' } }
+  }, [])
+  const verifySignup = useCallback(async (email: string, code: string) => {
+    const token = code.replace(/\s/g, '')
+    if (!/^\d{6}$/.test(token)) return '메일로 받은 6자리 숫자 코드를 입력해 주세요.'
+    try {
+      // 'email' covers sign-up confirmation codes; the session it returns signs the user in.
+      const { error } = await getSupabaseClient().auth.verifyOtp({ email: email.trim().toLowerCase(), token, type: 'email' })
+      return error ? authErrorMessage(error) : null
+    } catch { return '인증 서버에 연결하지 못했습니다.' }
+  }, [])
+  const resendSignup = useCallback(async (email: string) => {
+    try {
+      const { error } = await getSupabaseClient().auth.resend({ type: 'signup', email: email.trim().toLowerCase(), options: { emailRedirectTo: window.location.origin } })
       return error ? authErrorMessage(error) : null
     } catch { return '인증 서버에 연결하지 못했습니다.' }
   }, [])
@@ -94,6 +113,19 @@ export function RemoteSessionProvider({ children }: { children: ReactNode }) {
       return error ? authErrorMessage(error) : null
     } catch { return '비밀번호를 변경하지 못했습니다.' }
   }, [user])
-  return <SessionContext.Provider value={{ user, loading, authError, signIn, signInWithGoogle, signUp, signOut, updateProfile, changePassword,
-    hasEmail: () => false, deleteAccount: () => '서버 계정 삭제는 아직 연결되지 않았습니다. Supabase 관리 화면에서 처리해 주세요.' }}>{children}</SessionContext.Provider>
+  // The Edge Function revokes Google access, deletes the auth user (rows cascade) and its Storage files.
+  // The same email can sign up again right away as a brand-new account; nothing of the old one is restored.
+  const deleteAccount = useCallback(async () => {
+    if (!user) return '로그인이 필요합니다.'
+    try {
+      const { data, error } = await getSupabaseClient().functions.invoke<{ userDeleted?: boolean; error?: string }>('delete-account', { body: { confirm: 'DELETE_ACCOUNT' } })
+      if (error || !data || data.error) return data?.error ?? '계정을 삭제하지 못했습니다. 다시 시도해 주세요.'
+    } catch { return '계정을 삭제하지 못했습니다. 다시 시도해 주세요.' }
+    // The server session is gone with the user; only the local copy needs clearing.
+    await getSupabaseClient().auth.signOut({ scope: 'local' }).catch(() => undefined)
+    forgetAccountData(user.id)
+    setUser(null)
+  }, [user])
+  return <SessionContext.Provider value={{ user, loading, authError, signIn, signInWithGoogle, signUp, verifySignup, resendSignup, signOut, updateProfile, changePassword,
+    hasEmail: () => false, deleteAccount }}>{children}</SessionContext.Provider>
 }

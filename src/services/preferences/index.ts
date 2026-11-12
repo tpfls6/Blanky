@@ -6,6 +6,7 @@ import type { UserPreference } from '@blanky/types'
 import { normalizeAccent, normalizeSaved } from '../../theme/accent.ts'
 import { getCurrentUserId } from '../auth/index.ts'
 import { getSupabaseClient, isSupabaseConfigured } from '../supabase/client.ts'
+import { MOBILE_BAR_SIZE } from '../../constants/navigation.ts'
 import {
   DEFAULT_NAV,
   DEFAULT_SETTINGS,
@@ -87,6 +88,7 @@ export function normalizePreferences(value: unknown): UserPreferences {
     accent: normalizeAccent(typeof (raw.accent ?? raw.accentColor) === 'string' ? String(raw.accent ?? raw.accentColor) : undefined),
     savedAccents: normalizeSaved(raw.savedAccents),
     nav: readNav(raw),
+    mobileBarIds: Array.isArray(raw.mobileBarIds) ? [...new Set(raw.mobileBarIds.filter((id): id is string => typeof id === 'string' && Boolean(id)))].slice(0, MOBILE_BAR_SIZE) : undefined,
     weekStartsOn: week,
     defaultScheduleTab: oneOf(raw.defaultScheduleTab ?? raw.scheduleDefaultView, TABS, 'all'),
     dayStartTime: clock(raw.dayStartTime, DEFAULT_SETTINGS.dayStartTime),

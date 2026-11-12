@@ -1,4 +1,4 @@
-import { isoWeekday, normalizeRepeatDays } from '../../../types/src/recurrence.ts'
+import { isoWeekday, normalizeRepeatDays, normalizeRepeatInterval } from '../../../types/src/recurrence.ts'
 import { asDateStr, asIsoWeekday, type DateStr, type IsoWeekday, type PeerWhen, type Recurrence } from '../../../types/src/calendarSync.ts'
 
 const BYDAY_TO_ISO: Record<string, IsoWeekday> = {
@@ -24,8 +24,11 @@ export function parseRecurrenceFromSchedule(row: {
   repeat?: string
   repeatDays?: number[]
   repeatUntil?: string | null
+  repeatInterval?: number
 }): Recurrence {
-  const until = row.repeatUntil ? { until: asDateStr(row.repeatUntil) } : {}
+  // `interval` is present only when it is not 1, so plain rules compare equal to rows synced before it existed.
+  const every = normalizeRepeatInterval(row.repeatInterval)
+  const until = { ...(row.repeatUntil ? { until: asDateStr(row.repeatUntil) } : {}), ...(every > 1 ? { interval: every } : {}) }
   if (row.repeat === 'daily') return { freq: 'daily', ...until }
   if (row.repeat === 'monthly') return { freq: 'monthly', ...until }
   if (row.repeat === 'weekly') {
@@ -105,13 +108,15 @@ export function parseGoogleRecurrence(rrule: readonly string[], context?: Recurr
   const parts = parseRrule(rules[0])
   if (!parts) return { kind: 'unsupported' }
   const freq = parts.get('FREQ')?.toUpperCase()
-  const interval = parts.get('INTERVAL') ?? '1'
-  if (interval !== '1') return { kind: 'unsupported' }
+  const rawInterval = parts.get('INTERVAL') ?? '1'
+  const interval = /^\d{1,2}$/.test(rawInterval) ? Number(rawInterval) : 0
+  if (interval < 1) return { kind: 'unsupported' }
   if (parts.has('COUNT')) return { kind: 'unsupported' }
-  // WKST only changes week numbering, which never matters at INTERVAL=1.
+  // WKST changes which weeks count once INTERVAL > 1; Blanky counts Monday-start weeks (the RFC 5545 default).
+  if (interval > 1 && freq === 'WEEKLY' && (parts.get('WKST') ?? 'MO').toUpperCase() !== 'MO') return { kind: 'unsupported' }
   const keys = [...parts.keys()].filter((key) => !['FREQ', 'INTERVAL', 'BYDAY', 'UNTIL', 'WKST'].includes(key))
   if (keys.length > 0) return { kind: 'unsupported' }
-  let until: { until?: DateStr } = {}
+  let until: { until?: DateStr; interval?: number } = {}
   const rawUntil = parts.get('UNTIL')
   if (rawUntil) {
     const date = untilFromGoogle(rawUntil.toUpperCase(), context)
@@ -119,6 +124,7 @@ export function parseGoogleRecurrence(rrule: readonly string[], context?: Recurr
     if (!date || (context && date < context.when.date)) return { kind: 'unsupported' }
     until = { until: date }
   }
+  if (interval > 1) until = { ...until, interval }
   if (freq === 'DAILY') {
     if (parts.has('BYDAY')) return { kind: 'unsupported' }
     return { freq: 'daily', ...until }
@@ -147,7 +153,7 @@ export function parseGoogleRecurrence(rrule: readonly string[], context?: Recurr
 
 export function toGoogleRrule(recurrence: Recurrence, context?: { allDay: boolean; timeZone: string }): string[] {
   if (recurrence.freq === 'none') return []
-  const until = recurrence.until ? untilRule(recurrence.until, context) : ''
+  const until = (recurrence.interval && recurrence.interval > 1 ? `;INTERVAL=${recurrence.interval}` : '') + (recurrence.until ? untilRule(recurrence.until, context) : '')
   if (recurrence.freq === 'daily') return [`RRULE:FREQ=DAILY${until}`]
   if (recurrence.freq === 'monthly') return [`RRULE:FREQ=MONTHLY${until}`]
   const days = recurrence.days.map((day) => ISO_TO_BYDAY[day - 1]).join(',')

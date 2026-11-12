@@ -37,6 +37,7 @@ export async function saveWork(userId: string, before: WorkItem | null, after: W
     const existing = remoteCategories.find(row => row.id === id)
     if (existing) return existing.id
     const category = categories.find(row => row.id === id)
+    if (!category && before?.categoryId === id && after.calendarType === 'shared') return id
     if (!category) throw new Error('카테고리를 찾지 못했습니다.')
     const parentId = await resolveCategory(category.parentId)
     const matched = remoteCategories.find(row => row.name === category.name && row.parentId === parentId)

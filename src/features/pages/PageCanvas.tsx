@@ -21,7 +21,7 @@ function spanClass(span: Span): string {
   return 'lg:col-span-1'
 }
 
-function LayoutBlock({ block }: { block: PageBlock }) {
+export function LayoutBlock({ block }: { block: PageBlock }) {
   const [open, setOpen] = useState(true)
   if (block.type === 'heading') return <h2 className="text-lg font-medium">{block.text}</h2>
   if (block.type === 'text') return <p className="text-sm whitespace-pre-wrap text-neutral-700">{block.text}</p>

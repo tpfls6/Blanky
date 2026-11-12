@@ -89,6 +89,31 @@ export function fieldLabel(template: PageTemplateKind, key: string, overrides: R
   return defaults[key] ?? key
 }
 
+/** The labels a new page starts with. Korean keeps the defaults written out as before; other languages store
+ *  none, so the page shows the app language's own words (a stored '책' read "Add 책" in English). */
+export function initialFieldLabels(template: PageTemplateKind, locale: string): Record<string, string> {
+  return locale === 'ko' ? { ...DEFAULT_FIELD_LABELS[template] } : {}
+}
+
+/** The labels a page shows. Outside Korean, a label that is still exactly the Korean default (a page made in
+ *  Korean, or before initialFieldLabels) is left out so the app language's word shows instead; a label the
+ *  user typed stays, and what is stored is never changed. */
+export function shownFieldLabels(template: PageTemplateKind | null | undefined, labels: Record<string, string>, locale: string): Record<string, string> {
+  if (locale === 'ko' || !template) return labels
+  const defaults = DEFAULT_FIELD_LABELS[template] as Record<string, string>
+  return Object.fromEntries(Object.entries(labels).filter(([key, value]) => value.trim() !== defaults[key]))
+}
+
+/** Default labels in the app's language for the label editor's captions and placeholders. Only the reading
+ *  template has its words translated (`reading.word.*`); the others keep their Korean defaults. */
+export function defaultFieldLabels(template: PageTemplateKind, locale: string, translate: (key: string) => string): Record<string, string> {
+  if (locale === 'ko' || template !== 'reading') return DEFAULT_FIELD_LABELS[template]
+  return Object.fromEntries(FIELD_KEYS.reading.map((key) => {
+    const word = translate('reading.word.' + key)
+    return [key, word.charAt(0).toUpperCase() + word.slice(1)]
+  }))
+}
+
 export function pageTypeMarker(template: PageTemplateKind): string {
   return `blanky:page:${template}:v1`
 }

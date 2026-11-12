@@ -96,7 +96,7 @@ const history = 'document.querySelector("[aria-controls=home-chat-panel]")'
 const panelOpen = 'getComputedStyle(document.querySelector("#home-chat-panel")).display !== "none"'
 const chip = title => '[...document.querySelectorAll("#home-chat-panel [data-work-chip]")].find(b=>!b.disabled&&b.textContent.includes(' + q(title) + '))'
 const messageCount = 'document.querySelectorAll("#home-chat-panel [data-chat-message]").length'
-const evidence = resolve('.audit/runs/intent-plan-live')
+const evidence = resolve(process.env.BLANKY_AUDIT_DIR ?? '.audit/runs', 'intent-plan-live')
 await mkdir(evidence, { recursive: true })
 async function shot(name) { const result = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(evidence, name + '.png'), Buffer.from(result.data, 'base64')) }
 const steps = []

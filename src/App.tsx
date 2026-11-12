@@ -14,6 +14,7 @@ const DiaryPage = lazy(()=>import('./pages/Diary/DiaryPage.tsx').then(module=>({
 const ActivityPage = lazy(()=>import('./pages/Activity/ActivityPage.tsx').then(module=>({default:module.ActivityPage})))
 const HomePage = lazy(()=>import('./pages/Home/HomePage.tsx').then(module=>({default:module.HomePage})))
 const MemoPage = lazy(()=>import('./pages/Memo/MemoPage.tsx').then(module=>({default:module.MemoPage})))
+const MorePage = lazy(()=>import('./pages/More/MorePage.tsx').then(module=>({default:module.MorePage})))
 const ReadingPage = lazy(()=>import('./pages/Reading/ReadingPage.tsx').then(module=>({default:module.ReadingPage})))
 const RecordPage = lazy(()=>import('./pages/Records/RecordPage.tsx').then(module=>({default:module.RecordPage})))
 const SchedulePage = lazy(()=>import('./pages/Schedule/SchedulePage.tsx').then(module=>({default:module.SchedulePage})))
@@ -21,6 +22,7 @@ const RecurringPage = lazy(()=>import('./pages/Schedule/RecurringPage.tsx').then
 const CustomPage = lazy(()=>import('./pages/Custom/CustomPage.tsx').then(module=>({default:module.CustomPage})))
 const UserPage = lazy(()=>import('./pages/Pages/UserPage.tsx').then(module=>({default:module.UserPage})))
 const TrashPage = lazy(()=>import('./pages/Trash/TrashPage.tsx').then(module=>({default:module.TrashPage})))
+const InvitePage = lazy(()=>import('./pages/Invite/InvitePage.tsx').then(module=>({default:module.InvitePage})))
 const SettingsPage = lazy(()=>import('./pages/Settings/SettingsPage.tsx').then(module=>({default:module.SettingsPage})))
 import { ThemeProvider } from './theme/ThemeProvider.tsx'
 const StorePage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.StorePage})))
@@ -31,6 +33,8 @@ const PublishTemplatePage=lazy(()=>import('./pages/Store/TemplateStore.tsx').the
 const ThemeEditorPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.ThemeEditorPage})))
 const CreatorPage=lazy(()=>import('./pages/Themes/ThemePages.tsx').then(module=>({default:module.CreatorPage})))
 import { LibraryProvider } from './state/library.tsx'
+import { CalendarsProvider } from './state/calendars.tsx'
+import { PENDING_INVITE_KEY } from './state/useCalendars.ts'
 import { SessionProvider } from './state/session.tsx'
 import { useI18n } from './i18n/useI18n.ts'
 import { useSession } from './state/useSession.ts'
@@ -40,6 +44,10 @@ function RequireAuth() {
   const { pathname } = useLocation()
   const { t } = useI18n()
   if (loading) return <p role="status" className="p-6 text-sm text-neutral-500">{t('checkingLogin')}</p>
+  // An invite link survives the login round trip; CalendarsProvider reopens it after sign-in.
+  if (!user && pathname.startsWith('/invite/')) {
+    try { localStorage.setItem(PENDING_INVITE_KEY, decodeURIComponent(pathname.slice('/invite/'.length))) } catch { /* storage blocked */ }
+  }
   // Guests opening the app root see the introduction; deep links still ask them to log in.
   if (!user) return <Navigate to={pathname === ROUTES.home ? ROUTES.welcome : ROUTES.login} replace />
   return <Outlet />
@@ -81,9 +89,11 @@ function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route path={ROUTES.home} element={<HomePage />} />
+          <Route path={ROUTES.more} element={<MorePage />} />
           <Route path={ROUTES.activity} element={<ActivityPage />} />
           <Route path={ROUTES.schedule} element={<SchedulePage />} />
           <Route path={ROUTES.recurring} element={<RecurringPage />} />
+          <Route path="/invite/:token" element={<InvitePage />} />
           <Route path={ROUTES.diary} element={<DiaryPage />} />
           <Route path={ROUTES.reading} element={<ReadingPage />} />
           <Route path="/reading/:bookId" element={<ReadingPage />} />
@@ -114,7 +124,9 @@ export default function App() {
     <BrowserRouter>
       <SessionProvider>
         <LibraryProvider>
-          <ThemeProvider><ConfirmProvider><RouteLoadBoundary><Suspense fallback={<AppLoading />}><AppRoutes /></Suspense></RouteLoadBoundary><AppStatusNotice /></ConfirmProvider></ThemeProvider>
+          <CalendarsProvider>
+            <ThemeProvider><ConfirmProvider><RouteLoadBoundary><Suspense fallback={<AppLoading />}><AppRoutes /></Suspense></RouteLoadBoundary><AppStatusNotice /></ConfirmProvider></ThemeProvider>
+          </CalendarsProvider>
         </LibraryProvider>
       </SessionProvider>
     </BrowserRouter>

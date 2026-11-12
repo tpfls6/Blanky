@@ -3,6 +3,7 @@ import { useI18n } from '../../i18n/useI18n.ts'
 import { Sortable } from '../../components/drag/Sortable.tsx'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { DEFAULT_NAV } from '../../types/records.ts'
+import { MobileNavSection } from './MobileNavSection.tsx'
 
 export function NavSection() {
   const { settings, recordTypes, updateSettings } = useLibrary()
@@ -10,6 +11,7 @@ export function NavSection() {
 
   return (
     <div>
+      <MobileNavSection />
       <p className="text-sm">{t('settings.navigation.sidebar')}</p>
       <p className="mt-1 text-xs text-neutral-400">{t('settings.navigation.hint')}</p>
       <Sortable

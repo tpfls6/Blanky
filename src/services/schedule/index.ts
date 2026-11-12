@@ -70,12 +70,12 @@ export async function classifySchedule(
   return draftFromParsed(result.items[0], text, selected, categories)
 }
 
-export async function analyzeSchedules(text: string, categories: WorkspaceCategory[], today: Date): Promise<ScheduleAnalysis> {
+export async function analyzeSchedules(text: string, categories: WorkspaceCategory[], today: Date, options: { ai?: false } = {}): Promise<ScheduleAnalysis> {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(today)
   const part = (key: string) => Number(parts.find(value => value.type === key)!.value)
   const anchor = new Date(part('year'), part('month') - 1, part('day'))
   if (!isSupabaseConfigured) return resolveScheduleAnalysis(text, { today: anchor, categories })
-  return analyzeScheduleFromText({ text, timezone: 'Asia/Seoul' })
+  return analyzeScheduleFromText({ text, timezone: 'Asia/Seoul' }, options)
 }
 
 export async function recordScheduleFeedback(draft: ScheduleDraft): Promise<void> {

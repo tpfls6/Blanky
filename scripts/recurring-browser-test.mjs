@@ -110,8 +110,10 @@ try {
   }).toString() + ')()' })
   await mkdir(shots, { recursive: true })
 
-  // Entry point from the existing schedule page.
+  // Entry point from the existing schedule page: the link sits in the draft sheet's header on desktop.
   await navigate(base + '/schedule')
+  await wait(`[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='직접 추가')`, 'add button')
+  await button('직접 추가')
   await wait(`[...document.querySelectorAll('a')].some(a=>a.textContent==='반복 일정')`, 'schedule link')
   await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent==='반복 일정').click()`)
   await wait(`location.pathname==='/schedule/recurring' && ${listRows}.length===3`, 'list')

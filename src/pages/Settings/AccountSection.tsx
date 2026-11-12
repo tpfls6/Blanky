@@ -46,15 +46,15 @@ export function AccountSection() {
       <Group title={t('settings.account.profile')} description={t('settings.account.profileHint')}>
         <form onSubmit={saveProfile} className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="flex size-16 items-center justify-center overflow-hidden rounded-full bg-neutral-100 text-xs text-neutral-400">
-              {avatar ? <img src={avatar} alt="" className="size-full object-cover" /> : t('settings.account.photo')}
+            <div className="profile-avatar flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-100 text-xs text-neutral-400">
+              {avatar ? <img src={avatar} alt="" className="block size-full object-cover" /> : t('settings.account.photo')}
             </div>
-            <label className="text-sm text-neutral-500">
-              {t('settings.account.profileImage')}
+            <label className="profile-image-picker min-w-0 flex-1 text-sm text-neutral-500">
+              <span className="btn btn-line">{t('settings.account.profileImage')}</span>
               <input
                 type="file"
                 accept="image/*"
-                className="mt-1 block text-xs"
+                className="sr-only"
                 onChange={(event) => {
                   const file = event.target.files?.[0]
                   if (!file) return

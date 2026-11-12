@@ -1,4 +1,4 @@
-import { DEFAULT_FIELD_LABELS, type PageTemplateKind } from '../../features/pages/templates.ts'
+import { DEFAULT_FIELD_LABELS, shownFieldLabels, type PageTemplateKind } from '../../features/pages/templates.ts'
 import type { PageReadingItem } from '../../features/pages/pageRecords.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { DiaryWorkspace } from '../Diary/DiaryPage.tsx'
@@ -61,9 +61,9 @@ export function TemplatePreview({
   heading?: string
   labels?: Record<string, string>
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const title = heading ?? t(`custom.kind.${kind}`)
-  const fields = labels ?? DEFAULT_FIELD_LABELS[kind]
+  const fields = shownFieldLabels(kind, labels ?? DEFAULT_FIELD_LABELS[kind], locale)
   return (
     <div className="template-preview" aria-hidden="true">
       <div className="template-preview-inner pointer-events-none">

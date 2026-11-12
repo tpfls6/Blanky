@@ -1,9 +1,11 @@
 import { createContext, useContext } from 'react'
-import type { Book, CustomRecord, CustomRecordType, DiaryEntry, EntryType, FieldValue, LibraryData, Memo, Settings } from '../types/records.ts'
+import type { Book, CaptureRef, CustomRecord, CustomRecordType, DiaryEntry, EntryType, FieldValue, LibraryData, Memo, Settings } from '../types/records.ts'
 import type { BuilderBlock, UserPage } from '../features/builder/schema.ts'
 import type { PageTemplateKind } from '../features/pages/templates.ts'
 import type { PageBlock, PageId } from '../features/pages/layout.ts'
 import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
+
+export type CaptureResult = { error: string; saved?: undefined } | { error: null; saved: CaptureRef | null }
 
 export type LibraryValue = LibraryData & {
   commitDiary: (entry: DiaryEntry) => Promise<DiaryEntry>
@@ -17,11 +19,17 @@ export type LibraryValue = LibraryData & {
   isRemoteWork: (id: string) => boolean
   adoptPlannerSchedules: (rows: import('@blanky/types').Schedule[]) => void
   refreshWork: () => Promise<void>
-  saveCapture: (content: string, type: EntryType) => string | null
+  /** `saved` names the memo, diary or reading log created (null for other kinds). */
+  saveCapture: (content: string, type: EntryType) => CaptureResult
+  /** Deletes exactly what one capture created, locally and in its synced store. */
+  eraseCapture: (saved: CaptureRef) => Promise<void>
   addItem: (input: WorkInput) => void
   updateItem: (id: string, patch: WorkPatch) => void
-  toggleItem: (id: string) => void
+  /** `occurrence` picks the day of a recurring item; only that day is completed. */
+  toggleItem: (id: string, occurrence?: string) => void
   removeItem: (id: string) => void
+  /** Deletes one activity-history row without touching the schedule it describes. */
+  removeActivity: (id: string) => Promise<void>
   addDiary: (entry: Pick<DiaryEntry, 'date' | 'body' | 'tags'>) => void
   updateDiary: (id: string, patch: Pick<DiaryEntry, 'date' | 'body' | 'tags'>) => void
   removeDiary: (id: string) => void
@@ -31,8 +39,11 @@ export type LibraryValue = LibraryData & {
   addBook: (book: Omit<Book, 'id' | 'createdAt'>) => string
   updateBook: (id: string, patch: Partial<Omit<Book, 'id' | 'createdAt'>>) => void
   removeBook: (id: string) => void
+  /** Moves a reading-library book (and the 서재 book it came from) to the trash; `pageId` names the custom
+   *  reading page whose book it is. */
+  trashReadingBook: (copyId: string, pageId?: string) => Promise<void>
   addLog: (bookId: string, log: { date: string; page: number | null; note: string }) => void
-  addCategory: (name: string, parentId: string | null, style?: Partial<Pick<WorkspaceCategory, 'color' | 'icon'>>) => void
+  addCategory: (name: string, parentId: string | null, style?: Partial<Pick<WorkspaceCategory, 'color' | 'icon'>>) => string | undefined
   updateCategory: (id: string, patch: Partial<Pick<WorkspaceCategory, 'name' | 'color' | 'icon' | 'kind'>>) => void
   reorderCategories: (parentId: string | null, orderedIds: string[]) => void
   removeCategory: (id: string) => void

@@ -2,7 +2,7 @@ import { repeatsOn } from '../../packages/types/src/recurrence.ts'
 import type { WorkItem } from '../types/work.ts'
 
 export function occursOn(item: WorkItem, date: string): boolean {
-  if (item.kind === 'task') return repeatsOn(item, date) || item.dueDate === date
+  if (item.kind === 'task') return (!item.undated && repeatsOn(item, date)) || item.dueDate === date
   const end = item.endDate && item.endDate >= item.date ? item.endDate : item.date
   const span = Math.round((Date.parse(end) - Date.parse(item.date)) / 86400000)
   if (!item.repeat || item.repeat === 'none') return item.date <= date && date <= end

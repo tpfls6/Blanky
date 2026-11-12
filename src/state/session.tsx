@@ -43,10 +43,10 @@ function LocalSessionProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback((input: SignupInput) => {
     const errors = signupErrors(input)
     const first = Object.values(errors)[0]
-    if (first) return first
+    if (first) return { error: first }
     const users = readUsers()
     const email = input.email.trim().toLowerCase()
-    if (users.some((account) => account.email === email)) return '이미 가입된 이메일입니다.'
+    if (users.some((account) => account.email === email)) return { error: '이미 가입된 이메일입니다.' }
     const account: Account = {
       id: crypto.randomUUID(),
       name: input.name.trim(),
@@ -56,7 +56,7 @@ function LocalSessionProvider({ children }: { children: ReactNode }) {
       avatar: null,
     }
     writeUsers([...users, account])
-    return null
+    return { next: 'done' as const, email }
   }, [])
 
   const signIn = useCallback((email: string, password: string) => {

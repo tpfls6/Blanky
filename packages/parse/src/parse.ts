@@ -20,7 +20,7 @@ const WEEKDAY: Record<string, number> = {
   토: 6,
 }
 
-const DATE_PHRASE = String.raw`(?:오늘|어제|내일|모레|주말|today|tomorrow|yesterday|(?:this|next)\s+week|(?:mon|tues|wednes|thurs|fri|satur|sun)day|(?:이번\s*주|다음\s*주)\s*[일월화수목금토]요일|(?:이번\s*주|다음\s*주)(?!\s*[일월화수목금토])|[일월화수목금토]요일|\d{1,2}\s*월\s*\d{1,2}\s*일)`
+const DATE_PHRASE = String.raw`(?:오늘|어제|내일|모레|글피|주말|today|tomorrow|yesterday|(?:this|next)\s+week|(?:mon|tues|wednes|thurs|fri|satur|sun)day|(?:이번\s*주|다다음\s*주|다음\s*주)\s*[일월화수목금토]요일|(?:이번\s*주|다다음\s*주|다음\s*주)(?!\s*[일월화수목금토])|[일월화수목금토]요일|(?:이번|다음)\s*달\s*\d{1,2}\s*일|(?:\d{4}\s*년\s*)?\d{1,2}\s*월\s*\d{1,2}\s*일)`
 const MERIDIEM = String.raw`오전|오후|저녁|밤`
 const MINUTE = String.raw`(?:\s*(?:반|(\d{1,2})\s*분))?`
 const KO_TIME = String.raw`(${MERIDIEM})?\s*(\d{1,2})\s*시(?!간)${MINUTE}`
@@ -100,7 +100,33 @@ function minuteValue(half: boolean, digits: string | undefined): number {
 
 const EN_WEEKDAY: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 }
 
-function parseDatePhrase(phrase: string, today: Date, anchor: Date | null): Date | null {
+/**
+ * Year for a month-day said without one ("1월 5일"):
+ * - upcoming (default, new schedules): the next occurrence. A day passed by at most RECENT_PAST_DAYS stays this
+ *   year (a late entry; schedule analysis flags it for review instead of moving it a year ahead).
+ * - past (records of what happened): the latest occurrence on or before today.
+ * - nearest (pointing at an existing schedule to change or cancel): the occurrence closest to today.
+ * An explicit year ("2027년 1월 5일") is always kept.
+ */
+export type YearPolicy = 'upcoming' | 'past' | 'nearest'
+export const RECENT_PAST_DAYS = 30
+
+function monthDayDate(year: number, month: number, day: number): Date | null {
+  const result = new Date(year, month - 1, day)
+  return result.getMonth() === month - 1 && result.getDate() === day ? result : null
+}
+
+function resolveMonthDay(month: number, day: number, reference: Date, policy: YearPolicy): Date | null {
+  const base = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate())
+  const candidates = [-1, 0, 1].map(offset => monthDayDate(base.getFullYear() + offset, month, day)).filter((date): date is Date => !!date)
+  if (!candidates.length) return null
+  const days = (date: Date) => Math.round((date.getTime() - base.getTime()) / 86_400_000)
+  if (policy === 'past') return candidates.filter(date => days(date) <= 0).at(-1) ?? null
+  if (policy === 'nearest') return candidates.reduce((best, date) => Math.abs(days(date)) < Math.abs(days(best)) ? date : best)
+  return candidates.find(date => days(date) >= -RECENT_PAST_DAYS) ?? null
+}
+
+function parseDatePhrase(phrase: string, today: Date, anchor: Date | null, policy: YearPolicy = 'upcoming'): Date | null {
   // "이번주 금요일" and "이번 주 금요일" are the same phrase; spacing is optional in everyday Korean.
   const text = phrase.replace(/\s+/g, ' ').replace(/(이번|다음)\s*주/, '$1 주').trim()
   const lower = text.toLowerCase()
@@ -108,6 +134,7 @@ function parseDatePhrase(phrase: string, today: Date, anchor: Date | null): Date
   if (text === '어제' || lower === 'yesterday') return addDays(today, -1)
   if (text === '내일' || lower === 'tomorrow') return addDays(today, 1)
   if (text === '모레') return addDays(today, 2)
+  if (text === '글피') return addDays(today, 3)
   if (lower === 'this week') return mondayOf(today)
   if (lower === 'next week') return addDays(mondayOf(today), 7)
   if (EN_WEEKDAY[lower] !== undefined) {
@@ -122,10 +149,17 @@ function parseDatePhrase(phrase: string, today: Date, anchor: Date | null): Date
   }
   if (text === '이번 주') return mondayOf(today)
   if (text === '다음 주') return addDays(mondayOf(today), 7)
+  if (text === '다다음 주') return addDays(mondayOf(today), 14)
+  // "다음 달 3일": that day of next month (this month for 이번 달).
+  const monthWord = /^(이번|다음) ?달 ?(\d{1,2})일$/.exec(text)
+  if (monthWord) {
+    const month = new Date(today.getFullYear(), today.getMonth() + (monthWord[1] === '다음' ? 1 : 0), 1)
+    return monthDayDate(month.getFullYear(), month.getMonth() + 1, Number(monthWord[2]))
+  }
 
-  const week = /^(이번 주|다음 주)\s*([일월화수목금토])요일$/.exec(text)
+  const week = /^(이번 주|다다음 주|다음 주)\s*([일월화수목금토])요일$/.exec(text)
   if (week) {
-    const base = week[1] === '다음 주' ? addDays(mondayOf(today), 7) : mondayOf(today)
+    const base = addDays(mondayOf(today), week[1] === '다다음 주' ? 14 : week[1] === '다음 주' ? 7 : 0)
     return dateOnWeek(base, WEEKDAY[week[2]] ?? 1)
   }
 
@@ -137,26 +171,27 @@ function parseDatePhrase(phrase: string, today: Date, anchor: Date | null): Date
     return addDays(today, delta)
   }
 
-  const monthDay = /^(\d{1,2})월\s*(\d{1,2})일$/.exec(text)
+  const monthDay = /^(?:(\d{4})\s*년\s*)?(\d{1,2})월\s*(\d{1,2})일$/.exec(text)
   if (!monthDay) return null
-  const month = Number(monthDay[1])
-  const day = Number(monthDay[2])
+  const month = Number(monthDay[2])
+  const day = Number(monthDay[3])
   if (month < 1 || month > 12 || day < 1 || day > 31) return null
-  const result = new Date(today.getFullYear(), month - 1, day)
-  return result.getMonth() === month - 1 && result.getDate() === day ? result : null
+  if (monthDay[1]) return monthDayDate(Number(monthDay[1]), month, day)
+  // A range end ("12월 28일부터 1월 3일까지") is read against its start, so it lands after the start, not today.
+  return resolveMonthDay(month, day, anchor ?? today, policy)
 }
 
-export function parseKoreanDate(text: string, today: Date, anchor: Date | null = null): string | null {
+export function parseKoreanDate(text: string, today: Date, anchor: Date | null = null, policy: YearPolicy = 'upcoming'): string | null {
   const match = new RegExp(DATE_PHRASE).exec(text)
   if (!match) return null
-  const date = parseDatePhrase(match[0], today, anchor)
+  const date = parseDatePhrase(match[0], today, anchor, policy)
   return date ? formatISODate(date) : null
 }
 
 /** Every resolvable date phrase with its position, so callers can tell source from destination dates. */
-export function findDatePhrases(text: string, today: Date): { phrase: string; index: number; date: string }[] {
+export function findDatePhrases(text: string, today: Date, policy: YearPolicy = 'upcoming'): { phrase: string; index: number; date: string }[] {
   return [...text.matchAll(new RegExp(DATE_PHRASE, 'g'))].flatMap(match => {
-    const date = parseDatePhrase(match[0], today, null)
+    const date = parseDatePhrase(match[0], today, null, policy)
     return date ? [{ phrase: match[0], index: match.index ?? 0, date: formatISODate(date) }] : []
   })
 }

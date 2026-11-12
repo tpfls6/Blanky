@@ -92,6 +92,8 @@ export async function parseScheduleFromText(
 export async function analyzeScheduleFromText(
   client: SupabaseClient<Database>,
   request: NaturalLanguageScheduleRequest,
+  /** `ai: false` asks for rules only: this message already used its AI call on intent analysis. */
+  options: { ai?: false } = {},
 ): Promise<ScheduleAnalysis> {
   const text = request.text.trim()
   if (text && routeInput(text).route === 'planner') {
@@ -100,7 +102,7 @@ export async function analyzeScheduleFromText(
   }
   if (!text) throw new AppError('INVALID_INPUT', '입력 내용을 확인해주세요.')
   const { data, error } = await client.functions.invoke(PARSE_SCHEDULE_FUNCTION, {
-    body: { text, timezone: request.timezone, format: 'analysis-v1' },
+    body: { text, timezone: request.timezone, format: 'analysis-v1', ...(options.ai === false ? { ai: false } : {}) },
   })
   if (error) throw await errorFromInvoke(error)
   if (isRecord(data) && data.error) mapParsedSchedule(data)

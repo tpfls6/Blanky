@@ -1,0 +1,77 @@
+// Synthetic sentences only (no user data). today defaults to 2026-11-09 (Monday). Labels state the intended meaning.
+{"id":"ev-01","text":"내일 오후 3시 회의","tags":["event"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-10","startTime":"15:00"}}
+{"id":"ev-02","text":"금요일 저녁 7시 민수랑 저녁 약속","tags":["event"],"expect":{"items":1,"types":["event"],"date":"2026-11-13","startTime":"19:00"}}
+{"id":"ev-03","text":"11월 20일 오전 10시 30분 치과 예약","tags":["event"],"expect":{"items":1,"types":["event"],"date":"2026-11-20","startTime":"10:30"}}
+{"id":"ev-04","text":"모레 오후 2시부터 4시까지 스터디","tags":["event","time"],"expect":{"items":1,"date":"2026-11-11","startTime":"14:00","endTime":"16:00"}}
+{"id":"ev-05","text":"다음 주 수요일 오전 9시 면접","tags":["event"],"expect":{"items":1,"types":["event"],"date":"2026-11-18","startTime":"09:00"}}
+{"id":"ev-06","text":"다음 주 금요일 오후 4시 팀 회식","tags":["event"],"expect":{"items":1,"types":["event"],"date":"2026-11-20","startTime":"16:00"}}
+{"id":"ev-07","text":"12월 1일 오전 7시 비행기","tags":["event","time"],"expect":{"items":1,"date":"2026-12-01","startTime":"07:00"}}
+{"id":"ev-08","text":"내일 18:30 저녁 약속","tags":["event","time"],"expect":{"items":1,"types":["event"],"date":"2026-11-10","startTime":"18:30"}}
+{"id":"ev-09","text":"오늘 밤 10시 영화 보기","tags":["event","time"],"expect":{"items":1,"date":"2026-11-09","startTime":"22:00"}}
+{"id":"ev-10","text":"오후 2시 반 미용실 예약","tags":["event","time"],"expect":{"items":1,"startTime":"14:30"}}
+{"id":"tk-01","text":"금요일까지 보고서 제출","tags":["task","deadline"],"expect":{"items":1,"types":["task"],"dueDate":"2026-11-13","dueTime":null,"startTime":null}}
+{"id":"tk-02","text":"내일 오후 6시까지 과제 제출","tags":["task","deadline"],"expect":{"items":1,"types":["task"],"dueDate":"2026-11-10","dueTime":"18:00","startTime":null}}
+{"id":"tk-03","text":"11월 15일까지 장학금 신청해야 해","tags":["task","deadline"],"expect":{"items":1,"types":["task"],"dueDate":"2026-11-15"}}
+{"id":"tk-04","text":"금요일까지 자료 조사하고 발표자료 만들기","tags":["task","grouping"],"expect":{"items":1,"types":["task"],"dueDate":"2026-11-13"}}
+{"id":"tk-05","text":"수요일까지 독후감 작성","tags":["task","deadline"],"expect":{"items":1,"types":["task"],"dueDate":"2026-11-11"}}
+{"id":"rc-01","text":"매일 아침 8시 영양제 먹기","tags":["recurrence"],"expect":{"items":1,"date":"2026-11-09","startTime":"08:00"}}
+{"id":"rc-02","text":"매주 화요일 오후 7시 요가 수업","tags":["recurrence"],"expect":{"items":1,"types":["event"],"date":"2026-11-10","startTime":"19:00"}}
+{"id":"rc-03","text":"월수금 9시부터 13시 근로","tags":["recurrence","weekly"],"expect":{"items":3,"types":["event","event","event"],"date":"2026-11-09","startTime":"09:00","endTime":"13:00"}}
+{"id":"rc-04","text":"격주 토요일 오전 10시 분리수거","tags":["recurrence"],"expect":{"items":1,"date":"2026-11-14","startTime":"10:00"}}
+{"id":"rc-05","text":"매달 25일 월세 내기","tags":["recurrence"],"expect":{"items":1,"date":"2026-11-25"}}
+{"id":"rc-06","text":"화목 오후 3시부터 5시까지 영어 학원","tags":["recurrence","weekly"],"expect":{"items":2,"date":"2026-11-10","startTime":"15:00","endTime":"17:00"}}
+{"id":"mi-01","text":"목요일까지 자료 완성하고 금요일 오후 2시에 발표","tags":["multi-intent"],"expect":{"items":2,"types":["task","event"]}}
+{"id":"mi-02","text":"수요일 오전 10시~12시 회의, 오후 2시~4시 병원","tags":["multi-intent"],"expect":{"items":2,"types":["event","event"],"date":"2026-11-11","startTime":"10:00"}}
+{"id":"mi-03","text":"이번주 금요일은 1시 퇴근하고 도현오빠랑 데이트 있어","tags":["multi-intent","modify"],"expect":{"kinds":["create_event","modify"]}}
+{"id":"mi-04","text":"컴활 풀기, 논문 읽기, 금요일까지 레포트 올리기","tags":["multi-intent","task"],"expect":{"kinds":["create_task","create_task","create_task"]}}
+{"id":"mi-05","text":"토요일 오전 11시 결혼식, 오후 3시 친구 만남","tags":["multi-intent"],"expect":{"items":2,"types":["event","event"],"date":"2026-11-14"}}
+{"id":"mi-06","text":"내일 오전 10시 회의하고 오후 5시까지 기획서 제출","tags":["multi-intent"],"expect":{"items":2,"types":["event","task"]}}
+{"id":"md-01","text":"내일 회의 취소됐어","tags":["modify","cancel"],"expect":{"capture":"conversation","kinds":["cancel"]}}
+{"id":"md-02","text":"회의 1시간 미뤄줘","tags":["modify"],"expect":{"capture":"conversation","kinds":["modify"]}}
+{"id":"md-03","text":"토요일 약속 일요일로 옮겨줘","tags":["modify"],"expect":{"capture":"conversation","kinds":["modify"]}}
+{"id":"md-04","text":"이번 주 수요일 수업 휴강이래","tags":["modify","cancel"],"expect":{"kinds":["cancel"]}}
+{"id":"rec-01","text":"일기: 오늘은 정말 뿌듯한 하루였다","tags":["record"],"expect":{"capture":"diary"}}
+{"id":"rec-02","text":"메모: 와이파이 비밀번호 바꾸는 법","tags":["record"],"expect":{"capture":"memo"}}
+{"id":"rec-03","text":"독서: 데미안 120페이지까지 읽었다","tags":["record","reading"],"expect":{"capture":"reading"}}
+{"id":"rec-04","text":"오늘 친구랑 카페 다녀왔는데 즐거웠다","tags":["record"],"expect":{"capture":"diary"}}
+{"id":"rec-05","text":"아이디어: 습관 트래커에 스트릭 기능 추가","tags":["record"],"expect":{"capture":"memo"}}
+{"id":"rec-06","text":"어린왕자 50쪽 읽음","tags":["record","reading"],"expect":{"capture":"reading"}}
+{"id":"rec-07","text":"김치찌개 레시피 재료: 김치, 돼지고기, 두부","tags":["record"],"expect":{"capture":"memo"}}
+{"id":"pl-01","text":"이번 주에 공부 5시간, 자료 수정 3시간, 운동 2번. 일정 짜줘","tags":["planning"],"expect":{"route":"planner"}}
+{"id":"pl-02","text":"다음 주 계획 세워줘","tags":["planning"],"expect":{"route":"planner"}}
+{"id":"pl-03","text":"충돌난 일정 재배치해줘","tags":["planning"],"expect":{"route":"reschedule"}}
+{"id":"co-01","text":"낼 오후 3시 미팅","tags":["colloquial"],"expect":{"items":1,"date":"2026-11-10","startTime":"15:00"}}
+{"id":"co-02","text":"담주 월욜 오전 11시 병원","tags":["colloquial"],"expect":{"items":1,"date":"2026-11-16","startTime":"11:00"}}
+{"id":"co-03","text":"금욜까지 과제 내야됨","tags":["colloquial","task"],"expect":{"items":1,"types":["task"],"dueDate":"2026-11-13"}}
+{"id":"cx-01","text":"민수가 다음에 보자고 했는데 아마 목요일쯤 저녁 먹을 듯","tags":["complex"]}
+{"id":"cx-02","text":"퇴근하고 장보고 저녁에 엄마한테 전화하기","tags":["complex"]}
+{"id":"cx-03","text":"이번 달 말까지 이사 준비 해야 하는데 그 전에 부동산 계약부터","tags":["complex"]}
+{"id":"cx-04","text":"내일 아침 9시 수업 끝나면 도서관 가서 3시간 공부","tags":["complex"]}
+{"id":"cx-05","text":"다음 주 화요일이나 수요일 중에 팀 회의 잡기","tags":["complex"]}
+{"id":"cx-06","text":"11월 30일 오후 2시 세미나 발표, 그 전날까지 슬라이드 완성","tags":["complex","multi-intent"],"expect":{"items":2}}
+// P1 additions: colloquial dates, relative days, mixed records + schedules, reading fields, routing conflicts.
+{"id":"co-04","text":"낼모레 오후 2시 치과","tags":["colloquial","p1"],"expect":{"items":1,"date":"2026-11-11","startTime":"14:00"}}
+{"id":"co-05","text":"담주 금욜 저녁 7시 회식","tags":["colloquial","p1"],"expect":{"items":1,"date":"2026-11-20","startTime":"19:00"}}
+{"id":"co-06","text":"토욜 오전 10시 등산","tags":["colloquial","p1"],"expect":{"items":1,"date":"2026-11-14","startTime":"10:00"}}
+{"id":"co-07","text":"낼까지 레포트 내야됨","tags":["colloquial","task","p1"],"expect":{"items":1,"types":["task"],"dueDate":"2026-11-10"}}
+{"id":"co-08","text":"수욜 오후 3시반 미팅","tags":["colloquial","p1"],"expect":{"items":1,"date":"2026-11-11","startTime":"15:30"}}
+{"id":"co-09","text":"모래 오후 3시 약속","tags":["colloquial","p1"],"expect":{"items":1,"date":"2026-11-11","startTime":"15:00"}}
+{"id":"rd-01","text":"금요일 오후 3시 발표, 다음 날 오전 10시 회고","tags":["complex","multi-intent","p1"],"expect":{"items":2,"types":["event","event"],"date":"2026-11-13","startTime":"15:00"}}
+{"id":"rd-02","text":"11월 20일 오후 7시 공연, 당일 오후 5시까지 티켓 수령","tags":["complex","multi-intent","p1"],"expect":{"items":2,"types":["event","task"],"date":"2026-11-20"}}
+{"id":"mi-07","text":"내일 오전 10시 회의, 금욜까지 보고서 제출","tags":["multi-intent","colloquial","p1"],"expect":{"items":2,"types":["event","task"],"date":"2026-11-10","startTime":"10:00"}}
+{"id":"mx-01","text":"데미안 50쪽 읽었고 내일 오후 3시 회의","tags":["mixed","reading","p1"],"expect":{"capture":"mixed","records":["reading"],"reading":{"title":"데미안","page":50},"items":1,"types":["event"],"date":"2026-11-10","startTime":"15:00"}}
+{"id":"mx-02","text":"오늘 너무 피곤했다. 내일 오전 9시 병원","tags":["mixed","p1"],"expect":{"capture":"mixed","records":["diary"],"items":1,"date":"2026-11-10","startTime":"09:00"}}
+{"id":"mx-03","text":"오늘 영화 봤는데 재밌었다, 금욜까지 감상문 제출","tags":["mixed","colloquial","p1"],"expect":{"capture":"mixed","records":["diary"],"items":1,"types":["task"],"dueDate":"2026-11-13"}}
+{"id":"mx-04","text":"데미안 완독! 다음 책은 토요일에 사러 가기","tags":["mixed","reading","p1"],"expect":{"capture":"mixed","records":["reading"],"reading":{"title":"데미안","finished":true},"items":1,"date":"2026-11-14"}}
+{"id":"mx-05","text":"메모: 와이파이 비밀번호, 내일 3시 회의","tags":["mixed","record","p1"],"expect":{"capture":"memo","records":["memo"]}}
+{"id":"mx-06","text":"어제 회의 했는데 내일 또 회의 있어","tags":["mixed","p1"],"expect":{"capture":"conversation","records":[]}}
+{"id":"rt-01","text":"아이디어: 계획 세워 주는 앱","tags":["record","routing","p1"],"expect":{"capture":"memo"}}
+{"id":"rt-02","text":"메모: 다음 주 계획 세우기","tags":["record","routing","p1"],"expect":{"capture":"memo"}}
+{"id":"rdg-01","text":"『데미안』(헤르만 헤세) 50~120쪽 읽음","tags":["reading","p1"],"expect":{"capture":"reading","reading":{"title":"데미안","page":120,"startPage":50,"author":"헤르만 헤세","finished":false}}}
+{"id":"rdg-02","text":"코스모스 120/600","tags":["reading","p1"],"expect":{"capture":"reading","reading":{"title":"코스모스","page":120,"total":600}}}
+{"id":"rdg-03","text":"오늘 데미안 완독!","tags":["reading","p1"],"expect":{"capture":"reading","reading":{"title":"데미안","finished":true}}}
+{"id":"rdg-04","text":"사피엔스 p.30-45 읽었다","tags":["reading","p1"],"expect":{"capture":"reading","reading":{"title":"사피엔스","page":45,"startPage":30}}}
+{"id":"rdg-05","text":"총 300쪽 중 120쪽까지 읽은 데미안","tags":["reading","p1"],"expect":{"capture":"reading","reading":{"title":"데미안","page":120,"total":300}}}
+{"id":"rdg-06","text":"어린왕자 50쪽 읽음","tags":["reading","p1"],"expect":{"capture":"reading","reading":{"title":"어린왕자","page":50}}}
+{"id":"rdg-07","text":"독서: 데미안 120페이지까지 읽었다","tags":["reading","p1"],"expect":{"capture":"reading","reading":{"title":"데미안","page":120}}}
+{"id":"rdg-08","text":"독서 기록: 이기적 유전자 저자: 리처드 도킨스 80쪽","tags":["reading","p1"],"expect":{"capture":"reading","reading":{"title":"이기적 유전자","author":"리처드 도킨스","page":80}}}

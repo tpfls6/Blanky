@@ -1,3 +1,5 @@
+import { repeatsOn } from '../../packages/types/src/recurrence.ts'
+
 export function timelineCurrentTime(day: string, firstMinute: number, endMinute: number, now: Date) {
   const date = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
   const minutes = now.getHours() * 60 + now.getMinutes()
@@ -60,4 +62,26 @@ export function layoutTimeline<T extends TimelineInterval>(intervals: readonly T
   }
   flush()
   return result
+}
+
+type AgendaItem = { kind: 'event' | 'task'; title: string; status: string; priority: string; startTime: string | null; date: string; repeat?: string; repeatDays?: number[]; repeatUntil?: string | null; undated?: boolean }
+const PRIORITY_RANK: Record<string, number> = { high: 0, medium: 1, low: 2 }
+
+/**
+ * Splits one day's items (already filtered by occursOn) for the day view.
+ * Date-only tasks sit above the timeline, open ones first; no default time is invented for them.
+ * A timed task lands on its hour only on days it is scheduled; on a deadline-only day it is listed as date-only.
+ */
+export function dayAgenda<T extends AgendaItem>(items: readonly T[], day: string) {
+  const dateOnly: T[] = []
+  const allDay: T[] = []
+  const timed: T[] = []
+  for (const item of items) {
+    if (item.kind === 'event') (item.startTime ? timed : allDay).push(item)
+    else if (item.startTime && !item.undated && repeatsOn(item, day)) timed.push(item)
+    else dateOnly.push(item)
+  }
+  dateOnly.sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1) || a.title.localeCompare(b.title, 'ko'))
+  timed.sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''))
+  return { dateOnly, allDay, timed }
 }

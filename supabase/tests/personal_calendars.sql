@@ -23,7 +23,7 @@ select is((select created_by_user_id from public.schedules where id = 'a2000000-
 select lives_ok($$update public.schedules set title = 'edited' where id = 'a2000000-0000-0000-0000-000000000001'$$,
  'owner can update schedule');
 select throws_ok($$update public.schedules set calendar_id = 'b3000000-0000-0000-0000-000000000002'$$,
- '23503', null, 'cannot move schedule into another user calendar');
+ '42501', null, 'cannot move schedule into another user calendar');
 select throws_ok($$update public.schedules set created_by_user_id = 'b1000000-0000-0000-0000-000000000002'$$,
  '42501', null, 'author is immutable');
 select lives_ok($$insert into public.calendars(id, owner_user_id, name)
@@ -35,8 +35,8 @@ select throws_ok($$delete from public.calendars where id = 'a3000000-0000-0000-0
 select throws_ok($$update public.calendars set is_default_personal = false where is_default_personal$$,
  '42501', null, 'default calendar cannot be demoted');
 select is_empty($$delete from public.calendars where is_default_personal returning id$$, 'default calendar cannot be deleted');
-select throws_ok($$insert into public.calendars(owner_user_id, type, name) values(auth.uid(), 'shared', 'premature shared')$$,
- '42501', null, 'shared creation waits for membership policies');
+select throws_ok($$insert into public.calendars(owner_user_id, type, name) values(auth.uid(), 'external', 'forged external')$$,
+ '42501', null, 'clients cannot create external calendars');
 
 set local request.jwt.claim.sub = 'b1000000-0000-0000-0000-000000000002';
 select is_empty($$select id from public.schedules$$, 'other user cannot read schedules');

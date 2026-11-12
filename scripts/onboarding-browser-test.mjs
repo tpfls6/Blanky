@@ -70,7 +70,7 @@ const tourText = () => evaluate('document.querySelector("[data-page-tour] h2")?.
 const tourBody = () => evaluate('document.querySelector("[data-page-tour]")?.textContent ?? ""')
 const overflow = () => evaluate('document.documentElement.scrollWidth - innerWidth')
 async function tourButton(text) { await evaluate('[...document.querySelectorAll("[data-page-tour] button, [data-page-tour] a")].find(b => b.textContent.trim() === ' + q(text) + ').click()') }
-async function screenshot(name) { const result = await send('Page.captureScreenshot', { format: 'png' }); await writeFile('.tmp/onboarding-tests/' + name + '.png', Buffer.from(result.data, 'base64')) }
+async function screenshot(name) { const result = await send('Page.captureScreenshot', { format: 'png' }); await writeFile(join(out, name + '.png'), Buffer.from(result.data, 'base64')) }
 const settle = () => pause(400)
 const desktop = () => send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
 const mobile = () => send('Emulation.setDeviceMetricsOverride', { width: 375, height: 812, deviceScaleFactor: 2, mobile: true })
@@ -82,7 +82,9 @@ const legacyLibrary = {
   memos: [{ id: 'memo-legacy', title: '기존 메모', body: '지우면 안 되는 메모', categoryId: 'school', tags: [], createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z' }],
   settings: { onboardingDone: true, theme: 'dark', accent: 'green' },
 }
-await mkdir('.tmp/onboarding-tests', { recursive: true })
+// Evidence goes to BLANKY_AUDIT_DIR when set, so runs can keep the checked-in .tmp copies untouched.
+const out = process.env.BLANKY_AUDIT_DIR ? join(process.env.BLANKY_AUDIT_DIR, 'onboarding-tests') : '.tmp/onboarding-tests'
+await mkdir(out, { recursive: true })
 const checks = []
 try {
   await send('Page.enable'); await send('Runtime.enable')
@@ -154,7 +156,12 @@ try {
   await tourButton('건너뛰기'); await settle()
   checks.push('Reading shows shelf + book examples; the shelf example opens the real dialog without saving')
 
-  // 7. Store, custom and settings guides.
+  // 7. Store, custom and settings guides. 내 테마 (/custom?tab=themes) names its tab: the customization guide,
+  //    which walks every tab and ends on 레이아웃, waits for a visit without one instead of moving the user.
+  await navigate(base + '/custom?tab=themes'); await settle()
+  assert.equal(await tours(), 0, 'a named tab defers the customization guide')
+  assert.equal(await evaluate('location.search'), '?tab=themes', 'and keeps the tab')
+  assert.equal((await stored()).settings.onboardingPages.includes('custom'), false, 'the deferred guide is still to come')
   for (const [path, title] of [['/store', '테마와 템플릿을 둘러봐요'], ['/store?tab=templates', null], ['/custom', '템플릿으로 페이지를 꾸며요'], ['/settings/general', '계정과 캘린더 연동']]) {
     await navigate(base + path)
     if (!title) { await settle(); assert.equal(await tours(), 0, 'one store guide covers both tabs'); continue }
@@ -182,6 +189,11 @@ try {
   await wait('document.querySelectorAll("[data-page-tour]").length === 1', 'diary replay')
   await tourButton('다음'); await tourButton('다음'); await tourButton('완료'); await settle()
   assert.equal(await tours(), 0); assert.equal(await evaluate('location.search'), '')
+  // A replay link still starts the customization guide on a named tab.
+  await navigate(base + '/custom?tab=themes&tour=1')
+  await wait('document.querySelectorAll("[data-page-tour]").length === 1', 'custom replay on a named tab')
+  await tourButton('건너뛰기'); await settle()
+  assert.equal(await tours(), 0)
   await navigate(base + '/guide')
   await wait('[...document.querySelectorAll("a")].filter(a => a.getAttribute("href")?.endsWith("?tour=1")).length === 7', 'guide replay links')
   checks.push('Replay links in settings and /guide reopen a page guide; closing clears ?tour')
@@ -282,7 +294,7 @@ try {
 
   assert.equal(errors.length, 0, errors.join('\n'))
   console.log(JSON.stringify({ passed: checks, browserErrors: errors }, null, 2))
-  await writeFile('.tmp/onboarding-tests/results.json', JSON.stringify({ passed: checks, browserErrors: errors }, null, 2))
+  await writeFile(join(out, 'results.json'), JSON.stringify({ passed: checks, browserErrors: errors }, null, 2))
 } catch (error) {
   await screenshot('failure').catch(() => undefined)
   console.error(JSON.stringify({ passed: checks, browserErrors: errors, url: await evaluate('location.href').catch(() => '') }, null, 2))

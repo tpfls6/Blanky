@@ -28,6 +28,21 @@ export type Database = {
       user_theme_settings: Table<{user_id:string;active_theme_id:string|null;updated_at:string},{user_id:string;active_theme_id:string|null;updated_at?:string},{active_theme_id?:string|null;updated_at?:string}>
       theme_reviews: Table<{id:string;theme_id:string;user_id:string;rating:number;content:string;created_at:string},{theme_id:string;user_id:string;rating:number;content?:string},{rating?:number;content?:string}>
 
+      calendar_members: Table<
+        { calendar_id: string; user_id: string; role: string; hidden: boolean; notify: boolean; invited_by: string | null; joined_at: string; updated_at: string },
+        { calendar_id: string; user_id: string; role: string },
+        { hidden?: boolean; notify?: boolean }
+      >
+      calendar_invitations: Table<
+        { id: string; calendar_id: string; kind: string; email: string | null; role: string; status: string; invited_by: string | null; invitee_user_id: string | null; expires_at: string; created_at: string; responded_at: string | null },
+        Record<string, never>,
+        Record<string, never>
+      >
+      notifications: Table<
+        { id: string; user_id: string; type: string; calendar_id: string | null; schedule_id: string | null; actor_user_id: string | null; data: Json; dedupe_key: string; count: number; read_at: string | null; created_at: string },
+        Record<string, never>,
+        { read_at?: string | null }
+      >
       calendars: Table<
         { id: string; owner_user_id: string; name: string; description: string; color: string; icon: string; type: string; is_default_personal: boolean; timezone: string; created_at: string; updated_at: string },
         { id?: string; owner_user_id: string; name?: string; description?: string; color?: string; icon?: string; type?: string; timezone?: string },
@@ -71,6 +86,7 @@ export type Database = {
           user_id: string
           calendar_id: string
           created_by_user_id: string | null
+          updated_by_user_id?: string | null
           kind?: string
           due_time?: string | null
           due_date?: string | null
@@ -79,7 +95,9 @@ export type Database = {
           repeat_rule?: string
           repeat_days?: number[]
           repeat_until?: string | null
+          repeat_interval?: number
           series_id?: string | null
+          undated?: boolean
           change_source?: string
           title: string
           description: string
@@ -111,7 +129,9 @@ export type Database = {
           repeat_rule?: string
           repeat_days?: number[]
           repeat_until?: string | null
+          repeat_interval?: number
           series_id?: string | null
+          undated?: boolean
           change_source?: string
           title: string
           description?: string
@@ -139,7 +159,9 @@ export type Database = {
           repeat_rule?: string
           repeat_days?: number[]
           repeat_until?: string | null
+          repeat_interval?: number
           series_id?: string | null
+          undated?: boolean
           change_source?: string
           title?: string
           description?: string
@@ -444,7 +466,7 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: {
-      write_planner_draft: { Args:{p_user_id:string;p_expected_revision:number;p_payload:Json};Returns:{user_id:string;revision:number;payload:Json;updated_at:string}[] }; planner_snapshot: { Args: Record<string, never>; Returns: Json }; approve_planner: { Args: { p_user_id: string; p_revision: string; p_rows: Json }; Returns: ScheduleRow[] }; reorder_reading_shelves: { Args: { p_ids: string[] }; Returns: undefined }; add_reading_book: { Args: { p_book: Json; p_status: string; p_shelves: string[] }; Returns: string }; install_theme: { Args: { p_theme_id: string }; Returns: undefined }; is_blanky_admin: { Args: Record<string, never>; Returns: boolean }; publish_template: { Args: { p_source_page_id: string; p_name: string; p_description: string; p_category: string; p_tags: string[]; p_thumbnail_url: string; p_gallery: string[]; p_language: string; p_guide: string; p_sample_ids: string[] | null }; Returns: string }; publish_template_version: { Args: { p_listing_id: string; p_source_page_id: string; p_guide: string; p_sample_ids: string[] | null }; Returns: number }; review_template: { Args: { p_listing_id: string; p_status: string; p_reason?: string }; Returns: undefined }; install_template: { Args: { p_listing_id: string; p_request_id: string; p_payload: Json }; Returns: Json }; report_template: { Args: { p_listing_id: string; p_reason: string }; Returns: undefined }; apply_schedule_batch: { Args: { p_key: string; p_deletes: string[] }; Returns: Json }; retry_google_sync_jobs: { Args: Record<string, never>; Returns: Json } }
+      write_planner_draft: { Args:{p_user_id:string;p_expected_revision:number;p_payload:Json};Returns:{user_id:string;revision:number;payload:Json;updated_at:string}[] }; planner_snapshot: { Args: Record<string, never>; Returns: Json }; approve_planner: { Args: { p_user_id: string; p_revision: string; p_rows: Json }; Returns: ScheduleRow[] }; reorder_reading_shelves: { Args: { p_ids: string[] }; Returns: undefined }; add_reading_book: { Args: { p_book: Json; p_status: string; p_shelves: string[] }; Returns: string }; install_theme: { Args: { p_theme_id: string }; Returns: undefined }; is_blanky_admin: { Args: Record<string, never>; Returns: boolean }; publish_template: { Args: { p_source_page_id: string; p_name: string; p_description: string; p_category: string; p_tags: string[]; p_thumbnail_url: string; p_gallery: string[]; p_language: string; p_guide: string; p_sample_ids: string[] | null }; Returns: string }; publish_template_version: { Args: { p_listing_id: string; p_source_page_id: string; p_guide: string; p_sample_ids: string[] | null }; Returns: number }; review_template: { Args: { p_listing_id: string; p_status: string; p_reason?: string }; Returns: undefined }; install_template: { Args: { p_listing_id: string; p_request_id: string; p_payload: Json }; Returns: Json }; report_template: { Args: { p_listing_id: string; p_reason: string }; Returns: undefined }; apply_schedule_batch: { Args: { p_key: string; p_deletes: string[] }; Returns: Json }; retry_google_sync_jobs: { Args: Record<string, never>; Returns: Json }; calendar_member_list: { Args: { p_calendar: string }; Returns: { user_id: string; role: string; display_name: string; email: string; joined_at: string; is_me: boolean }[] }; invite_calendar_member: { Args: { p_calendar: string; p_email: string; p_role: string; p_days?: number }; Returns: Json }; create_calendar_invite_link: { Args: { p_calendar: string; p_role: string; p_days?: number }; Returns: { id: string; token: string; role: string; expires_at: string }[] }; revoke_calendar_invitation: { Args: { p_invitation: string }; Returns: undefined }; invite_link_preview: { Args: { p_token: string }; Returns: { calendar_id: string | null; calendar_name: string | null; calendar_color: string | null; role: string | null; inviter_name: string | null; state: string; expires_at: string | null }[] }; accept_calendar_invite_link: { Args: { p_token: string }; Returns: string }; claim_calendar_invitations: { Args: Record<string, never>; Returns: number }; my_calendar_invitations: { Args: Record<string, never>; Returns: { id: string; calendar_id: string; calendar_name: string; calendar_color: string; role: string; inviter_name: string; expires_at: string; created_at: string }[] }; respond_calendar_invitation: { Args: { p_invitation: string; p_accept: boolean }; Returns: string }; set_calendar_member_role: { Args: { p_calendar: string; p_user: string; p_role: string }; Returns: undefined }; transfer_calendar_ownership: { Args: { p_calendar: string; p_user: string }; Returns: undefined }; remove_calendar_member: { Args: { p_calendar: string; p_user: string }; Returns: undefined } }
   }
 }
 

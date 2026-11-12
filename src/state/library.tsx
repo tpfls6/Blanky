@@ -8,6 +8,7 @@ import { getScheduleRepository } from '../services/schedule/index.ts'
 import { getSupabaseClient, isSupabaseConfigured } from '../services/supabase/client.ts'
 import type { WorkItem } from '../types/work.ts'
 import { withPersonalCalendar } from '../services/calendar/local.ts'
+import { isReadOnlyCalendar, READ_ONLY_MESSAGE } from '../services/calendar/access.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { freshLibrary } from '../data/freshLibrary.ts'
 import { cloneBlock, coerceRecordType, selfCheckRecords, structureKey, type CustomRecordType } from '../features/records/schema.ts'
@@ -15,12 +16,13 @@ import { forkCollections, snapshotCollections } from '../features/workspace/temp
 import { DEFAULT_SWATCH } from '../constants/swatches.ts'
 import { cloneBlocks, createPage, normalizePages, touchPage, type BuilderBlock, type UserPage } from '../features/builder/schema.ts'
 import { pageTypeMarker, type PageTemplateKind } from '../features/pages/templates.ts'
-import { listUserPages } from '../services/pages/index.ts'
+import { listUserPages, upsertUserPage } from '../services/pages/index.ts'
 import { getAllCustomRecords, getCustomRecordTypes } from '../services/records/index.ts'
 import { normalizeLayouts, normalizePageGaps, type PageBlock, type PageId } from '../features/pages/layout.ts'
 import {
   type Book,
   type BookStatus,
+  type CaptureRef,
   type CustomRecord,
   type DiaryEntry,
   type EntryType,
@@ -30,15 +32,22 @@ import {
   type Settings,
 } from '../types/records.ts'
 import type { WorkInput, WorkPatch, WorkspaceCategory } from '../types/work.ts'
-import { LibraryContext, type LibraryValue } from './useLibrary.ts'
+import { LibraryContext, type CaptureResult, type LibraryValue } from './useLibrary.ts'
 import { selfCheckAccount } from '../utils/account.ts'
 import { applyCapture, selfCheckEntries } from '../utils/entries.ts'
-import { asBookTrash, asCustomRecord, asDiary, asMemo, asWork, parseTrash, toTrash, withTrash } from '../utils/trash.ts'
+import { asBookTrash, asCustomRecord, asDiary, asMemo, asPageTrash, asWork, parseTrash, toTrash, withTrash, type PageTrash, type RestoreProgress, type TrashItem } from '../utils/trash.ts'
 import { categoryKind, createWorkItem, selfCheckWork } from '../utils/work.ts'
 import { applyAccent, clearAccent } from '../theme/accent.ts'
 import { applyDocumentLocale, guestOrBrowserLocale, touchDeviceLocale, writeGuestLocale } from '../i18n/storage.ts'
 import { defaultPreferences, loadPreferences, normalizePreferences, pullPreferences, pushPreferences, savePreferences, syncNav } from '../services/preferences/index.ts'
 import { libraryKey } from './storage.ts'
+import { readReadingCopy, removeImportedReadingLog, removeReadingCopy, restoreReadingCopy } from '../services/reading/index.ts'
+import { createPageReadingRepository } from '../features/pages/readingPageRepository.ts'
+import { keepThenRemove } from '../services/reading/restore.ts'
+import { auditReadingLogs, bookWithoutLog, withBookRestored, withoutBook, withoutReadingLog, withRestoreProgress } from '../utils/readingLogs.ts'
+import { flushSync } from 'react-dom'
+import { commitSeriesChange, firstOccurrence, isRecurring, planOccurrenceEdit, seriesKey } from '../features/schedule/seriesEdit.ts'
+import { repeatsOn } from '../../packages/types/src/recurrence.ts'
 import {
   mirrorCategoryCreate,
   mirrorCategoryDelete,
@@ -175,6 +184,25 @@ function dropWorkItems(current: LibraryData, removed: WorkItem[], source: Activi
   }
 }
 
+/** One reading-library delete or 복구 at a time across tabs too (Web Locks, where the browser has them);
+ *  within a tab the reading queue already runs them in turn. */
+function withReadingLock<T>(owner: string, task: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator === 'undefined' ? undefined : navigator.locks
+  return locks ? locks.request('blanky.reading.' + owner, () => task()) : task()
+}
+
+/** A trash row as saved, which has the latest progress of a 복구 even if another tab wrote it. */
+function storedTrashRow(owner: string, id: string): TrashItem | undefined {
+  try {
+    const raw = localStorage.getItem(libraryKey(owner))
+    const trash = raw ? (JSON.parse(raw) as { trash?: unknown }).trash : undefined
+    const row = Array.isArray(trash) ? trash.map(parseTrash).find((item) => item?.id === id) : undefined
+    return row ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
 export function LibraryProvider({ children }: { children: ReactNode }) {
   const { user } = useSession()
   const userId = user?.id ?? null
@@ -303,10 +331,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       await ready.current
       if (!workLoaded.current) throw new Error('서버 데이터를 먼저 불러와야 합니다.')
       if (!userId || activeUser.current !== userId) throw new Error('로그인이 필요합니다.')
+      if (isReadOnlyCalendar(before?.calendarId) || isReadOnlyCalendar(after?.calendarId)) throw new Error(READ_ONLY_MESSAGE)
       let saved = after
       if (after) {
         const statusOnly = before && Object.keys(after).every(key => key === 'status' || after[key as keyof WorkItem] === before[key as keyof WorkItem])
-        const normalized = statusOnly ? after : createWorkItem(after, { inferEndTime: source !== 'ai_chat' })
+        // Giving an undated task a different day (drag, edit, AI move) makes it a dated task.
+        const input = before?.undated && after.undated && after.date && after.date !== before.date ? { ...after, undated: false } : after
+        const normalized = statusOnly ? after : createWorkItem(input, { inferEndTime: source !== 'ai_chat' })
         if (!normalized) throw new Error('제목과 날짜를 확인해 주세요.')
         saved = { ...after, ...normalized, id: after.id, calendarId: after.calendarId ?? data.personalCalendar?.id, createdByUserId: after.createdByUserId ?? userId }
       }
@@ -342,6 +373,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const operation = workQueue.current.catch(() => undefined).then(async () => {
       await ready.current
       if (!workLoaded.current || !userId || activeUser.current !== userId) throw new Error('로그인 및 데이터 로딩을 확인해 주세요.')
+      // Dev-only test hook (dropped from production builds): browser E2E makes chosen titles fail to check partial-failure recovery.
+      if (import.meta.env.DEV) {
+        const failing = (window as Window & { __blankyFailCreate?: (title: string) => boolean }).__blankyFailCreate
+        if (failing && inputs.some(input => failing(input.title))) throw new Error('저장하지 못했어요. (테스트 실패 주입)')
+      }
       const items = inputs.map(input => {
         const item = createWorkItem(input, { inferEndTime: false })
         if (!item) throw new Error('제목과 날짜를 확인해 주세요.')
@@ -372,6 +408,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       const source = input.source ?? 'ai_chat'
       if (!unique.length) return { status: 'unchanged' as const, deletedIds: [], google: 'idle' as const }
       if (unique.some(isGoogleOriginWork)) throw new Error('Google에서 가져온 일정은 원본을 지우지 않았어요.')
+      if (unique.some(item => isReadOnlyCalendar(item.calendarId))) throw new Error(READ_ONLY_MESSAGE)
       const remote = unique.filter(item => remoteIds.current.has(item.id))
       if (isSupabaseConfigured && remote.length && remote.length !== unique.length) {
         throw new Error('로컬과 서버 일정을 한 번에 변경할 수 없습니다.')
@@ -484,20 +521,67 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     return () => media.removeEventListener('change', onChange)
   }, [userId, data])
 
-  const saveCapture = useCallback((content: string, type: EntryType) => {
+  const saveCapture = useCallback((content: string, type: EntryType): CaptureResult => {
     const trimmed = content.trim()
-    if (!trimmed) return '내용을 입력해 주세요.'
-    if (type === 'auto' && !data.settings.autoClassify) return '유형을 선택해 주세요.'
-    const preview = applyCapture(data, trimmed, type)
+    if (!trimmed) return { error: '내용을 입력해 주세요.' }
+    if (type === 'auto' && !data.settings.autoClassify) return { error: '유형을 선택해 주세요.' }
+    // The committed update replays the preview's ids, so the returned ref names the stored row.
+    const now = new Date(), ids: string[] = []
+    const preview = applyCapture(data, trimmed, type, now, () => { const id = crypto.randomUUID(); ids.push(id); return id })
     const diary = preview.diaries.find(entry => !data.diaries.some(existing => existing.id === entry.id))
     setData((current) => {
-      const next = applyCapture(current, trimmed, type)
+      let at = 0
+      const next = applyCapture(current, trimmed, type, now, () => ids[at++] ?? crypto.randomUUID())
       const result = diary ? { ...next, diaries: [diary, ...current.diaries] } : next
       return userId ? withPersonalCalendar(result, userId) : result
     })
     if (diary) void commitDiary(diary).catch(error => setDiaryError(error instanceof Error ? error.message : '기록을 저장하지 못했습니다.'))
-    return null
+    const memo = preview.memos.find(entry => !data.memos.some(existing => existing.id === entry.id))
+    const log = preview.logs.find(entry => !data.logs.some(existing => existing.id === entry.id))
+    const book = log && preview.books.find(entry => entry.id === log.bookId)
+    const saved: CaptureRef | null = diary ? { kind: 'diary', id: diary.id, title: diary.body.split('\n')[0].slice(0, 48) }
+      : memo ? { kind: 'memo', id: memo.id, title: memo.title }
+      : log && book ? { kind: 'reading', id: log.id, bookId: book.id, newBook: !data.books.some(entry => entry.id === book.id), title: book.title, previousPage: data.books.find(entry => entry.id === book.id)?.currentPage, page: log.page }
+      : null
+    return { error: null, saved }
   }, [data, userId, commitDiary])
+  const latest = useRef(data)
+  useLayoutEffect(() => { latest.current = data }, [data])
+  const readingQueue = useRef<Promise<unknown>>(Promise.resolve())
+  /** Removes what one Home capture created: memo and diary go to the trash like any delete; a reading log
+   *  is dropped, and its copy in the reading library once it was imported. The book stays even once its
+   *  last log is gone; only deleting the book itself moves it to the trash. */
+  const eraseCapture = useCallback(async (saved: CaptureRef): Promise<void> => {
+    if (saved.kind === 'diary') return eraseDiary(saved.id)
+    if (saved.kind === 'memo') {
+      setData((current) => {
+        const memo = current.memos.find((item) => item.id === saved.id)
+        return { ...current, memos: current.memos.filter((item) => item.id !== saved.id), trash: memo ? withTrash(current, toTrash('memo', memo, memo.title)) : current.trash }
+      })
+      return
+    }
+    if (!userId) throw new Error('로그인이 필요합니다.')
+    // Reading deletes run one at a time against the committed library (flushSync below), so a second
+    // 삭제 never works out the imported copy's page from a snapshot taken before the first one landed.
+    const operation = readingQueue.current.catch(() => undefined).then(async () => {
+      const { books, logs } = latest.current
+      const kept = books.find(item => item.id === saved.bookId)
+      const next = kept ? bookWithoutLog(kept, logs, saved) : undefined
+      // A book its logs finished and this delete un-finishes reopens in the imported copy too.
+      const reopen = kept && next && kept.status === 'done' && next.status !== 'done' ? { finishedAt: kept.finishedAt } : undefined
+      await removeImportedReadingLog(userId, saved.bookId, saved.id, kept && next && (next.currentPage !== kept.currentPage || reopen) ? { currentPage: next.currentPage, totalPages: kept.totalPages, reopen } : undefined)
+      flushSync(() => setData((current) => withoutReadingLog(current, saved)))
+    })
+    readingQueue.current = operation
+    return operation
+  }, [eraseDiary, userId])
+  // Dev-only (dropped from production builds): lists older reading logs and finished books a delete leaves alone.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    const host = window as Window & { __blankyReadingAudit?: () => ReturnType<typeof auditReadingLogs> }
+    host.__blankyReadingAudit = () => auditReadingLogs(latest.current.books, latest.current.logs)
+    return () => { delete host.__blankyReadingAudit }
+  }, [])
 
   const addItem = useCallback((input: WorkInput) => {
     const item = createWorkItem(input)
@@ -508,9 +592,27 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     if (item) void commitWork(item, { ...item, ...patch }).catch(() => setWorkError('변경을 저장하지 못했습니다.'))
   }, [commitWork, data.items])
   const pendingToggles = useRef(new Set<string>())
-  const toggleItem = useCallback((id: string) => {
+  const toggleItem = useCallback((id: string, occurrence?: string) => {
     const item = data.items.find(row => row.id === id)
-    if (!item || pendingToggles.current.has(id)) return
+    if (!item || pendingToggles.current.has(id) || pendingToggles.current.has(seriesKey(item))) return
+    if (isReadOnlyCalendar(item.calendarId)) {
+      setWorkError(READ_ONLY_MESSAGE)
+      return
+    }
+    // A recurring item completes one day at a time: that day splits off as its own done row.
+    // The series key stays locked until every row has landed, so a double click cannot split twice.
+    if (isRecurring(item)) {
+      const day = occurrence && repeatsOn(item, occurrence) ? occurrence : firstOccurrence(item)
+      if (!day) return
+      const key = seriesKey(item)
+      pendingToggles.current.add(key)
+      setWorkError('')
+      const changes = planOccurrenceEdit(data.items, item, day, 'this', { ...item, status: item.status === 'done' ? 'todo' : 'done' })
+      void commitSeriesChange(changes, commitWork)
+        .catch(() => setWorkError('완료 상태를 저장하지 못했습니다. 다시 시도해 주세요.'))
+        .finally(() => pendingToggles.current.delete(key))
+      return
+    }
     pendingToggles.current.add(id)
     const owner = userId
     const status = item.status === 'done' ? 'todo' : 'done'
@@ -526,6 +628,27 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     const item = data.items.find(row => row.id === id)
     if (item) void commitWork(item, null).catch(() => setWorkError('삭제하지 못했습니다.'))
   }, [commitWork, data.items])
+  // Drops one history row only; the schedule stays. Rows logged this session carry client ids,
+  // so they are matched to the trigger-written server row by schedule, action and time.
+  const removeActivity = useCallback(async (id: string) => {
+    const activity = data.activities?.find(row => row.id === id)
+    if (!activity) return
+    if (isSupabaseConfigured && userId) {
+      await workQueue.current.catch(() => undefined)
+      const repository = getScheduleRepository()
+      if (!await repository.removeChange(id)) {
+        const shown = new Set((data.activities ?? []).map(row => row.id))
+        const at = Date.parse(activity.createdAt)
+        const gap = (createdAt: string) => Math.abs(Date.parse(createdAt) - at)
+        const match = (await repository.listChanges(activity.entityId))
+          .filter(row => row.action === activity.action && !shown.has(row.id) && gap(row.createdAt) < 60000)
+          .sort((a, b) => gap(a.createdAt) - gap(b.createdAt))[0]
+        if (!match || !await repository.removeChange(match.id)) throw new Error('삭제할 기록을 서버에서 찾지 못했습니다.')
+      }
+      if (activeUser.current !== userId) throw new Error('사용자가 변경되었습니다.')
+    }
+    setData(current => ({ ...current, activities: (current.activities ?? []).filter(row => row.id !== id) }))
+  }, [data.activities, userId])
 
   const addDiary = useCallback((entry: Pick<DiaryEntry, 'date' | 'body' | 'tags'>) => {
     const now = new Date().toISOString()
@@ -594,21 +717,14 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
   const updateBook = useCallback((id: string, patch: Partial<Omit<Book, 'id' | 'createdAt'>>) => {
     setData((current) => ({
       ...current,
-      books: current.books.map((book) => (book.id === id ? { ...book, ...patch } : book)),
+      // Finishing a book here is by hand; any other status drops the source.
+      books: current.books.map((book) => (book.id !== id ? book : !patch.status ? { ...book, ...patch }
+        : { ...book, ...patch, finishedBy: patch.status === 'done' ? (book.status === 'done' ? book.finishedBy : 'manual') : undefined })),
     }))
   }, [])
 
   const removeBook = useCallback((id: string) => {
-    setData((current) => {
-      const book = current.books.find((item) => item.id === id)
-      const logs = current.logs.filter((log) => log.bookId === id)
-      return {
-        ...current,
-        books: current.books.filter((item) => item.id !== id),
-        logs: current.logs.filter((log) => log.bookId !== id),
-        trash: book ? withTrash(current, toTrash('book', { id: book.id, book, logs }, book.title)) : current.trash,
-      }
-    })
+    setData((current) => withoutBook(current, id))
   }, [])
 
   const addLog = useCallback((bookId: string, log: { date: string; page: number | null; note: string }) => {
@@ -626,6 +742,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           currentPage: Math.max(book.currentPage, log.page),
           status,
           finishedAt: status === 'done' ? book.finishedAt ?? log.date : book.finishedAt,
+          finishedBy: status === 'done' && book.status !== 'done' ? 'auto' as const : book.finishedBy,
         }
       }),
     }))
@@ -633,7 +750,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   const addCategory = useCallback((name: string, parentId: string | null, style?: Partial<Pick<WorkspaceCategory, 'color' | 'icon'>>) => {
     const trimmed = name.trim()
-    if (!trimmed) return
+    if (!trimmed) return undefined
     const category: WorkspaceCategory = {
       id: crypto.randomUUID(),
       name: trimmed,
@@ -644,6 +761,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
     setData((current) => ({ ...current, categories: [...current.categories, category] }))
     mirrorCategoryCreate(category, 0)
+    return category.id
   }, [])
 
   const updateCategory = useCallback((id: string, patch: Partial<Pick<WorkspaceCategory, 'name' | 'color' | 'icon' | 'kind'>>) => {
@@ -839,7 +957,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     setData(current => ({ ...current, records: [saved, ...current.records.filter(row => row.id !== saved.id)] }))
   }, [userId, data.recordTypes, data.records, data.customPages])
 
-  const eraseCollectionRecord = useCallback(async (id: string) => {
+  /** Deletes one record of a custom page; `trashed` keeps it in the trash as a 기록 row. A custom reading
+   *  page's book is not: its whole book goes to the trash as a 책 row (trashReadingBook). */
+  const deleteCollectionRecord = useCallback(async (id: string, trashed: boolean) => {
     if (isSupabaseConfigured) {
       if (!userId || activeUser.current !== userId) throw new Error('로그인을 확인해 주세요.')
       await createRecordRepository(getSupabaseClient()).deleteCustomRecord(id)
@@ -847,9 +967,90 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }
     setData(current => {
       const record = current.records.find(row => row.id === id)
-      return { ...current, records: current.records.filter(row => row.id !== id), trash: record ? withTrash(current, toTrash('record', record, record.title)) : current.trash }
+      return { ...current, records: current.records.filter(row => row.id !== id), trash: record && trashed ? withTrash(current, toTrash('record', record, record.title)) : current.trash }
     })
   }, [userId])
+  const eraseCollectionRecord = useCallback((id: string) => deleteCollectionRecord(id, true), [deleteCollectionRecord])
+
+  /** Changes the library and saves it at once, so a trash row (or a 복구's progress) is stored before the
+   *  next remote step runs and survives a reload or a crash in between. */
+  const saveNow = useCallback((owner: string, change: (current: LibraryData) => LibraryData) => {
+    flushSync(() => setData((current) => {
+      const next = change(current)
+      localStorage.setItem(libraryKey(owner), JSON.stringify(next))
+      return next
+    }))
+  }, [])
+
+  /** A custom reading page's store, kept on the library's records like the page itself does (UserPage). */
+  const pageReadingStore = useCallback((owner: string, pageId: string) => {
+    let rows = latest.current.records
+    return createPageReadingRepository(owner, pageId, {
+      records: () => rows,
+      put: async (id, input) => {
+        const recordId = id ?? crypto.randomUUID()
+        await commitCollectionRecord(pageId, recordId, input)
+        const old = rows.find(row => row.id === recordId), now = new Date().toISOString()
+        rows = [{ id: recordId, typeId: pageId, ...input, templateVersion: 1, createdAt: old?.createdAt ?? now, updatedAt: now }, ...rows.filter(row => row.id !== recordId)]
+      },
+      remove: async id => {
+        await deleteCollectionRecord(id, false)
+        rows = rows.filter(row => row.id !== id)
+      },
+    })
+  }, [commitCollectionRecord, deleteCollectionRecord])
+
+  /** 삭제 of a book, on the reading page or a custom reading page: the book with its shelves, quotes and
+   *  notes, and the 서재 book it came from with its logs, go to the trash as one row, so Home's history shows
+   *  those logs as deleted until 복구 brings all back. The row is saved before the book is deleted; a delete
+   *  that fails takes the row back out, so the book is never gone without its snapshot. Runs in the reading
+   *  queue (and, across tabs, under one lock), after any log delete still working out the copy. */
+  const trashReadingBook = useCallback(async (copyId: string, pageId?: string): Promise<void> => {
+    if (!userId) throw new Error('로그인이 필요합니다.')
+    const owner = userId
+    const operation = readingQueue.current.catch(() => undefined).then(() => withReadingLock(owner, async () => {
+      const store = pageId ? pageReadingStore(owner, pageId) : undefined
+      const copy = await readReadingCopy(owner, copyId, store, pageId)
+      if (activeUser.current !== owner) throw new Error('로그인 사용자가 변경되었습니다.')
+      const legacyId = copy.legacyBookId ?? ''
+      const row = withoutBook(latest.current, legacyId, copy).trash[0]
+      const replaced = latest.current.trash.find((item) => item.id === row.id)
+      await keepThenRemove(
+        () => saveNow(owner, (current) => ({ ...current, trash: withTrash(current, row) })),
+        () => removeReadingCopy(owner, copyId, store),
+        () => saveNow(owner, (current) => ({ ...current, trash: [...(replaced ? [replaced] : []), ...current.trash.filter((item) => item !== row)] })),
+      )
+      saveNow(owner, (current) => ({ ...current, books: current.books.filter((item) => item.id !== legacyId), logs: current.logs.filter((log) => log.bookId !== legacyId) }))
+    }))
+    readingQueue.current = operation
+    return operation
+  }, [userId, pageReadingStore, saveNow])
+
+  /** 복구 of a book row. Its reading-library copy is written back step by step (restoreReadingCopy); the
+   *  book that 복구 creates is saved with the row first, so a retry, even after a reload, finishes that one
+   *  instead of adding another. Only once the copy is read back and matches the snapshot do the 서재 book
+   *  and its logs return and the row leave, in one saved change; on any failure the row stays as it was. */
+  const restoreBook = useCallback(async (id: string): Promise<void> => {
+    if (!userId) throw new Error('로그인이 필요합니다.')
+    const owner = userId
+    const operation = readingQueue.current.catch(() => undefined).then(() => withReadingLock(owner, async () => {
+      // Read inside the lock: an earlier click may have finished it, and the saved row has the latest progress.
+      const row = storedTrashRow(owner, id) ?? latest.current.trash.find((item) => item.id === id)
+      const bundle = row ? asBookTrash(row.payload) : null
+      if (!row || !bundle) return
+      if (bundle.copy) {
+        const record = (progress: RestoreProgress) => saveNow(owner, (current) => ({
+          ...current,
+          trash: current.trash.some((item) => item.id === id) ? current.trash.map((item) => item.id === id ? withRestoreProgress(item, progress) : item) : [withRestoreProgress(row, progress), ...current.trash],
+        }))
+        await restoreReadingCopy(owner, bundle.copy, record, bundle.copy.pageId ? pageReadingStore(owner, bundle.copy.pageId) : undefined)
+        if (activeUser.current !== owner) throw new Error('로그인 사용자가 변경되었습니다.')
+      }
+      saveNow(owner, (current) => withBookRestored(current, id, bundle))
+    }))
+    readingQueue.current = operation
+    return operation
+  }, [userId, pageReadingStore, saveNow])
 
   const addRecord = useCallback((typeId: string, input: { id?: string; title: string; values: Record<string, FieldValue> }) => {
     const id = input.id ?? crypto.randomUUID()
@@ -926,6 +1127,50 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       setData((current) => ({ ...current, trash: current.trash.filter((item) => item.id !== id) }))
       return
     }
+    if (row.kind === 'page') {
+      const bundle = asPageTrash(row.payload)
+      if (!bundle) return
+      const page: UserPage = { ...bundle.page, sort: data.customPages.length }
+      // Written back to the server first, in order (type before its records); if that fails it stays here.
+      // Each step checks what is already there, so a retry after a partial restore finishes the rest.
+      if (isSupabaseConfigured && userId) {
+        const owner = userId
+        await upsertUserPage(page, 'page')
+        const repository = createRecordRepository(getSupabaseClient())
+        if (bundle.recordType) {
+          const type = bundle.recordType
+          try { await repository.getCustomRecordType(type.id) }
+          catch (error) {
+            if (!(error instanceof AppError) || error.code !== 'CUSTOM_RECORD_TYPE_NOT_FOUND') throw error
+            await repository.createCustomRecordType(owner, { id: type.id, name: type.name, description: type.description, icon: type.icon, color: type.color, blocks: type.blocks, version: type.version })
+          }
+          for (const record of bundle.records) {
+            try { await repository.getCustomRecord(record.id) }
+            catch (error) {
+              if (!(error instanceof AppError) || error.code !== 'CUSTOM_RECORD_NOT_FOUND') throw error
+              await repository.createCustomRecord(owner, { id: record.id, recordTypeId: record.typeId, title: record.title, values: record.values, templateVersion: record.templateVersion })
+            }
+          }
+        }
+        if (activeUser.current !== owner) throw new Error('로그인 사용자가 변경되었습니다.')
+      }
+      setData((current) => {
+        const trash = current.trash.filter((item) => item.id !== id)
+        if (current.customPages.some((item) => item.id === page.id)) return { ...current, trash }
+        const recordTypes = bundle.recordType && !current.recordTypes.some((item) => item.id === bundle.recordType!.id) ? [...current.recordTypes, bundle.recordType] : current.recordTypes
+        const records = bundle.recordType ? [...bundle.records.filter((record) => !current.records.some((item) => item.id === record.id)), ...current.records] : current.records
+        return {
+          ...current,
+          trash,
+          customPages: [...current.customPages, page],
+          recordTypes,
+          records,
+          settings: { ...current.settings, nav: syncNav(current.settings.nav, recordTypes.map((item) => item.id)) },
+        }
+      })
+      return
+    }
+    if (row.kind === 'book') return restoreBook(id)
     setData((current) => {
       const next = current.trash.filter((item) => item.id !== id)
       if (row.kind === 'memo') {
@@ -939,14 +1184,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         mirrorRecordSave({ id: record.id, typeId: record.typeId, title: record.title, values: record.values, templateVersion: record.templateVersion }, true)
         return { ...current, trash: next, records: [record, ...current.records] }
       }
-      if (row.kind === 'book') {
-        const bundle = asBookTrash(row.payload)
-        if (!bundle || current.books.some((item) => item.id === bundle.book.id)) return { ...current, trash: next }
-        return { ...current, trash: next, books: [bundle.book, ...current.books], logs: [...bundle.logs, ...current.logs] }
-      }
       return { ...current, trash: next }
     })
-  }, [commitDiary, commitWork, data.trash])
+  }, [commitDiary, commitWork, data.customPages.length, data.trash, userId, restoreBook])
 
   const purgeTrash = useCallback((id: string) => {
     setData((current) => ({ ...current, trash: current.trash.filter((item) => item.id !== id) }))
@@ -1141,13 +1381,25 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     return copy.id
   }, [data.customPages, data.recordTypes])
 
+  /** A deleted page goes to the trash with its record type and records, so 복구 can bring all of it back. */
   const removeUserPage = useCallback((id: string) => {
-    setData((current) => ({
-      ...current,
-      customPages: current.customPages.filter((item) => item.id !== id),
-      recordTypes: current.recordTypes.filter((item) => item.id !== id),
-      records: current.records.filter((item) => item.typeId !== id),
-    }))
+    setData((current) => {
+      const page = current.customPages.find((item) => item.id === id)
+      const payload: PageTrash | null = page ? {
+        id,
+        page,
+        recordType: current.recordTypes.find((item) => item.id === id) ?? null,
+        records: current.records.filter((item) => item.typeId === id),
+      } : null
+      return {
+        ...current,
+        customPages: current.customPages.filter((item) => item.id !== id),
+        recordTypes: current.recordTypes.filter((item) => item.id !== id),
+        records: current.records.filter((item) => item.typeId !== id),
+        settings: { ...current.settings, nav: current.settings.nav.filter((item) => item.id !== id) },
+        trash: payload ? withTrash(current, toTrash('page', payload, page!.name)) : current.trash,
+      }
+    })
     mirrorPageDelete(id)
     mirrorRecordTypeDelete(id)
   }, [])
@@ -1273,10 +1525,12 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     refreshWork,
     workError,
     saveCapture,
+    eraseCapture,
     addItem,
     updateItem,
     toggleItem,
     removeItem,
+    removeActivity,
     addDiary,
     updateDiary,
     removeDiary,
@@ -1286,6 +1540,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     addBook,
     updateBook,
     removeBook,
+    trashReadingBook,
     addLog,
     addCategory,
     updateCategory,

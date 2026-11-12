@@ -26,6 +26,7 @@ const FIELD_TYPES: { type: BlockType; key: string }[] = [
   { type: 'longText', key: 'builder.field.long' },
 ]
 
+// eslint-disable-next-line react-refresh/only-export-components -- helper shared with callers; fast refresh only
 export function insertCollectionBlock(name: string): BuilderBlock {
   return createBlock('collection', { collectionId: '', view: 'table', span: 3, text: name })
 }
@@ -194,6 +195,7 @@ function CollectionFields({
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- helper shared with callers; fast refresh only
 export function createCollectionType(name: string, addRecordType: (input: Pick<CustomRecordType, 'name' | 'icon' | 'color' | 'description' | 'blocks'>) => string | null | void) {
   return addRecordType({
     name,

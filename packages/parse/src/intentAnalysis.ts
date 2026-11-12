@@ -1,5 +1,5 @@
 import { AnalysisError, isCalendarDate, validateJsonSchema } from '../../types/src/aiSchema.ts'
-import { findDatePhrases } from './parse.ts'
+import { findDatePhrases, type YearPolicy } from './parse.ts'
 import { normalizeUtterance, type ClockHint, type IntentExtraction, type MissingInfo, type UserIntent } from './intents.ts'
 import { requestStructuredOutput, type OpenAIOptions } from './openAITransport.ts'
 
@@ -73,9 +73,14 @@ function hint(value: string | null, evidence: string | null): ClockHint | null {
 
 /** Schema, evidence and relation checks. Anything unverifiable is rejected, not repaired. */
 /** The model miscounts relative dates; a phrase the rule parser can read decides the day instead. */
-function ruleDate(value: string | null, evidence: string | null, today: Date | undefined): string | null {
+function ruleDate(value: string | null, evidence: string | null, today: Date | undefined, policy: YearPolicy = 'upcoming'): string | null {
   if (!value || !evidence || !today) return value
-  return findDatePhrases(normalizeUtterance(evidence), today)[0]?.date ?? value
+  return findDatePhrases(normalizeUtterance(evidence), today, policy)[0]?.date ?? value
+}
+
+/** Same year policy as the rule layer: saved schedules are found nearest to today, diaries look back. */
+function yearPolicy(kind: string): YearPolicy {
+  return kind === 'modify' || kind === 'cancel' || kind === 'anchor' ? 'nearest' : kind === 'diary' ? 'past' : 'upcoming'
 }
 
 export function validateIntentAnalysis(value: unknown, input: string, today?: Date): IntentExtraction {
@@ -108,7 +113,7 @@ export function validateIntentAnalysis(value: unknown, input: string, today?: Da
       if (intent.boundary === 'end' && start && !end) [start, end] = [null, start]
       return {
       id: intent.id, kind: intent.kind, clause: intent.clause, title: intent.title, targetTerms: intent.targetTerms, family: intent.family,
-      date: ruleDate(intent.date, intent.dateEvidence, today), dateInherited: !intent.dateEvidence && !!intent.date, newDate: ruleDate(intent.newDate, intent.newDateEvidence, today),
+      date: ruleDate(intent.date, intent.dateEvidence, today, yearPolicy(intent.kind)), dateInherited: !intent.dateEvidence && !!intent.date, newDate: ruleDate(intent.newDate, intent.newDateEvidence, today, yearPolicy(intent.kind)),
       start, end,
       boundary: intent.boundary, shiftMinutes: intent.shiftMinutes, scope: intent.scope, afterId: intent.afterId,
       missing: intent.missing, source: 'ai' as const,

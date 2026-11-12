@@ -15,5 +15,8 @@
   "trash": "Trash",
   "pages": "Pages",
   "more": "More",
-  "allMenus": "All menus"
+  "allMenus": "All menus",
+  "manage": "Manage",
+  "calendarSettings": "Calendar settings",
+  "recurring": "Recurring schedules"
 }

@@ -30,9 +30,10 @@ export type IntentPlanOptions = { today: string; lastId?: string | null; makeId?
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 const FAMILY_LABEL: Record<RoutineFamily, string> = { work: '근무', school: '수업' }
 
-export function dayLabel(iso: string): string {
-  const [, month, day] = iso.split('-').map(Number)
-  return `${month}/${day}(${WEEKDAYS[new Date(`${iso}T00:00:00`).getDay()]})`
+/** "1/5(화)"; a day in another year than `today` carries its year ("2027/1/5(화)") so it is never mistaken for this year's. */
+export function dayLabel(iso: string, today: Date = new Date()): string {
+  const [year, month, day] = iso.split('-').map(Number)
+  return `${year !== today.getFullYear() ? `${year}/` : ''}${month}/${day}(${WEEKDAYS[new Date(`${iso}T00:00:00`).getDay()]})`
 }
 
 /** Korean particle after a quoted title: '근로'를, '회의'를, '수업'을. */
@@ -144,35 +145,38 @@ export function planIntents(extraction: IntentExtraction, items: readonly WorkIt
     if (intent.kind === 'create_event' || intent.kind === 'create_task') {
       const title = intent.title?.trim()
       if (!title) { questions.push(`'${intent.clause}'에서 무엇을 추가할지 알려 주세요.`); continue }
-      if (!intent.date) { questions.push(`${josa(title, '은는')} 언제인가요? 날짜를 알려 주세요.`); continue }
+      const event = intent.kind === 'create_event'
+      if (!intent.date && event) { questions.push(`${josa(title, '은는')} 언제인가요? 날짜를 알려 주세요.`); continue }
+      // A to-do with no day or deadline is saved undated; today is only the stored day, never a guess shown on the calendar.
+      const undated = !intent.date
+      const day = intent.date ?? options.today
       const anchor = intent.afterId ? settled.get(intent.afterId) : undefined
       const after = anchor?.date === intent.date ? anchor : undefined
       let start: string | null = null
       let end: string | null = null
-      const event = intent.kind === 'create_event'
       if (event && intent.start) {
         const read = resolveClock(intent.start, { after: after?.end ? clock(minutes(after.end) - 1) : null })
         start = read.time
         if (read.guessed) confirm.push(`'${title}' ${intent.start.hour}시를 ${start}로 이해했어요. 오전이라면 고쳐 주세요.`)
         if (intent.end) end = resolveClock(intent.end, { after: start }).time
       }
-      const deadline = !event && /까지|마감|전까지/.test(intent.clause)
+      const deadline = !event && !undated && /까지|마감|전까지/.test(intent.clause)
       const dueTime = deadline && intent.end ? resolveClock(intent.end).time : null
       const note = after?.end ? `${after.title} 끝난 뒤 ${after.end} 이후` : ''
       const input: AutoSaveInput = {
-        id: makeId(), kind: event ? 'event' : 'task', title, date: intent.date,
+        id: makeId(), kind: event ? 'event' : 'task', title, date: day, ...(undated ? { undated: true } : {}),
         startTime: start, endTime: end, duration: start && end && end > start ? minutes(end) - minutes(start) : null,
-        dueDate: deadline ? intent.date : null, dueTime, allDay: event && !start,
-        description: note, priority: 'medium', status: 'todo', repeat: 'none', categoryId: null,
+        dueDate: deadline ? day : null, dueTime, allDay: event && !start,
+        description: [note, intent.note].filter(Boolean).join('\n'), priority: 'medium', status: 'todo', repeat: 'none', categoryId: null,
       }
       if (event && !start) {
         questions.push(`${josa(title, '은는')} 몇 시인가요?${note ? ` (${note})` : ''} 알려 주시면 시간을 넣을게요. 지금은 시간 없이 저장해요.`)
         confirm.push(`'${title}' 시간이 정해지지 않았어요.`)
       }
       confirm.push(...saveConflicts(input, world))
-      const when = [dayLabel(intent.date), start ? (end ? `${start}–${end}` : start) : event ? '시간 미정' : deadline ? '까지' : ''].filter(Boolean).join(' ')
+      const when = [undated ? '날짜 없음' : dayLabel(day), start ? (end ? `${start}–${end}` : start) : event ? '시간 미정' : deadline ? '까지' : ''].filter(Boolean).join(' ')
       actions.push({ op: 'create', intentId: intent.id, input, label: `새 ${event ? '일정' : '할 일'}: ${title} · ${when}${note ? ` (${note})` : ''}` })
-      settled.set(intent.id, { date: intent.date, start, end, title })
+      settled.set(intent.id, { date: day, start, end, title })
       continue
     }
 
@@ -279,7 +283,13 @@ export function describeIntentPlan(plan: IntentPlan, done = false): string {
   return lines.join('\n')
 }
 
-export type IntentRunResult = { saved: WorkItem[]; failed: { label: string; reason: string }[]; records: number }
+export type IntentRunResult = {
+  saved: WorkItem[]
+  failed: { label: string; reason: string }[]
+  records: number
+  /** Only the actions that did not land and may be retried: a retry neither repeats saved work nor drops failed work. */
+  remaining: IntentPlan | null
+}
 
 /**
  * Runs each action on its own: one failure never undoes the others, and a target edited or deleted
@@ -291,7 +301,12 @@ export async function runIntentPlan(plan: IntentPlan, deps: {
   createBatch: (inputs: AutoSaveInput[]) => Promise<WorkItem[]>
   saveRecord: (text: string, type: 'memo' | 'diary') => void
 }): Promise<IntentRunResult> {
-  const result: IntentRunResult = { saved: [], failed: [], records: 0 }
+  const result: IntentRunResult = { saved: [], failed: [], records: 0, remaining: null }
+  const retry = new Set<IntentAction>()
+  const fail = (action: IntentAction, error: unknown) => {
+    retry.add(action)
+    result.failed.push({ label: action.label, reason: error instanceof Error ? error.message : '저장하지 못했어요.' })
+  }
   const live = new Map(deps.items.map(item => [item.id, item]))
   const creates = plan.actions.filter((action): action is Extract<IntentAction, { op: 'create' }> => action.op === 'create')
   for (const action of plan.actions) {
@@ -306,13 +321,22 @@ export async function runIntentPlan(plan: IntentPlan, deps: {
       const saved = await deps.commitChange(action.changes)
       result.saved.push(...saved.created, ...saved.updated)
     } catch (error) {
-      result.failed.push({ label: action.label, reason: error instanceof Error ? error.message : '저장하지 못했어요.' })
+      fail(action, error)
     }
   }
   if (creates.length) {
     try { result.saved.push(...await deps.createBatch(creates.map(action => action.input))) }
-    catch (error) { for (const action of creates) result.failed.push({ label: action.label, reason: error instanceof Error ? error.message : '저장하지 못했어요.' }) }
+    catch (error) {
+      // The batch is one insert, so one bad item fails all. Each item is then tried alone so the good ones land;
+      // ids are fixed, so an item already written is matched rather than copied.
+      if (creates.length === 1) fail(creates[0], error)
+      else for (const action of creates) {
+        try { result.saved.push(...await deps.createBatch([action.input])) } catch (single) { fail(action, single) }
+      }
+    }
   }
+  // A change skipped because its target moved since the preview is not retried: the plan no longer fits it.
+  if (retry.size) result.remaining = { ...plan, actions: plan.actions.filter(action => retry.has(action)) }
   return result
 }
 

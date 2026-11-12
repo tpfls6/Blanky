@@ -65,23 +65,26 @@ const owner = '11111111-1111-4111-8111-111111111111'
 const library = 'blanky.library.' + owner
 const count = () => evaluate('JSON.parse(localStorage.getItem(' + q(library) + ') || "{}").diaries?.length ?? 0')
 async function saved() { await wait('document.querySelector(".diary-save-footer [role=status]")?.textContent === "저장됨"', 'autosave') }
-async function screenshot(name) { const result = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }); await writeFile('.tmp/diary-tests/' + name + '.png', Buffer.from(result.data, 'base64')) }
-await mkdir('.tmp/diary-tests', { recursive: true })
+async function screenshot(name) { const result = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }); await writeFile(join(out, name + '.png'), Buffer.from(result.data, 'base64')) }
+// Evidence goes to BLANKY_AUDIT_DIR when set, so runs can keep the checked-in .tmp copies untouched.
+const out = process.env.BLANKY_AUDIT_DIR ? join(process.env.BLANKY_AUDIT_DIR, 'diary-tests') : '.tmp/diary-tests'
+await mkdir(out, { recursive: true })
 const checks = []
 try {
   await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
-  await send('Page.addScriptToEvaluateOnNewDocument', { source: 'if(location.origin === ' + q(base) + ' && !localStorage.getItem("blanky.diary.test.seeded")){ localStorage.setItem("blanky.accounts.v1",JSON.stringify([{id:' + q(owner) + ',name:"Diary Test",nickname:"테스트",email:"diary-test@example.test",password:"test-only",avatar:null}]));localStorage.setItem("blanky.session.v1",' + q(owner) + ');localStorage.setItem(' + q(library) + ',JSON.stringify({items:[],categories:[],settings:{},diaries:[]}));localStorage.setItem("blanky.diary.test.seeded","1"); }' })
+  // The customization tour is marked done: on first visit it switches /custom to its templates tab, racing the theme step below.
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: 'if(location.origin === ' + q(base) + ' && !localStorage.getItem("blanky.diary.test.seeded")){ localStorage.setItem("blanky.accounts.v1",JSON.stringify([{id:' + q(owner) + ',name:"Diary Test",nickname:"테스트",email:"diary-test@example.test",password:"test-only",avatar:null}]));localStorage.setItem("blanky.session.v1",' + q(owner) + ');localStorage.setItem(' + q(library) + ',JSON.stringify({items:[],categories:[],settings:{onboardingPages:["custom"]},diaries:[]}));localStorage.setItem("blanky.diary.test.seeded","1"); }' })
   await evaluate('if(location.origin === ' + q(base) + ') localStorage.clear()')
   await navigate(base + '/diary')
   await wait('!!document.querySelector(".diary-new") && !document.querySelector(".diary-new").disabled', 'diary loaded')
   assert.equal(await count(), 0)
   await click('.diary-new'); await wait('!!document.querySelector(".diary-body-input")', 'new editor')
   await pause(1100); assert.equal(await count(), 0); checks.push('Empty new draft creates no record')
-  await fill('[aria-label="기록 본문"]', '오늘 학교 끝나고 프로젝트 회의를 했다. 따뜻한 커피도 마셨다.')
+  await fill('.diary-body-input', '오늘 학교 끝나고 프로젝트 회의를 했다. 따뜻한 커피도 마셨다.')
   await saved(); assert.equal(await count(), 1); checks.push('New entry and debounced autosave')
   await click('[aria-label="기쁨"]'); await click('[aria-label="흐림"]'); await click('[aria-label="즐겨찾기 추가"]')
-  await fill('[aria-label="기록 태그"]', '#학교, #프로젝트, #학교')
+  await fill('.diary-tags input', '#학교, #프로젝트, #학교')
   await saved()
   const stored = await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).diaries[0]')
   assert.equal(stored.mood, 'happy'); assert.equal(stored.weather, 'cloudy'); assert.equal(stored.isFavorite, true); assert.deepEqual(stored.tags, ['학교', '프로젝트'])
@@ -89,9 +92,9 @@ try {
   assert.equal(await evaluate('document.querySelector(".diary-entry-title span").textContent'), '오늘 학교 끝나고 프로젝트 회의를 했다')
   checks.push('Automatic first-sentence title')
   await screenshot('desktop-light')
-  await click('.diary-new'); await wait('!!document.querySelector(".diary-title-input") && !document.querySelector(".diary-writing-fields").disabled', 'new draft ready'); await fill('[aria-label="기록 제목"]', '두 번째 기록'); await fill('[aria-label="기록 본문"]', '산책하며 새로운 생각을 했다.')
+  await click('.diary-new'); await wait('!!document.querySelector(".diary-title-input") && !document.querySelector(".diary-writing-fields").disabled', 'new draft ready'); await fill('.diary-title-input', '두 번째 기록'); await fill('.diary-body-input', '산책하며 새로운 생각을 했다.')
   await saved(); assert.equal(await count(), 2)
-  await fill('[aria-label="기록 본문"]', '산책하며 새로운 생각을 했다. 저장 중인 메모')
+  await fill('.diary-body-input', '산책하며 새로운 생각을 했다. 저장 중인 메모')
   await click('.diary-list-star')
   await wait('document.querySelector(".diary-list-star")?.getAttribute("aria-pressed") === "true" && !document.querySelector(".diary-list-star").disabled', 'selected list favorite saved')
   assert.equal(await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).diaries.find(e => e.title === "두 번째 기록").body'), '산책하며 새로운 생각을 했다. 저장 중인 메모')
@@ -119,7 +122,7 @@ try {
   checks.push('Month navigation, day filtering and new draft date from calendar selection')
   await button('즐겨찾기'); assert.equal(await evaluate('document.querySelectorAll(".diary-entry").length'), 1)
   await click('.diary-entry'); await wait('document.querySelector(".diary-body-input").value.includes("프로젝트")', 'select favorite')
-  await fill('[aria-label="기록 본문"]', '수정한 프로젝트 회의 기록. 오늘은 더 편안했다.')
+  await fill('.diary-body-input', '수정한 프로젝트 회의 기록. 오늘은 더 편안했다.')
   await saved(); checks.push('Favorite tab, entry selection and content editing')
   await button('기록'); await fill('[aria-label="기록 검색"]', '더 편안했다'); await pause(100)
   assert.equal(await evaluate('document.querySelectorAll(".diary-entry").length'), 1)
@@ -145,8 +148,8 @@ try {
   checks.push('Mobile calendar date to record editor navigation')
   checks.push('Mobile list/editor navigation and no horizontal overflow')
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
-  await navigate(base + '/settings/appearance'); await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "Dark")', 'appearance settings')
-  await button('Dark'); await wait('document.documentElement.classList.contains("dark")', 'dark theme applied')
+  await navigate(base + '/settings/appearance'); await wait('[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "다크")', 'appearance settings')
+  await button("다크"); await wait('document.documentElement.classList.contains("dark")', 'dark theme applied')
   await navigate(base + '/diary'); await wait('!!document.querySelector(".diary-workspace")', 'dark diary')
   assert.equal(await evaluate('getComputedStyle(document.querySelector(".diary-workspace")).backgroundColor'), 'rgb(28, 28, 28)')
   await wait('!!document.querySelector(".diary-entry")', 'dark entries'); await click('.diary-entry'); await wait('!!document.querySelector(".diary-body-input")', 'dark editor'); await screenshot('desktop-dark'); checks.push('Appearance dark theme reflected in diary')
@@ -155,13 +158,14 @@ try {
   await click('[aria-label="기록 삭제"]'); await button('삭제'); await wait('!document.querySelector("dialog").open && document.querySelectorAll(".diary-entry").length === 1', 'delete confirmed')
   await navigate(); await wait('document.querySelectorAll(".diary-entry").length === 1', 'deleted record stays deleted')
   checks.push('Delete confirmation/cancel and persistent deletion')
-  await click('.diary-new'); await fill('[aria-label="기록 본문"]', '새로고침 직전 임시 기록')
+  await click('.diary-new'); await fill('.diary-body-input', '새로고침 직전 임시 기록')
   await navigate(); await wait('document.querySelector(".diary-body-input")?.value === "새로고침 직전 임시 기록" || [...document.querySelectorAll(".diary-entry-title span")].some(el => el.textContent === "새로고침 직전 임시 기록")', 'pending edit preserved')
   if (!await evaluate('!!document.querySelector(".diary-body-input")')) await click('.diary-entry')
   await saved(); assert.equal(await count(), 2); checks.push('Pending draft survives immediate refresh and saves once')
   await navigate(base + '/settings/themes')
   await wait('[...document.querySelectorAll("article")].some(a => a.textContent.includes("Soft Pink"))', 'theme library')
-  await evaluate('[...document.querySelectorAll("article")].find(a => a.textContent.includes("Soft Pink")).parentElement.querySelector("button").click()')
+  // The card now holds its own 적용 button; its parent is the whole grid, whose first button applies another theme.
+  await evaluate('[...[...document.querySelectorAll("article")].find(a => a.textContent.includes("Soft Pink")).querySelectorAll("button")].find(b => b.textContent.trim() === "적용").click()')
   await wait('document.querySelector(".blanky-themed")?.style.getPropertyValue("--surface") === "#fff4f8"', 'Soft Pink applied')
   await navigate(base + '/diary'); await wait('!!document.querySelector(".diary-entry")', 'themed diary')
   assert.equal(await evaluate('getComputedStyle(document.querySelector(".diary-workspace")).backgroundColor'), 'rgb(255, 244, 248)')
@@ -170,7 +174,7 @@ try {
   checks.push('Theme Provider applies Soft Pink surface, text and accent colors')
   assert.equal(errors.length, 0, errors.join('\n'))
   console.log(JSON.stringify({ passed: checks, browserErrors: errors }, null, 2))
-  await writeFile('.tmp/diary-tests/results.json', JSON.stringify({ passed: checks, browserErrors: errors }, null, 2))
+  await writeFile(join(out, 'results.json'), JSON.stringify({ passed: checks, browserErrors: errors }, null, 2))
 } catch (error) { console.error(await evaluate("JSON.stringify({text:document.body.innerText,url:location.href,ready:document.readyState})")); console.error(errors); console.error(serverOutput); console.error('exit',server.exitCode); console.error(JSON.stringify(diagnostics.filter(item => item.method === 'Network.loadingFailed' || item.params.type === 'error'))); throw error } finally {
   ws.close(); server.kill()
   const stopped = new Promise(resolve => browser.once('exit', resolve)); browser.kill(); await stopped

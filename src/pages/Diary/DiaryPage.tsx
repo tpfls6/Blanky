@@ -1,5 +1,6 @@
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ArrowLeft, BookOpen, CalendarDays, List, Check, LoaderCircle, Plus, Search, Star, Trash2 } from 'lucide-react'
 import { PageCanvas } from '../../features/pages/PageCanvas.tsx'
 import { resolveLayout } from '../../features/pages/layout.ts'
@@ -43,11 +44,14 @@ export type DiaryWorkspaceProps = {
   error?: string
   save?: (entry: DiaryEntry) => Promise<DiaryEntry>
   remove?: (id: string) => Promise<void>
+  /** Opens this entry once it has loaded (Home's 보기). */
+  openId?: string
 }
 
 export function DiaryPage({ editing = false }: { editing?: boolean }) {
   const { user } = useSession()
-  return <DiaryWorkspace key={user?.id ?? 'guest'} userId={user?.id ?? ''} editing={editing} />
+  const openId = (useLocation().state as { openId?: unknown } | null)?.openId
+  return <DiaryWorkspace key={user?.id ?? 'guest'} userId={user?.id ?? ''} editing={editing} openId={typeof openId === 'string' ? openId : undefined} />
 }
 export function DiaryWorkspace({
   userId,
@@ -62,6 +66,7 @@ export function DiaryWorkspace({
   error: errorProp,
   save: saveProp,
   remove: removeProp,
+  openId,
 }: DiaryWorkspaceProps) {
   const { t, locale } = useI18n()
   const library = useLibrary()
@@ -182,6 +187,16 @@ export function DiaryWorkspace({
     setShowEditor(true); setBusy(false)
     if (!entry) window.setTimeout(() => titleInput.current?.focus(), 0)
   }
+  const openRef = useRef(open)
+  useEffect(() => { openRef.current = open })
+  const opened = useRef(false)
+  useEffect(() => {
+    if (opened.current || !openId || diaryLoading) return
+    const entry = diaries.find(row => row.id === openId)
+    if (!entry) return
+    opened.current = true
+    void openRef.current(entry)
+  }, [openId, diaryLoading, diaries])
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase()
     return diaries.filter(entry => (tab !== 'favorites' || entry.isFavorite) &&

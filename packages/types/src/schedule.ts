@@ -28,16 +28,22 @@ export type Schedule = {
   allDay?: boolean
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
   repeatDays?: number[]
+  /** Every N days/weeks/months (custom repeat). Absent or 1 is the plain rule. */
+  repeatInterval?: number
   /** Series end (inclusive). Absent when the column is not migrated yet. */
   repeatUntil?: string | null
   /** Original row of a split recurring series. Absent when the column is not migrated yet. */
   seriesId?: string | null
+  /** Task with no date: `date` holds the save day only. Absent when the column is not migrated yet. */
+  undated?: boolean
   changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
 
   id: string
   userId: string
   calendarId: string
   createdByUserId: string | null
+  /** Last person who changed the row. Absent before the shared calendar migration. */
+  updatedByUserId?: string | null
   title: string
   description: string
   date: string
@@ -66,8 +72,10 @@ export type ScheduleDraft = {
   allDay?: boolean
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly'
   repeatDays?: number[]
+  repeatInterval?: number
   repeatUntil?: string | null
   seriesId?: string | null
+  undated?: boolean
   changeSource?: 'manual' | 'ai_chat' | 'calendar_sync'
 
   calendarId?: string

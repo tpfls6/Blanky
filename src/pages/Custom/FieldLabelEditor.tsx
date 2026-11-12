@@ -1,4 +1,4 @@
-import { DEFAULT_FIELD_LABELS, FIELD_KEYS, isTextKey, type PageTemplateKind } from '../../features/pages/templates.ts'
+import { defaultFieldLabels, FIELD_KEYS, isTextKey, type PageTemplateKind } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 
 /** Inputs for a template's field labels, with page-wide words (책, 서재…) in their own group. */
@@ -16,8 +16,8 @@ export function FieldLabelEditor({
   showDefaults?: boolean
   className?: string
 }) {
-  const { t } = useI18n()
-  const defaults = DEFAULT_FIELD_LABELS[template] as Record<string, string>
+  const { t, locale } = useI18n()
+  const defaults = defaultFieldLabels(template, locale, t)
   const keys = FIELD_KEYS[template] as readonly string[]
   const fields = keys.filter((key) => !isTextKey(template, key))
   const words = keys.filter((key) => isTextKey(template, key))

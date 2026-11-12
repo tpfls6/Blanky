@@ -114,8 +114,9 @@ try {
 
   const cell = iso => `document.querySelector('[data-calendar-cell="${iso}"]')`
   const ids = iso => evaluate(`[...${cell(iso)}.querySelectorAll('[data-calendar-item]')].map(e => e.dataset.calendarItem)`)
-  const details = 'document.querySelectorAll("[aria-expanded=true]").length'
-  const escape = () => evaluate('window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}))')
+  // Details open in the draft sheet (a modal dialog); older layouts expanded the row in place.
+  const details = '(document.querySelectorAll("dialog[open].schedule-draft-panel").length + document.querySelectorAll("[aria-expanded=true]").length)'
+  const escape = () => evaluate('(() => { const close = document.querySelector("dialog[open].schedule-draft-panel button[aria-label=닫기]"); if (close) close.click(); else window.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true})) })()')
   const radio = label => `[...document.querySelectorAll('[role=radio]')].find(b => b.textContent.trim() === ${q(label)})`
   const setView = async (label) => {
     await navigate(base + '/settings/calendar')
@@ -228,7 +229,12 @@ try {
     assert.equal(await evaluate('(() => { const g = document.querySelector("[data-calendar-view=detailed]"); return g.scrollWidth <= g.clientWidth + 1 })()'), true, 'no grid overflow ' + width)
     assert.equal(await evaluate(`[...document.querySelectorAll('[data-calendar-cell]')].every(c => { const r = c.getBoundingClientRect(); return [...c.querySelectorAll('[data-calendar-item],[data-calendar-more]')].every(e => e.getBoundingClientRect().right <= r.right + 1) })`), true, 'entries fit cells ' + width)
     const title = `${cell('2026-10-22')}.querySelector('[data-calendar-item=weekly] span:last-child')`
-    assert.equal(await evaluate(`getComputedStyle(${title}).textOverflow`), 'ellipsis', 'ellipsis ' + width)
+    // Narrow grids (phone, the web side column) clip titles like the phone calendar; wide grids use an ellipsis.
+    assert.ok(['ellipsis', 'clip'].includes(await evaluate(`getComputedStyle(${title}).textOverflow`)), 'truncated title ' + width)
+    // Phone design on every width: no column dividers, all-day labels fill the cell, timed entries keep the tint + left mark.
+    assert.equal(await evaluate(`parseFloat(getComputedStyle(${cell('2026-10-15')}).borderRightWidth)`), 0, 'no column divider ' + width)
+    assert.equal(await evaluate(`(() => { const c = ${cell('2026-10-29')}.getBoundingClientRect(), e = ${cell('2026-10-29')}.querySelector('[data-calendar-item=allday]').getBoundingClientRect(); return c.width - e.width <= 5 })()`), true, 'all-day fills cell ' + width)
+    assert.equal(await evaluate(`${cell('2026-10-15')}.querySelector('[data-calendar-item=dentist]').dataset.calendarStyle`), 'mark', 'timed entry mark ' + width)
     await evaluate('document.querySelector("[data-calendar-view=detailed]").scrollIntoView({block:"center"})'); await pause(100)
     const shot = await send('Page.captureScreenshot', { format: 'png' })
     await writeFile(join(shots, `detailed-${width}.png`), Buffer.from(shot.data, 'base64'))

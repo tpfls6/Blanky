@@ -146,7 +146,7 @@ type Cell = { iso: string; inMonth: boolean; day: number }
 function colorOf(item: WorkItem, categories: WorkspaceCategory[]): string {
   const category = categories.find((entry) => entry.id === item.categoryId)
   const parent = category?.parentId ? categories.find((entry) => entry.id === category.parentId) : undefined
-  return category?.color || parent?.color || 'var(--accent-color)'
+  return item.calendarColor || category?.color || parent?.color || 'var(--accent-color)'
 }
 
 /** Text color that stays readable on a filled label of `color`; undefined for non-hex colors (theme accent). */
@@ -256,7 +256,7 @@ function DetailedMonth({ cells, labels, items, categories, holidays, selected, t
             <span key={label} className={label === '일' ? 'cal-holiday-soft' : ''}>{label}</span>
           ))}
         </div>
-        <div data-calendar-view="detailed" className="grid grid-cols-7 overflow-hidden rounded-lg border border-line text-xs">
+        <div data-calendar-view="detailed" className="grid grid-cols-7 border-t border-line text-xs">
           {cells.map((cell) => {
             const active = cell.iso === selected
             const isToday = cell.iso === today
@@ -275,13 +275,13 @@ function DetailedMonth({ cells, labels, items, categories, holidays, selected, t
                 data-holiday={!!dayHolidays}
                 onClick={() => onSelect(cell.iso)}
                 className={[
-                  // Clip 1px past the padding box so a multi-day bar can cover the divider to the next day.
-                  'flex min-h-22 min-w-0 cursor-pointer flex-col gap-0.5 [overflow:clip] [overflow-clip-margin:1px] border-line p-1 transition-colors duration-150 @2xl:min-h-28 @2xl:p-1.5',
-                  '[&:not(:nth-child(7n))]:border-r [&:nth-last-child(n+8)]:border-b',
+                  // Like the phone calendar: week rows split by a line, no column dividers, entries nearly edge to edge.
+                  // Clip 1px past the padding box so a multi-day bar meets the next day's piece.
+                  'flex min-h-22 min-w-0 cursor-pointer flex-col gap-0.5 [overflow:clip] [overflow-clip-margin:1px] border-b border-line px-0.5 py-1 transition-colors duration-150 @2xl:min-h-28 @2xl:gap-1',
                   active ? 'bg-accent/8 shadow-[inset_0_0_0_1.5px_var(--accent-color)]' : 'hover:bg-hover',
                 ].join(' ')}
               >
-                <div className={['flex min-w-0 flex-col items-start gap-px @lg:flex-row @lg:items-center @lg:gap-1', cell.inMonth ? '' : 'opacity-40'].join(' ')}>
+                <div className={['flex min-w-0 flex-col items-start gap-px px-0.5 @lg:flex-row @lg:items-center @lg:gap-1', cell.inMonth ? '' : 'opacity-40'].join(' ')}>
                   {/* Keyboard access; a click bubbles to the cell. */}
                   <button
                     aria-label={cell.iso}
@@ -309,7 +309,7 @@ function DetailedMonth({ cells, labels, items, categories, holidays, selected, t
                   {shown.map((row, index) => row ? (
                     <CalendarEntry key={row.item.id} item={row.item} color={colorOf(row.item, categories)} segment={row.segment} onOpen={onOpen} />
                   ) : (
-                    <div key={`lane-${index}`} data-calendar-lane className="h-4.5 @2xl:h-5" />
+                    <div key={`lane-${index}`} data-calendar-lane className="h-4 @2xl:h-5" />
                   ))}
                   {overflow ? (
                     <button
@@ -317,7 +317,7 @@ function DetailedMonth({ cells, labels, items, categories, holidays, selected, t
                       data-calendar-more={cell.iso}
                       onClick={(event) => { event.stopPropagation(); onSelect(cell.iso) }}
                       aria-label={`${hidden}개 더보기`}
-                      className="w-full truncate rounded px-1 text-left text-[10px] font-medium leading-4 text-neutral-500 hover:bg-hover hover:text-neutral-800 @2xl:text-[11px]"
+                      className="w-full truncate rounded px-1 text-left text-[10px] font-medium leading-4 text-neutral-500 hover:bg-hover hover:text-neutral-800 @2xl:text-xs @2xl:leading-5"
                     >
                       +{hidden}개
                     </button>
@@ -356,10 +356,10 @@ function CalendarEntry({ item, color, segment, onOpen }: { item: WorkItem; color
       className={[
         'cal-entry flex min-w-0 items-center text-left transition-[filter] duration-150 hover:brightness-95',
         filled ? 'cal-entry-fill font-medium' : 'cal-entry-mark',
-        'gap-1 rounded px-1 py-px text-[10px] leading-4 @2xl:px-1.5 @2xl:text-[11.5px] @2xl:leading-[18px]',
-        // Bars reach through the cell padding and divider so a multi-day event reads as one band.
-        segment?.joinLeft ? '-ml-1 @2xl:-ml-1.5' : '',
-        segment?.joinRight ? '-mr-[5px] @2xl:-mr-[7px]' : '',
+        'gap-1 rounded-[3px] px-1 py-px text-[10px] leading-4 @2xl:px-1.5 @2xl:text-xs @2xl:leading-5',
+        // Bars reach through the cell padding so a multi-day event reads as one band (no column dividers to cover).
+        segment?.joinLeft ? '-ml-0.5' : '',
+        segment?.joinRight ? '-mr-0.5' : '',
         segment?.openLeft ? 'rounded-l-none' : '',
         segment?.openRight ? 'rounded-r-none' : '',
         segment ? '' : 'w-full',

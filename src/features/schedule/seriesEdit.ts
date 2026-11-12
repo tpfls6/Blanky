@@ -16,7 +16,7 @@ export type SeriesChange = {
 }
 
 /** Fields that only make sense for the whole rule; ignored for a single occurrence. */
-const RULE_FIELDS = ['date', 'endDate', 'repeat', 'repeatDays', 'repeatUntil'] as const
+const RULE_FIELDS = ['date', 'endDate', 'repeat', 'repeatDays', 'repeatInterval', 'repeatUntil'] as const
 
 // Monthly rules on the 29th–31st can skip up to two months; a year is plenty.
 const SEARCH_DAYS = 400
@@ -111,7 +111,7 @@ export function planSeriesPatch(item: WorkItem, selected: string, scope: SeriesS
     const rest = copy(item, { ...fields, repeatUntil: 'repeatUntil' in patch ? patch.repeatUntil : item.repeatUntil })
     return { update: { item, patch: { repeatUntil: shiftISO(selected, -1) } }, create: rest ? [rest] : [] }
   }
-  const single = copy(item, { ...withoutRuleFields(patch), ...ruleAt(item, selected), repeat: 'none', repeatDays: [], repeatUntil: null })
+  const single = copy(item, { ...withoutRuleFields(patch), ...ruleAt(item, selected), repeat: 'none', repeatDays: [], repeatInterval: 1, repeatUntil: null })
   const without = planSeriesDelete(item, selected, 'this')
   return { ...without, create: [...(without.create ?? []), ...(single ? [single] : [])] }
 }
@@ -261,6 +261,44 @@ export function previewSeriesChange(current: WorkItem | WorkItem[], changes: Ser
     day = shiftISO(day, 1)
   }
   return rows
+}
+
+// --- One opened occurrence: the editor and the checkbox ---
+
+const EDITABLE = ['kind', 'title', 'description', 'date', 'endDate', 'startTime', 'endTime', 'duration', 'categoryId', 'priority', 'status',
+  'dueDate', 'dueTime', 'allDay', 'repeat', 'repeatDays', 'repeatInterval', 'repeatUntil', 'calendarId'] as const
+
+/** Fields the editor changed, compared by value. */
+export function workPatch(before: WorkItem, after: WorkItem): WorkPatch {
+  const patch: Record<string, unknown> = {}
+  for (const key of EDITABLE) {
+    const left = before[key] ?? null, right = after[key] ?? null
+    if (JSON.stringify(left) !== JSON.stringify(right) && !(key === 'repeatInterval' && (left ?? 1) === (right ?? 1))) patch[key] = after[key] ?? null
+  }
+  return patch as WorkPatch
+}
+
+export class SeriesScopeError extends Error {}
+
+/**
+ * Saves (`after`) or deletes (`after` null) the `occurrence` of recurring `row` with the chosen scope.
+ * The editor shows the occurrence's own day as the date, so a different date moves the occurrence ('this')
+ * or shifts the whole series by the same number of days ('all').
+ */
+export function planOccurrenceEdit(items: readonly WorkItem[], row: WorkItem, occurrence: string, scope: SeriesScope, after: WorkItem | null): SeriesChange[] {
+  const group = groupSeries(items).find(entry => groupMembers(entry).some(member => member.id === row.id))
+  if (!group || !isRecurring(row)) return [after ? { update: { item: row, patch: workPatch(row, after) } } : { remove: row }]
+  if (!after) return planGroupDelete(group, occurrence, scope)
+  const patch = workPatch(row, { ...after, date: after.date === occurrence ? row.date : after.date })
+  const moved = 'date' in patch ? patch.date! : null
+  delete patch.date
+  if (moved && scope === 'future') throw new SeriesScopeError('이후 전체에 적용할 때는 날짜를 옮길 수 없어요. 날짜는 그대로 두거나 반복 일정 관리에서 시작일을 바꿔 주세요.')
+  if (moved && scope === 'this') {
+    const single = copy(row, { ...withoutRuleFields(patch), ...ruleAt(row, moved), repeat: 'none', repeatDays: [], repeatInterval: 1, repeatUntil: null })
+    return [...planGroupDelete(group, occurrence, 'this'), { create: single ? [single] : [] }]
+  }
+  if (moved && scope === 'all') patch.date = shiftISO(group.segments[0].date, daySpan(occurrence, moved))
+  return Object.keys(patch).length ? planGroupPatch(group, occurrence, scope, patch) : []
 }
 
 type Commit = (before: WorkItem | null, after: WorkItem | null) => Promise<WorkItem | null>

@@ -48,23 +48,32 @@ function query(client: DbClient, table: string): Query {
   return client.from(table) as Query
 }
 
-/** Series end column from migration 20261029200000. */
-function repeatUntil(recurrence: SnapshotRow['recurrence']): { repeat_until: string | null } {
-  return { repeat_until: recurrence.freq !== 'none' && recurrence.until ? recurrence.until : null }
+/** Series end (migration 20261029200000) and custom interval (migration 20261106120000) columns. */
+function repeatColumns(recurrence: SnapshotRow['recurrence']): { repeat_until: string | null; repeat_interval: number } {
+  return {
+    repeat_until: recurrence.freq !== 'none' && recurrence.until ? recurrence.until : null,
+    repeat_interval: recurrence.freq !== 'none' ? recurrence.interval ?? 1 : 1,
+  }
 }
 
 /**
- * Writes with repeat_until, retrying without it on a database that has not run the migration yet,
- * as long as there is no series end to lose. A real end date still fails loudly.
+ * Writes with the repeat columns, retrying without one on a database that has not run its migration yet,
+ * as long as it holds only its default. A real end date or interval still fails loudly.
  */
 async function withRepeatUntil<T extends { error: { message: string; code?: string } | null }>(
   recurrence: SnapshotRow['recurrence'],
-  write: (columns: { repeat_until?: string | null }) => PromiseLike<T>,
+  write: (columns: { repeat_until?: string | null; repeat_interval?: number }) => PromiseLike<T>,
 ): Promise<T> {
-  const columns = repeatUntil(recurrence)
-  const result = await write(columns)
-  const missing = result.error && /repeat_until/.test(result.error.message) && (result.error.code === '42703' || result.error.code === 'PGRST204' || /column/i.test(result.error.message))
-  return missing && !columns.repeat_until ? write({}) : result
+  const columns: { repeat_until?: string | null; repeat_interval?: number } = repeatColumns(recurrence)
+  for (let attempt = 0; ; attempt++) {
+    const result = await write(columns)
+    const error = result.error
+    const missingColumn = error && (error.code === '42703' || error.code === 'PGRST204' || /column/i.test(error.message))
+    if (!missingColumn || attempt > 1) return result
+    if (/repeat_until/.test(error.message) && 'repeat_until' in columns && !columns.repeat_until) delete columns.repeat_until
+    else if (/repeat_interval/.test(error.message) && 'repeat_interval' in columns && columns.repeat_interval === 1) delete columns.repeat_interval
+    else return result
+  }
 }
 
 async function one(result: PromiseLike<{ data: unknown; error: { message: string } | null }>, fallback = 'Calendar 저장소를 읽지 못했습니다.'): Promise<unknown> {

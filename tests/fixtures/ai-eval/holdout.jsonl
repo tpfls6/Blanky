@@ -1,0 +1,63 @@
+// Blanky held-out NL eval set (independent of implementation). Reference date 2026-11-09 (Mon), Asia/Seoul. Expect fields only include what the sentence clearly determines; other fields are intentionally omitted.
+{"id":"ho-001","text":"낼 오후 3시 치과 예약 잡아줘","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-10","startTime":"15:00"}}
+{"id":"ho-002","text":"담주 금욜 저녁 7시에 동기들이랑 저녁약속","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-20","startTime":"19:00"}}
+{"id":"ho-003","text":"낼모레 아침 10시 반 필라테스","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-11","startTime":"10:30"}}
+{"id":"ho-004","text":"토욜 점심 12시반에 엄마랑 밥먹기로함","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-14","startTime":"12:30"}}
+{"id":"ho-005","text":"담달 3일 오후2시 세미나 있음 등록해줘","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-12-03","startTime":"14:00"}}
+{"id":"ho-006","text":"이번주 목욜 오후 6시부터 10시까지 알바","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-12","startTime":"18:00","endTime":"22:00"}}
+{"id":"ho-007","text":"수욜 오전 11시에 면접;; 까먹지않게 넣어줘","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-11","startTime":"11:00"}}
+{"id":"ho-008","text":"글피 저녁8시 동아리 회의","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-12","startTime":"20:00"}}
+{"id":"ho-009","text":"레포트 금욜까지 제출해야됨 할일에 넣어줘","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["task"],"dueDate":"2026-11-13"}}
+{"id":"ho-010","text":"다다음주 화요일 오후 4시 교수님 면담ㅋㅋ 긴장됨","tags":["colloquial"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-24","startTime":"16:00"}}
+{"id":"ho-011","text":"1월 5일 오후 2시 건강검진","tags":["yearless"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2027-01-05","startTime":"14:00"}}
+{"id":"ho-012","text":"1월15일까지 연말정산 서류 회사에 내기","tags":["yearless"],"expect":{"capture":"conversation","items":1,"types":["task"],"dueDate":"2027-01-15"}}
+{"id":"ho-013","text":"2월14일 저녁 7시 레스토랑 예약 해둔거 일정에 넣어줘","tags":["yearless"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2027-02-14","startTime":"19:00"}}
+{"id":"ho-014","text":"3월 2일 개강","tags":["yearless"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2027-03-02"}}
+{"id":"ho-015","text":"12월 30일부터 1월 2일까지 제주도 여행","tags":["yearless"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-12-30"}}
+{"id":"ho-016","text":"11월 3일 오후 1시에 치과 다녀온거 일정에 기록해줘","tags":["yearless"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-03","startTime":"13:00"}}
+{"id":"ho-017","text":"8월 15일 오전 10시 사촌형 결혼식","tags":["yearless"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2027-08-15","startTime":"10:00"}}
+{"id":"ho-018","text":"12/12 오후 5시 독서모임 송년회","tags":["yearless"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-12-12","startTime":"17:00"}}
+{"id":"ho-019","text":"ppt는 발표 전날까지 끝내야 하고 발표는 담주 수요일 오후 2시야","tags":["relative","multi-intent"],"expect":{"capture":"conversation","items":2,"types":["task","event"],"dueDate":"2026-11-17"}}
+{"id":"ho-020","text":"면접 전날 저녁 8시 모의면접 연습, 면접은 이번 주 금욜 오전 10시","tags":["relative","multi-intent"],"expect":{"capture":"conversation","items":2,"types":["event","event"],"date":"2026-11-12","startTime":"20:00"}}
+{"id":"ho-021","text":"세미나 이틀 전까지 자료 정리하기. 세미나는 11월 20일 오후 3시","tags":["relative","multi-intent"],"expect":{"capture":"conversation","items":2,"types":["task","event"],"dueDate":"2026-11-18"}}
+{"id":"ho-022","text":"치과 가는날 다음날 아침 9시에 재검, 치과는 낼 오후 4시","tags":["relative","multi-intent"],"expect":{"capture":"conversation","items":2,"types":["event","event"],"date":"2026-11-11","startTime":"09:00"}}
+{"id":"ho-023","text":"담주 월욜 오전 9시 독서모임 발제, 그 전날까지 책 다 읽기","tags":["relative","multi-intent"],"expect":{"capture":"conversation","items":2,"types":["event","task"],"date":"2026-11-16","startTime":"09:00"}}
+{"id":"ho-024","text":"11월 25일 동아리 공연이고 공연 일주일 전까지 대관 신청해야돼","tags":["relative","multi-intent"],"expect":{"capture":"conversation","items":2,"types":["event","task"],"date":"2026-11-25"}}
+{"id":"ho-025","text":"출장 다녀온 다음 날까지 출장보고서 제출, 출장은 이번 주 목요일","tags":["relative","multi-intent"],"expect":{"capture":"conversation","items":2,"types":["task","event"],"dueDate":"2026-11-13"}}
+{"id":"ho-026","text":"12월 4일 저녁 7시 알바 송별회, 그 다음날 오전 11시엔 브런치 약속","tags":["relative","multi-intent"],"expect":{"capture":"conversation","items":2,"types":["event","event"],"date":"2026-12-04","startTime":"19:00"}}
+{"id":"ho-027","text":"매주 수요일 저녁 8시 독서모임 등록해줘","tags":["recurrence"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-11","startTime":"20:00"}}
+{"id":"ho-028","text":"매주 월수금 아침 7시 필라테스","tags":["recurrence"],"expect":{"capture":"conversation","items":1,"types":["event"],"startTime":"07:00"}}
+{"id":"ho-029","text":"매월 20일 오후 2시 정기 상담","tags":["recurrence"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-20","startTime":"14:00"}}
+{"id":"ho-030","text":"이번주 토요일부터 격주로 오전 10시 유기견 봉사활동","tags":["recurrence"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-14","startTime":"10:00"}}
+{"id":"ho-031","text":"평일마다 아침 8시 반에 영어단어 외우기","tags":["recurrence"],"expect":{"capture":"conversation","items":1,"startTime":"08:30"}}
+{"id":"ho-032","text":"담주부터 매주 화목 오후 7시 반 테니스 레슨","tags":["recurrence"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-11-17","startTime":"19:30"}}
+{"id":"ho-033","text":"매일 밤 11시 일기쓰기 알림 맞춰줘","tags":["recurrence"],"expect":{"capture":"conversation","items":1,"startTime":"23:00"}}
+{"id":"ho-034","text":"12월부터 매주 일요일 오전 11시 교회","tags":["recurrence"],"expect":{"capture":"conversation","items":1,"types":["event"],"date":"2026-12-06","startTime":"11:00"}}
+{"id":"ho-035","text":"낼 오전 10시 치과 예약, 오후 3시엔 팀 미팅","tags":["multi-intent"],"expect":{"capture":"conversation","items":2,"types":["event","event"],"date":"2026-11-10","startTime":"10:00"}}
+{"id":"ho-036","text":"금요일까지 과제 제출하고 토요일 저녁 6시에 동아리 회식","tags":["multi-intent"],"expect":{"capture":"conversation","items":2,"types":["task","event"],"dueDate":"2026-11-13"}}
+{"id":"ho-037","text":"수욜 오후 2시 세미나, 목욜 오전 11시 면접, 금욜 저녁 7시 소개팅","tags":["multi-intent"],"expect":{"capture":"conversation","items":3,"types":["event","event","event"],"date":"2026-11-11","startTime":"14:00"}}
+{"id":"ho-038","text":"이번주 안에 보험료 납부하고 담주 화요일 오후 4시에 미용실","tags":["multi-intent"],"expect":{"capture":"conversation","items":2,"types":["task","event"]}}
+{"id":"ho-039","text":"11월 18일 오후 1시 점심약속이랑 같은날 저녁 7시 영화","tags":["multi-intent"],"expect":{"capture":"conversation","items":2,"types":["event","event"],"date":"2026-11-18","startTime":"13:00"}}
+{"id":"ho-040","text":"내일까지 보고서 초안 보내기, 모레까지 회의록 정리","tags":["multi-intent"],"expect":{"capture":"conversation","items":2,"types":["task","task"],"dueDate":"2026-11-10"}}
+{"id":"ho-041","text":"토욜 오전 9시 등산 가고 일욜 오후 2시 조카 돌잔치 그리고 담주 월요일까지 청첩장 답장하기","tags":["multi-intent"],"expect":{"capture":"conversation","items":3,"types":["event","event","task"],"date":"2026-11-14","startTime":"09:00"}}
+{"id":"ho-042","text":"담주 목요일 저녁 7시 반 독서모임하고 끝나고 밤 9시에 친구랑 술약속","tags":["multi-intent"],"expect":{"capture":"conversation","items":2,"types":["event","event"],"date":"2026-11-19","startTime":"19:30"}}
+{"id":"ho-043","text":"데미안 50쪽까지 읽었고 낼 오후 2시 팀플 회의","tags":["mixed"],"expect":{"capture":"mixed","records":["reading"],"reading":{"title":"데미안","page":50},"items":1,"types":["event"],"date":"2026-11-10","startTime":"14:00"}}
+{"id":"ho-044","text":"오늘 너무 피곤했다 ㅠ 일이 많아서 정신없었음. 금욜 저녁 8시 요가 잡아줘","tags":["mixed"],"expect":{"capture":"mixed","records":["diary"],"items":1,"types":["event"],"date":"2026-11-13","startTime":"20:00"}}
+{"id":"ho-045","text":"메모: 와이파이 비번 blanky2026! / 목요일 오전 10시 인테리어 업체 미팅","tags":["mixed"],"expect":{"capture":"mixed","records":["memo"],"items":1,"types":["event"],"date":"2026-11-12","startTime":"10:00"}}
+{"id":"ho-046","text":"오늘 동아리 첫 모임 진짜 재밌었다ㅎㅎ 다음 모임은 담주 수요일 저녁 6시래","tags":["mixed"],"expect":{"capture":"mixed","records":["diary"],"items":1,"types":["event"],"date":"2026-11-18","startTime":"18:00"}}
+{"id":"ho-047","text":"아몬드 다 읽음! 여운 장난아님ㅠ 그리고 일요일까지 독후감 제출","tags":["mixed","reading"],"expect":{"capture":"mixed","records":["reading"],"reading":{"title":"아몬드","finished":true},"items":1,"types":["task"],"dueDate":"2026-11-15"}}
+{"id":"ho-048","text":"회의 아이디어 메모해둠 - 온보딩 튜토리얼 간소화, 알림 묶음 발송. 담주 월욜 오전 10시에 기획회의 잡아줘","tags":["mixed"],"expect":{"capture":"mixed","records":["memo"],"items":1,"types":["event"],"date":"2026-11-16","startTime":"10:00"}}
+{"id":"ho-049","text":"오늘 면접 망한듯.. 그래도 끝나서 후련함. 모레 오후 1시 다른 회사 면접 있음","tags":["mixed"],"expect":{"capture":"mixed","records":["diary"],"items":1,"types":["event"],"date":"2026-11-11","startTime":"13:00"}}
+{"id":"ho-050","text":"사피엔스 120p부터 180p까지 읽음, 토욜 오전 11시 독서모임 장소 예약","tags":["mixed","reading"],"expect":{"capture":"mixed","records":["reading"],"reading":{"title":"사피엔스","startPage":120,"page":180},"items":1,"date":"2026-11-14","startTime":"11:00"}}
+{"id":"ho-051","text":"채식주의자 한강 87쪽 읽음","tags":["reading"],"expect":{"capture":"reading","records":["reading"],"reading":{"title":"채식주의자","author":"한강","page":87}}}
+{"id":"ho-052","text":"불편한 편의점 오늘 다 읽었다! 총 268쪽","tags":["reading"],"expect":{"capture":"reading","records":["reading"],"reading":{"title":"불편한 편의점","total":268,"finished":true}}}
+{"id":"ho-053","text":"코스모스 312/580","tags":["reading"],"expect":{"capture":"reading","records":["reading"],"reading":{"title":"코스모스","page":312,"total":580,"finished":false}}}
+{"id":"ho-054","text":"김영하 작별인사 30페이지에서 75페이지까지 읽었음","tags":["reading"],"expect":{"capture":"reading","records":["reading"],"reading":{"title":"작별인사","author":"김영하","startPage":30,"page":75}}}
+{"id":"ho-055","text":"오늘 독서: 미드나잇 라이브러리 140쪽까지, 생각보다 술술 읽힘","tags":["reading"],"expect":{"capture":"reading","records":["reading"],"reading":{"title":"미드나잇 라이브러리","page":140}}}
+{"id":"ho-056","text":"어린왕자 완독 생텍쥐페리","tags":["reading"],"expect":{"capture":"reading","records":["reading"],"reading":{"title":"어린왕자","author":"생텍쥐페리","finished":true}}}
+{"id":"ho-057","text":"낼 치과 예약 취소해줘","tags":["modify"],"expect":{"capture":"conversation","kinds":["cancel"]}}
+{"id":"ho-058","text":"금욜 회식 7시에서 8시로 미뤄줘","tags":["modify"],"expect":{"capture":"conversation","kinds":["modify"]}}
+{"id":"ho-059","text":"담주 화요일 필라테스 수요일로 옮겨주고 목요일 저녁 7시 스터디 새로 추가","tags":["modify","multi-intent"],"expect":{"capture":"conversation","kinds":["create_event","modify"]}}
+{"id":"ho-060","text":"토요일 등산 약속 취소, 대신 일요일까지 장보기 할일 추가","tags":["modify","multi-intent"],"expect":{"capture":"conversation","kinds":["cancel","create_task"]}}
+{"id":"ho-061","text":"이번주 시험공부 계획 좀 짜줘 하루 3시간 정도","tags":["planner"],"expect":{"capture":"conversation","route":"planner"}}
+{"id":"ho-062","text":"이번주 밀린 일정들 담주로 재배치 해줘","tags":["planner"],"expect":{"capture":"conversation","route":"reschedule"}}

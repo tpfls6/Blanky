@@ -48,7 +48,7 @@ export function SettingsPage() {
   const sectionDescription = t(`settings.${menu}.description`)
   const setTab = (tab: string) => navigate(settingsPath(menu, tab), { replace: true })
 
-  let body: ReactNode = null
+  let body: ReactNode
   if (menu === 'general') {
     body = <GeneralSection />
   } else if (menu === 'account') {
@@ -110,7 +110,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl items-start gap-8 px-6 py-8 md:px-10 lg:gap-14">
+    <div className="settings-page mx-auto flex w-full max-w-5xl items-start gap-8 px-6 py-8 md:px-10 lg:gap-14">
       <nav data-tour="settings-nav" aria-label={t('settings.menu')} className="sticky top-8 hidden w-48 shrink-0 overflow-hidden rounded-md border border-line bg-surface px-3 py-4 lg:block">
         <p className="px-3 pb-3 text-sm font-medium tracking-tight">{t('settings.title')}</p>
         <div className="flex flex-col gap-0.5">
@@ -125,20 +125,18 @@ export function SettingsPage() {
           })}
         </div>
       </nav>
-      <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-line bg-surface px-6 py-6">
-        <label className="mb-6 block lg:hidden">
-          <span className="sr-only">{t('settings.menu')}</span>
-          <select
-            data-tour="settings-nav"
-            className="field select w-full"
-            value={menu}
-            onChange={(event) => navigate(settingsPath(event.target.value as SettingsMenuId))}
-          >
-            {SETTINGS_MENUS.map((id) => (
-              <option key={id} value={id}>{t(`settings.${id}.label`)}</option>
-            ))}
-          </select>
-        </label>
+      <div className="settings-content min-w-0 flex-1 overflow-hidden rounded-md border border-line bg-surface px-6 py-6">
+        <nav data-tour="settings-nav" aria-label={t('settings.menu')} className="settings-chips mb-6 flex lg:hidden">
+          {SETTINGS_MENUS.map((id) => {
+            const Icon = MENU_ICONS[id]
+            return (
+              <Link key={id} to={settingsPath(id)} className="settings-chip" aria-current={menu === id ? 'page' : undefined}>
+                <Icon strokeWidth={1.5} aria-hidden="true" />
+                {t(`settings.${id}.label`)}
+              </Link>
+            )
+          })}
+        </nav>
         <h1 className="text-2xl font-medium tracking-tight">{sectionLabel}</h1>
         <p className="mt-2 text-sm text-neutral-400">{sectionDescription}</p>
         <PageTour page="settings" className="mt-6" />

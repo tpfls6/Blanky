@@ -138,3 +138,16 @@ test('legacy parser keeps its date fallback but never duplicates deadline clocks
   assert.equal(parsed.draft.dueTime, '15:00')
   assert.equal(parsed.draft.startTime, null)
 })
+
+test('an undated task stays off calendar days and round-trips the undated column', async () => {
+  const { occursOn } = await import('../src/utils/calendarMonth.ts')
+  const row = { id: 'a', user_id: 'u', calendar_id: 'c', title: '책 반납', date: '2026-11-04', kind: 'task', repeat_rule: 'none', priority: 'medium', status: 'todo', undated: true, created_at: 'x', updated_at: 'x' }
+  const item = { ...mapScheduleRow(row), dueDate: null, endDate: null, allDay: false, repeat: 'none' as const, kind: 'task' as const, status: 'todo' as const }
+  assert.equal(item.undated, true)
+  assert.equal(occursOn(item, '2026-11-04'), false)
+  assert.equal(occursOn({ ...item, undated: false }, '2026-11-04'), true)
+  assert.equal('undated' in mapScheduleRow({ ...row, undated: undefined }), true)
+  const legacy: Record<string, unknown> = { ...row }
+  delete legacy.undated
+  assert.equal('undated' in mapScheduleRow(legacy), false)
+})

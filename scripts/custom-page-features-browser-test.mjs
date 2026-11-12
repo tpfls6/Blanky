@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 
 const started = new Date().toISOString()
-const evidenceDir = resolve('.audit/runs/custom-page-features')
+const evidenceDir = resolve(process.env.BLANKY_AUDIT_DIR ?? '.audit/runs', 'custom-page-features')
 await mkdir(evidenceDir, { recursive: true })
 const logLines = [`started ${started}`]
 function log(line) {
@@ -184,7 +184,8 @@ try {
   await setValue('.reading-modal details input','New manual book')
   await evaluate('document.querySelector(".reading-modal details form").requestSubmit()')
   await wait('document.querySelectorAll(".reading-book-card").length === 2','book created')
-  await evaluate('document.querySelector(".reading-modal header button").click()')
+  // A manual add closes the add modal on success.
+  await wait('!document.querySelector(".reading-modal")','add modal closed')
   await navigate()
   await wait('document.querySelectorAll(".reading-book-card").length === 2','books retained')
   await evaluate('[...document.querySelectorAll(".reading-book-card a")].find(a=>a.textContent.includes("New manual book")).click()')

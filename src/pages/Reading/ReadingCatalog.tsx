@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { StarRating } from './StarRating.tsx'
 import type { PageReadingItem } from '../../features/pages/pageRecords.ts'
-import { fieldLabel, type PageTemplateKind } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { readingText } from './readingText.ts'
 import { SAVE_FAILED } from '../../utils/saveAndClose.ts'
@@ -38,8 +37,7 @@ export function ReadingCatalog({
   onSave: (item: PageReadingItem) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
-  const { t } = useI18n()
-  const template: PageTemplateKind = 'reading'
+  const { t, locale } = useI18n()
   const [selectedId, setSelectedId] = useState<string | null>(items[0]?.id ?? null)
   const [draft, setDraft] = useState<PageReadingItem | null>(null)
   const [query, setQuery] = useState('')
@@ -50,8 +48,8 @@ export function ReadingCatalog({
     return items.filter((item) => !text || [item.title, item.author, item.note].join(' ').toLocaleLowerCase().includes(text))
   }, [items, query])
 
-  const label = (key: string) => fieldLabel(template, key, labels)
-  const text = readingText(labels)
+  const text = readingText(t, locale, labels)
+  const label = text.word
   const edit = (patch: Partial<PageReadingItem>) => {
     const base = current ?? blank()
     setDraft({ ...base, ...patch, updatedAt: new Date().toISOString() })
@@ -75,14 +73,14 @@ export function ReadingCatalog({
             setSelectedId(next.id)
           }}
         >
-          + {text.item} 추가 · 검색
+          + {text.say('addSearch')}
         </button>
       </header>
       {error ? <p role="alert" className="reading-error">{error}</p> : null}
       <div className="reading-layout">
         <aside className="reading-sidebar" aria-label={heading}>
-          <input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={'내 ' + text.library + '에서 제목, ' + label('author') + ' 검색'} aria-label={'내 ' + text.library + ' 검색'} />
-          <p className="reading-muted">{visible.length}{text.unit}</p>
+          <input className="field" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text.say('searchLibraryPlaceholder', { author: text.inline('author') })} aria-label={text.say('searchLibrary')} />
+          <p className="reading-muted">{text.count(visible.length)}</p>
           {visible.length === 0 ? <p className="reading-muted">{t('custom.emptyRecords')}</p> : null}
           {visible.map((item) => (
             <button

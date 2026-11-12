@@ -31,8 +31,8 @@ export async function processAiInput(request: PlanTasksRequest) {
   if (routeInput(request.text).route === 'planner') return { intent: 'PLAN_TASKS' as const, recommendation: await planTasksFromText(request) }
   return { intent: 'ANALYZE_SCHEDULE' as const, analysis: await analyzeScheduleFromText({ text: request.text, timezone: request.settings?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'Asia/Seoul' }) }
 }
-export async function analyzeScheduleFromText(request: NaturalLanguageScheduleRequest) {
-  return analyzeOnServer(getSupabaseClient(), request)
+export async function analyzeScheduleFromText(request: NaturalLanguageScheduleRequest, options: { ai?: false } = {}) {
+  return analyzeOnServer(getSupabaseClient(), request, options)
 }
 
 export async function parseScheduleFromText(
@@ -48,12 +48,13 @@ export async function inspectPlannerConflicts(){if(!isSupabaseConfigured)return 
  * Rules first. The AI split runs only when the rules left a schedule-like clause unread, and any AI
  * failure (offline, old deployment, invalid output) keeps the rule result instead of guessing.
  */
-export async function analyzeIntents(text: string, today: Date): Promise<IntentExtraction> {
+export async function analyzeIntents(text: string, today: Date, deps: { intents?: (text: string, today: Date) => Promise<IntentExtraction> } = {}): Promise<IntentExtraction & { aiCalled?: true }> {
   const rules = extractIntents(text, today)
-  if (!needsIntentAI(rules) || !isSupabaseConfigured) return rules
+  if (!needsIntentAI(rules) || (!deps.intents && !isSupabaseConfigured)) return rules
   try {
-    const ai = await intentsOnServer(getSupabaseClient(), { text, timezone: 'Asia/Seoul', today })
-    return mergeIntentResults(rules, ai)
+    const ai = await (deps.intents ?? ((text, today) => intentsOnServer(getSupabaseClient(), { text, timezone: 'Asia/Seoul', today })))(text, today)
+    // The paid call for this message is spent; the analysis step that may follow asks for rules only.
+    return { ...mergeIntentResults(rules, ai), aiCalled: true }
   } catch {
     return rules
   }

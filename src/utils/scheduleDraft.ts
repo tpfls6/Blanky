@@ -19,10 +19,20 @@ export type ScheduleDraft = {
   priority?: import('@blanky/types').Priority
   repeat?: import('../types/work.ts').RepeatRule
   repeatDays?: number[]
+  repeatInterval?: number
+  /** Last day of the series; '' repeats with no end. */
+  repeatUntil?: string
+  /** Set when a recurring item was opened on one of its days: that day, and how far an edit reaches. */
+  occurrence?: string
+  scope?: import('../features/schedule/seriesEdit.ts').SeriesScope
   id: string | null
+  /** Calendar to save into; undefined keeps the item's calendar or the personal default. */
+  calendarId?: string
   kind: WorkKind
   title: string
   date: string
+  /** The edited item was an undated task; this is the day it was saved on. */
+  undatedDay?: string
   endDate: string
   startTime: string
   endTime: string

@@ -8,6 +8,7 @@ type TextFieldProps = {
   error?: string
   autoComplete?: string
   placeholder?: string
+  inputMode?: 'numeric' | 'email' | 'text'
   multiline?: boolean
 }
 
@@ -21,6 +22,7 @@ export function TextField({
   error,
   autoComplete,
   placeholder,
+  inputMode,
   multiline = false,
 }: TextFieldProps) {
   const id = useId()
@@ -42,6 +44,7 @@ export function TextField({
           type={type}
           value={value}
           autoComplete={autoComplete}
+          inputMode={inputMode}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
           className={control}

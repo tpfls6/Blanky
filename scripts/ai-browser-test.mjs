@@ -114,7 +114,7 @@ try {
   await wait('document.querySelector("[data-analysis-item]")', 'analysis review');
   await fill('[data-analysis-item] input[type=time]', '15:00');
   await evaluate(`(()=>{const select=document.querySelector('[data-analysis-item] select[aria-label="반복"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'weekly');select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-  await wait(`document.querySelectorAll(${q('[aria-label="반복 요일"] button')}).length===7`,'weekday choices');
+  await wait(`document.querySelectorAll(${q('[aria-label="반복 요일"] button[aria-pressed]')}).length===7`,'weekday choices');
   await click('button[aria-label="일요일 반복"]');
   await button('확인 후 저장');
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.some(i=>i.title==="검증회의")', 'review saved');
@@ -130,18 +130,18 @@ try {
   await click('button[aria-label="'+nextOccurrence+'"]');
   await wait('document.body.textContent.includes("검증회의")', 'Calendar/Today includes repeated event');
   await button('직접 추가');
-  await wait('document.querySelector("form.max-h-80")','manual schedule editor');
-  await fill('form.max-h-80 input:not([type])','수동 반복 검증');
+  await wait('document.querySelector(".schedule-draft-panel form")','manual schedule editor');
+  await fill('.schedule-draft-panel form input:not([type])','수동 반복 검증');
   // The manual editor starts as 종일; 시각 reveals the time fields.
-  await evaluate(`[...document.querySelectorAll('form.max-h-80 [aria-label="시간"] button')].find(b=>b.textContent.trim()==='시각').click()`);
-  await wait('document.querySelector("form.max-h-80 input[type=time]")','manual time fields');
-  await fill('form.max-h-80 input[type=time]','09:00');
-  await evaluate(`(()=>{const input=document.querySelectorAll('form.max-h-80 input[type=time]')[1];Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'18:00');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
-  await evaluate(`(()=>{const select=document.querySelector('form.max-h-80 select[aria-label="반복"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'weekly');select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
-  await wait(`document.querySelectorAll(${q('form.max-h-80 [aria-label="반복 요일"] button')}).length===7`,'manual weekly weekdays');
-  await click('form.max-h-80 button[aria-label="월요일 반복"]');
-  await click('form.max-h-80 button[aria-label="일요일 반복"]');
-  await button('확인');
+  await evaluate(`[...document.querySelectorAll('.schedule-draft-panel form [aria-label="시간"] button')].find(b=>b.textContent.trim()==='시각').click()`);
+  await wait('document.querySelector(".schedule-draft-panel form input[type=time]")','manual time fields');
+  await fill('.schedule-draft-panel form input[type=time]','09:00');
+  await evaluate(`(()=>{const input=document.querySelectorAll('.schedule-draft-panel form input[type=time]')[1];Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'18:00');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await evaluate(`(()=>{const select=document.querySelector('.schedule-draft-panel form select[aria-label="반복"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,'weekly');select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await wait(`document.querySelectorAll(${q('.schedule-draft-panel form [aria-label="반복 요일"] button[aria-pressed]')}).length===7`,'manual weekly weekdays');
+  await click('.schedule-draft-panel form button[aria-label="월요일 반복"]');
+  await click('.schedule-draft-panel form button[aria-label="일요일 반복"]');
+  await button('저장');
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.some(i=>i.title==="수동 반복 검증")','manual recurrence saved');
   const manual = await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items.find(i=>i.title==="수동 반복 검증")');
   assert.equal(manual.repeat,'weekly'); assert.equal(manual.duration,540); assert.ok(manual.repeatDays.includes(1)&&manual.repeatDays.includes(7));
@@ -197,13 +197,11 @@ try {
   // Items are paged in the review dialog: go to the second one, then save it.
   await evaluate('[...document.querySelectorAll("#ai-harness button")].find(b=>b.textContent.trim()==="다음").click()');
   await wait('!document.querySelector("#ai-harness [data-analysis-item=b]").closest("[hidden]")','second item shown');
+  // A task without a date is announced, then saved to the undated task list instead of being blocked.
+  assert.ok(await evaluate('document.querySelector("#ai-harness [data-analysis-item=b]").textContent.includes("날짜 없이 할 일 목록에 저장")'),'undated notice');
   await evaluate('[...document.querySelectorAll("#ai-harness [data-analysis-item=b] button")].find(b=>b.textContent.trim()==="확인 후 저장").click()');
-  await wait('document.querySelector("#ai-harness [role=alert]")?.textContent.includes("날짜")','second item requires date');
-  assert.equal(await evaluate('window.aiSaved.length'),1);
-  await fill('#ai-harness [data-analysis-item=b] input[type=date]','2026-10-16');
-  await evaluate('[...document.querySelectorAll("#ai-harness [data-analysis-item=b] button")].find(b=>b.textContent.trim()==="확인 후 저장").click()');
-  await wait('window.aiSaved.length===2','second item saved after date confirmation');
-  assert.equal(await evaluate('window.aiSaved[1].kind'),'task');
+  await wait('window.aiSaved.length===2','undated second item saved');
+  assert.deepEqual(await evaluate('(({kind,date,undated})=>({kind,date,undated}))(window.aiSaved[1])'),{kind:'task',date:'',undated:true});
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
   await pause(150);
   assert.ok(await evaluate('document.querySelector("#ai-harness").scrollWidth<=window.innerWidth'),'mobile review width');

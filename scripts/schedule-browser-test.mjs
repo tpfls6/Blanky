@@ -83,13 +83,16 @@ try {
   }).toString() + ')()' });
   await navigate(base + '/schedule');
   await wait('document.querySelectorAll(".theme-plan").length === 2', 'schedule loaded');
-  assert.equal(await evaluate('getComputedStyle(document.querySelector("div.theme-task")).borderLeftWidth'), '0px');
-  assert.equal(await evaluate('getComputedStyle(document.querySelector(".theme-plan")).borderLeftWidth'), '3px');
+  // The timeline (bd9e827) draws tasks and events as article blocks, each with a 3px line in its own color;
+  // the earlier div rows where only events had a line are gone, so the kinds differ by class, not by the line.
+  assert.equal(await evaluate('getComputedStyle(document.querySelector("article.theme-task")).borderLeftWidth'), '3px');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector("article.theme-plan")).borderLeftWidth'), '3px');
+  assert.equal(await evaluate('document.querySelector("article.theme-task").dataset.kind + document.querySelector("article.theme-plan").dataset.kind'), 'taskevent');
   assert.equal(await evaluate('[...document.querySelectorAll(".theme-plan")].every(el=>el.draggable)'), true);
   assert.equal(await evaluate('[...document.querySelectorAll(".theme-task")].every(el=>el.draggable)'), true);
   async function move(title, hour, id, end) {
     const points = await evaluate('('+((title,hour)=>{
-      const row=[...document.querySelectorAll('div.theme-task,div.theme-plan')].find(el=>el.textContent.includes(title));
+      const row=[...document.querySelectorAll('article.theme-task,article.theme-plan')].find(el=>el.textContent.includes(title));
       const target=[...document.querySelectorAll('li')].find(el=>el.querySelector(':scope > time')?.textContent===hour);
       row.scrollIntoView({block:'center'});
       target.scrollIntoView({block:'nearest'});
@@ -111,9 +114,9 @@ try {
   await move('Drag task','14:00','task','15:00');
   await move('Drag event','12:00','event','13:30');
   await navigate(base + '/schedule');
-  await wait('document.querySelector("div.theme-task")?.textContent.includes("14:00")', 'saved time after reload');
+  await wait('document.querySelector("article.theme-task")?.textContent.includes("14:00")', 'saved time after reload');
   assert.equal(errors.length,0,errors.join('\n'));
-  console.log('PASS: task has no line; events have lines; assigned tasks and events drag to another hour, preserve duration, and persist after reload.');
+  console.log('PASS: task and event blocks keep their colored line; assigned tasks and events drag to another hour, preserve duration, and persist after reload.');
 } finally {
   ws.close(); server.kill();
   const stopped = new Promise(resolve => browser.once('exit', resolve)); browser.kill(); await stopped;

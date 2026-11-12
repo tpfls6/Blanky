@@ -120,7 +120,7 @@ export function WidgetBlock({ type }: { type: WidgetType }) {
     )
   }
 
-  let summary = ''
+  let summary: string
   try {
     const raw = sessionStorage.getItem(`blanky.planner.${user?.id ?? 'anonymous'}`)
     const parsed = raw ? (JSON.parse(raw) as { plan?: { result?: { items?: { title?: string }[] } } }) : null

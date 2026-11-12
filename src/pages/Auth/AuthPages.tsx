@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AuthFrame } from '../../components/auth/AuthFrame.tsx'
 import { TextField } from '../../components/common/TextField.tsx'
@@ -6,6 +6,7 @@ import { ROUTES } from '../../constants/routes.ts'
 import { useSession } from '../../state/useSession.ts'
 import { isSupabaseConfigured } from '../../services/supabase/client.ts'
 import { signupErrors, type SignupInput } from '../../utils/account.ts'
+import { UNCONFIRMED_MESSAGE } from '../../services/auth/account.ts'
 
 export function LoginPage() {
   const { signIn, signInWithGoogle, authError } = useSession()
@@ -49,6 +50,7 @@ export function LoginPage() {
         <TextField label="이메일" type="email" autoComplete="email" value={email} onChange={setEmail} />
         <TextField label="비밀번호" type="password" autoComplete="current-password" value={password} onChange={setPassword} />
         {error || authError ? <p className="text-sm text-red-600">{error || authError}</p> : null}
+        {error === UNCONFIRMED_MESSAGE ? <Link to={ROUTES.signup} state={{ verifyEmail: email.trim().toLowerCase() }} className="block text-sm text-accent-text underline">인증코드 입력하기</Link> : null}
         {notice ? <p className="text-sm text-neutral-500">{notice}</p> : null}
         <button type="submit" className="btn btn-primary w-full" disabled={busy || googleBusy}>
           {busy ? '로그인 중…' : '로그인'}
@@ -70,13 +72,21 @@ export function LoginPage() {
   )
 }
 
+/** Seconds before Supabase sends another code (auth.email.max_frequency) and how long a code lives (otp_expiry). */
+const RESEND_SECONDS = 60
+const CODE_MINUTES = 10
+
 export function SignupPage() {
-  const { signUp } = useSession()
+  const { signUp, verifySignup, resendSignup } = useSession()
   const navigate = useNavigate()
-  const [form, setForm] = useState<SignupInput>({ name: '', nickname: '', email: '', password: '', confirm: '' })
+  const location = useLocation()
+  const resumed = (location.state as { verifyEmail?: string } | null)?.verifyEmail ?? ''
+  const [form, setForm] = useState<SignupInput>({ name: '', nickname: '', email: resumed, password: '', confirm: '' })
   const [errors, setErrors] = useState<Partial<Record<keyof SignupInput, string>>>({})
   const [formError, setFormError] = useState('')
   const [busy, setBusy] = useState(false)
+  // Set once the account waits for its emailed code. A sign-up resumed from login has no known send time.
+  const [pending, setPending] = useState<{ email: string; sentAt: number | null } | null>(resumed ? { email: resumed, sentAt: null } : null)
 
   const set = (key: keyof SignupInput) => (value: string) => setForm((current) => ({ ...current, [key]: value }))
 
@@ -87,13 +97,23 @@ export function SignupPage() {
     setErrors(next)
     if (Object.keys(next).length > 0) return
     setBusy(true)
-    const message = await signUp(form)
+    const outcome = await signUp(form)
     setBusy(false)
-    if (message) {
-      setFormError(message)
+    if ('error' in outcome) {
+      setFormError(outcome.error)
       return
     }
-    navigate(ROUTES.login, { state: { notice: isSupabaseConfigured ? '가입 요청이 완료되었습니다. 확인 메일이 도착하면 링크를 누른 뒤 로그인해 주세요.' : '가입되었습니다. 로그인해 주세요.' } })
+    setFormError('')
+    if (outcome.next === 'verify' && verifySignup) { setPending({ email: outcome.email, sentAt: Date.now() }); return }
+    if (isSupabaseConfigured) navigate(ROUTES.home)
+    else navigate(ROUTES.login, { state: { notice: '가입되었습니다. 로그인해 주세요.' } })
+  }
+
+  if (pending && verifySignup && resendSignup) {
+    return <SignupCode email={pending.email} sentAt={pending.sentAt} verify={verifySignup} resend={resendSignup}
+      onSent={() => setPending({ ...pending, sentAt: Date.now() })}
+      onVerified={() => navigate(ROUTES.home)}
+      onBack={() => { setPending(null); setFormError('') }} />
   }
 
   return (
@@ -104,14 +124,77 @@ export function SignupPage() {
         <TextField label="이메일" type="email" autoComplete="email" value={form.email} onChange={set('email')} error={errors.email} />
         <TextField label="비밀번호" type="password" autoComplete="new-password" value={form.password} onChange={set('password')} error={errors.password} />
         <TextField label="비밀번호 확인" type="password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} error={errors.confirm} />
-        {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+        {formError ? <p role="alert" className="text-sm text-red-600">{formError}</p> : null}
         <button type="submit" className="btn btn-primary w-full" disabled={busy}>
-          {busy ? '가입 중…' : '회원가입'}
+          {busy ? '가입 중…' : isSupabaseConfigured ? '인증코드 받기' : '회원가입'}
         </button>
       </form>
-      <p className="mt-8 text-sm text-neutral-500">
+      <p className="mt-8 text-center text-sm text-neutral-500">
         <Link to={ROUTES.login}>로그인으로 돌아가기</Link>
       </p>
+    </AuthFrame>
+  )
+}
+
+function SignupCode({ email, sentAt, verify, resend, onSent, onVerified, onBack }: {
+  email: string
+  sentAt: number | null
+  verify: (email: string, code: string) => Promise<string | null>
+  resend: (email: string) => Promise<string | null>
+  onSent: () => void
+  onVerified: () => void
+  onBack: () => void
+}) {
+  const [code, setCode] = useState('')
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState(sentAt ? `${email}로 6자리 인증코드를 보냈습니다. ${CODE_MINUTES}분 안에 입력해 주세요.` : `${email}로 받은 인증코드를 입력하거나 새 코드를 받아 주세요.`)
+  const [busy, setBusy] = useState<'verify' | 'resend' | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const wait = sentAt ? Math.max(0, RESEND_SECONDS - Math.floor((now - sentAt) / 1000)) : 0
+  const expired = sentAt !== null && now - sentAt > CODE_MINUTES * 60_000
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (busy) return
+    if (expired) { setError('인증코드가 만료되었습니다. 새 코드를 받아 주세요.'); return }
+    setBusy('verify'); setError('')
+    const message = await verify(email, code)
+    setBusy(null)
+    if (message) { setError(message); return }
+    onVerified()
+  }
+  const again = async () => {
+    if (busy || wait > 0) return
+    setBusy('resend'); setError('')
+    const message = await resend(email)
+    setBusy(null)
+    if (message) { setError(message); return }
+    setCode('')
+    setNotice(`새 인증코드를 보냈습니다. 이전 코드는 더 이상 쓸 수 없습니다. ${CODE_MINUTES}분 안에 입력해 주세요.`)
+    onSent()
+  }
+
+  return (
+    <AuthFrame title="이메일 인증">
+      <form className="space-y-5" onSubmit={submit} noValidate data-signup-code>
+        <p className="text-sm text-neutral-500" role="status">{notice}</p>
+        <TextField label="인증코드" autoComplete="one-time-code" inputMode="numeric" value={code} onChange={value => setCode(value.replace(/\D/g, '').slice(0, 6))} placeholder="6자리 숫자" />
+        {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
+        <button type="submit" className="btn btn-primary w-full" disabled={busy !== null || code.length !== 6}>
+          {busy === 'verify' ? '확인 중…' : '인증하고 시작하기'}
+        </button>
+      </form>
+      <button type="button" className="btn btn-line mt-3 w-full" disabled={busy !== null || wait > 0} onClick={() => void again()}>
+        {busy === 'resend' ? '보내는 중…' : wait > 0 ? `인증코드 재발송 (${wait}초)` : '인증코드 재발송'}
+      </button>
+      <div className="mt-8 flex justify-between text-sm text-neutral-500">
+        <button type="button" onClick={onBack}>이메일 다시 입력</button>
+        <Link to={ROUTES.login}>로그인으로 돌아가기</Link>
+      </div>
     </AuthFrame>
   )
 }

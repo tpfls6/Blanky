@@ -34,7 +34,36 @@
     "inputTitle": "Natural-language input & analysis",
     "inputHint": "Set Home input and auto-classification defaults.",
     "behaviorTitle": "AI behavior",
-    "behaviorHint": "Choose how analysis results are saved."
+    "behaviorHint": "Choose how analysis results are saved.",
+    "workHoursLabel": "AI work-hour settings",
+    "workHoursTitle": "AI work hours",
+    "workHoursHint": "Your settings take priority over AI suggestions.",
+    "openPlanner": "Open Planner",
+    "planning": {
+      "workDays": "Available workdays",
+      "dayStart": "Work start",
+      "dayEnd": "Work end",
+      "maxDaily": "Max work per day (min)",
+      "defaultDuration": "Default duration (min)",
+      "advanced": "Advanced settings",
+      "placement": "Default placement",
+      "placementEarliest": "Earliest available time",
+      "placementFocus": "Preferred focus hours first",
+      "focusStart": "Focus hours start",
+      "focusEnd": "Focus hours end",
+      "clearFocus": "Clear focus hours",
+      "breakMinutes": "Break between tasks (min)",
+      "allowSplit": "Allow splitting long tasks",
+      "useHistory": "Use recent manual edits",
+      "useHistoryHint": "Only titles you edited by hand at least twice use their recent duration and priority. This is not automatic learning; you confirm before it applies.",
+      "save": "Save personalization",
+      "saving": "Saving…",
+      "saved": "Personalization saved. It applies to new plans.",
+      "saveFailed": "Couldn't save. Your settings are kept, so please try again.",
+      "notConnected": "Check your sign-in and server connection. Nothing was saved yet.",
+      "loginExpired": "Your sign-in has expired. Please sign in again.",
+      "invalid": "Check your work hours, date range and placement settings."
+    }
   },
   "calendar": {
     "label": "Calendar",
@@ -75,7 +104,7 @@
     "signOut": "Sign out",
     "signOutFailed": "Could not sign out. Please try again.",
     "deleteAccount": "Delete account",
-    "deleteAccountConfirm": "Delete this account? Records on this device will also be removed."
+    "deleteAccountConfirm": "This deletes the account and every record saved on the server right away. It cannot be undone; signing up again with the same email starts a new, empty account."
   },
   "appearance": {
     "label": "Appearance",
@@ -102,7 +131,16 @@
   "navigation": {
     "label": "Navigation",
     "description": "Change sidebar order and visibility.",
-    "sidebar": "Sidebar",
+    "sidebar": "Desktop sidebar · Shared menu visibility",
+    "mobileTitle": "Mobile bottom menu",
+    "mobileEdit": "Edit menu",
+    "mobileHint": "Choose up to five tabs and use the arrows to reorder them. Other menus appear in More, at the top left. Menus hidden below are also hidden on mobile. Changes save automatically.",
+    "mobilePreview": "Mobile tab bar preview",
+    "mobileSlot": "Mobile menu position {{count}}",
+    "mobileEmpty": "Do not show on the bar",
+    "mobileUp": "Move menu {{count}} earlier",
+    "mobileDown": "Move menu {{count}} later",
+    "mobileRestore": "Restore default mobile menu",
     "hint": "Drag rows to reorder. Custom Templates and Settings stay at the bottom.",
     "toggle": "Show {{name}}",
     "restore": "Restore defaults"

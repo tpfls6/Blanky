@@ -15,5 +15,8 @@
   "trash": "휴지통",
   "pages": "페이지",
   "more": "더보기",
-  "allMenus": "전체 메뉴"
+  "allMenus": "전체 메뉴",
+  "manage": "앱 관리",
+  "calendarSettings": "캘린더 설정",
+  "recurring": "반복 일정"
 }

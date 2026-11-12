@@ -1,9 +1,10 @@
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import './memo.css'
 import { MemoRichEditor } from './MemoRichEditor.tsx'
 import { memoPlainText } from './memoContent.ts'
-import { ChevronRight, Folder, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Folder, FolderOpen, List, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react'
 import { CategoryPicker } from '../../components/schedule/CategoryPicker.tsx'
 import { PageCanvas } from '../../features/pages/PageCanvas.tsx'
 import { resolveLayout } from '../../features/pages/layout.ts'
@@ -15,6 +16,7 @@ import { useConfirm } from '../../state/useConfirm.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { categoryPath } from '../../utils/work.ts'
+import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
 
 export type MemoSource = {
   heading: string
@@ -47,7 +49,17 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
     setFolder(id)
     setSelectedId(null)
   }
-  const [selectedId, setSelectedId] = useState<string | null>(memos[0]?.id ?? null)
+  // Home's 보기 names one memo in the router state; otherwise the newest is selected.
+  const openId = (useLocation().state as { openId?: unknown } | null)?.openId
+  const [selectedId, setSelectedId] = useState<string | null>(() => !source && typeof openId === 'string' && memos.some(memo => memo.id === openId) ? openId : memos[0]?.id ?? null)
+  // On a phone the memo tour starts by going back to the list, which would close the memo 보기 opened;
+  // it waits until you leave that memo instead.
+  const phone = useMediaQuery(PHONE_QUERY)
+  const viewing = typeof openId === 'string' && selectedId === openId
+  // Multi-select mode: picked ids are checked against the live list, so a memo removed elsewhere drops out.
+  const [picking, setPicking] = useState(false)
+  const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set())
+  const [removing, setRemoving] = useState(false)
   const selected = memos.find((memo) => memo.id === selectedId) ?? null
 
   const visible = useMemo(() => {
@@ -79,6 +91,36 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
       else library.removeMemo(memo.id)
       if (selectedId === memo.id) setSelectedId(null)
     } catch (error) { setCreateError(error instanceof Error ? error.message : t('custom.saveFailed')) }
+  }
+
+  const visibleIds = visible.map(memo => memo.id)
+  const pickedVisible = visibleIds.filter(id => picked.has(id))
+  const allPicked = visibleIds.length > 0 && pickedVisible.length === visibleIds.length
+  const togglePick = (id: string) => setPicked(current => {
+    const next = new Set(current)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
+  const stopPicking = () => { setPicking(false); setPicked(new Set()) }
+  const deletePicked = async () => {
+    const targets = memos.filter(memo => pickedVisible.includes(memo.id))
+    if (!targets.length || removing) return
+    if (!await confirm(`선택한 메모 ${targets.length}개를 삭제할까요? 휴지통에서 복구할 수 있습니다.`, { title: '메모 일괄 삭제', confirmLabel: `${targets.length}개 삭제` })) return
+    setRemoving(true)
+    const failed: string[] = []
+    for (const memo of targets) {
+      try {
+        if (source) await source.remove(memo.id)
+        else library.removeMemo(memo.id)
+      } catch { failed.push(memo.id) }
+    }
+    setRemoving(false)
+    if (selectedId && targets.some(memo => memo.id === selectedId && !failed.includes(memo.id))) setSelectedId(null)
+    if (failed.length) {
+      setPicked(new Set(failed))
+      setCreateError(`${failed.length}개 메모를 삭제하지 못했어요. 다시 시도해 주세요.`)
+    } else stopPicking()
   }
 
   const page = (
@@ -121,7 +163,22 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
             </div>
           })}
         </nav>}
-        <p className="memo-list-label">{hideFolders ? heading : activeFolder === 'all' ? '전체 메모' : activeFolder === 'none' ? '미분류' : categoryPath(activeFolder, library.categories)} <span>{visible.length}</span></p>
+        <div className="memo-list-head">
+          <p className="memo-list-label">{hideFolders ? heading : activeFolder === 'all' ? '전체 메모' : activeFolder === 'none' ? '미분류' : categoryPath(activeFolder, library.categories)} <span>{visible.length}</span></p>
+          {visible.length > 0 ? <button data-theme-slot="button" type="button" className="memo-pick-toggle" aria-pressed={picking} onClick={() => picking ? stopPicking() : setPicking(true)}>
+            {picking ? '완료' : <><ListChecks size={14} strokeWidth={1.5} aria-hidden="true" />선택</>}
+          </button> : null}
+        </div>
+        {picking ? <div className="memo-pick-bar" role="toolbar" aria-label="메모 선택">
+          <label className="memo-pick-all">
+            <input type="checkbox" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(visibleIds))} />
+            전체 선택
+          </label>
+          <span className="memo-pick-count" role="status">{pickedVisible.length}개 선택됨</span>
+          <button data-theme-slot="button" type="button" className="btn btn-ghost memo-pick-delete" disabled={!pickedVisible.length || removing} onClick={() => void deletePicked()}>
+            <Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />{removing ? '삭제 중…' : '삭제'}
+          </button>
+        </div> : null}
         {!memos.length && !query.trim() ? (
           <div className="mt-3">
             <ExampleCard title="회의에서 나온 아이디어" meta="미분류 · 방금" body="온보딩은 짧게, 예시는 화면에서만 보여 주기" action="첫 메모 작성" onStart={createMemo} />
@@ -129,14 +186,15 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
         ) : visible.length === 0 ? <EmptyState>{t('memo.empty')}</EmptyState> : null}
         <ul className="mt-2">
           {visible.map((memo) => (
-            <li key={memo.id} className="group relative border-t border-line">
-              <button data-theme-slot="button" type="button" onClick={() => setSelectedId(memo.id)} className="w-full py-3 pr-16 text-left">
+            <li key={memo.id} data-memo-row={memo.id} className={picking ? 'memo-row memo-row-picking group relative border-t border-line' : 'memo-row group relative border-t border-line'}>
+              {picking ? <input type="checkbox" className="memo-row-check" aria-label={`${memo.title} 선택`} checked={picked.has(memo.id)} onChange={() => togglePick(memo.id)} /> : null}
+              <button data-theme-slot="button" type="button" onClick={() => picking ? togglePick(memo.id) : setSelectedId(memo.id)} className="w-full py-3 pr-16 text-left">
                 <p className={memo.id === selectedId ? 'truncate text-sm text-accent-text' : 'truncate text-sm text-neutral-900'}>
                   {memo.title}
                 </p>
                 <p className="mt-1 truncate text-xs text-neutral-400">{memoPlainText(memo.body) || '내용 없음'}</p>
               </button>
-              <div className="reveal absolute top-2 right-0 flex">
+              {picking ? null : <div className="memo-row-actions reveal absolute top-2 right-0 flex">
                 <button data-theme-slot="button" type="button" className="icon-btn" data-tip="수정" aria-label="수정" onClick={() => setSelectedId(memo.id)}>
                   <ThemeIcon name="edit" fallback={Pencil} className="size-3.5" strokeWidth={1.5} />
                 </button>
@@ -144,12 +202,12 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
                   type="button"
                   className="icon-btn"
                   data-tip="삭제"
-                  aria-label="삭제"
+                  aria-label={`${memo.title} 삭제`}
                   onClick={() => void deleteMemo(memo)}
                 >
                   <ThemeIcon name="delete" fallback={Trash2} className="size-3.5" strokeWidth={1.5} />
                 </button>
-              </div>
+              </div>}
             </li>
           ))}
         </ul>
@@ -180,7 +238,7 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
       editing={editing}
       blocks={resolveLayout('memo', library.pageLayouts.memo)}
       onChange={(blocks) => library.setPageLayout('memo', blocks)}
-      render={(block) => (block.type === 'page-body' ? <>{editing ? null : <PageTour page="memo" />}{page}</> : null)}
+      render={(block) => (block.type === 'page-body' ? <>{editing || (phone && viewing) ? null : <PageTour page="memo" />}{page}</> : null)}
     />
   )
 }
@@ -216,14 +274,21 @@ function MemoEditor({
     const form = formRef.current
     if (!form) return
     const resize = () => {
-      const bottom = window.matchMedia('(max-width: 767px)').matches ? 92 : 24
-      const height = `${Math.max(0, window.innerHeight - form.getBoundingClientRect().top - bottom)}px`
+      const phone = window.matchMedia('(max-width: 767px)').matches
+      const keyboard = document.querySelector('.theme-app-layout[data-keyboard-open="true"]')
+      const bottom = phone ? keyboard ? 16 : 92 : 24
+      const available = phone ? window.visualViewport?.height ?? window.innerHeight : window.innerHeight
+      const height = `${Math.max(phone ? 220 : 0, available - form.getBoundingClientRect().top - bottom)}px`
       form.style.height = height
       form.closest<HTMLElement>('.memo-layout')?.style.setProperty('--memo-height', height)
     }
     resize()
     window.addEventListener('resize', resize)
-    return () => window.removeEventListener('resize', resize)
+    window.visualViewport?.addEventListener('resize', resize)
+    return () => {
+      window.removeEventListener('resize', resize)
+      window.visualViewport?.removeEventListener('resize', resize)
+    }
   }, [])
 
   useEffect(() => {
@@ -257,9 +322,6 @@ function MemoEditor({
       }}
     >
       {saveError ? <p role="alert" className="text-sm text-red-500">{saveError}</p> : null}
-      <button data-tour="memo-back" data-theme-slot="button" type="button" disabled={busy} onClick={onBack} className="text-sm text-neutral-400 md:hidden">
-        목록
-      </button>
       <div className="memo-toolbar">
         {hideCategory ? <span className="sr-only">{titleLabel}</span> : <CategoryPicker categories={categories} value={validCategoryId} onChange={setCategoryId} />}
         <div className="memo-toolbar-actions">
@@ -276,6 +338,14 @@ function MemoEditor({
         작성 {memo.createdAt.slice(0, 10)} · 수정 {memo.updatedAt.slice(0, 10)}
       </p>
       <p className="text-xs text-neutral-500" role="status">{saved}</p>
+      </div>
+      {/* The wrapper hides it on desktop: .btn sets display and would override md:hidden on the button itself.
+          Hidden, it has no client rects, so the memo tour does not click it and close an opened memo. */}
+      <div className="md:hidden">
+        <button data-tour="memo-back" data-theme-slot="button" type="button" disabled={busy} onClick={onBack} className="btn btn-ghost w-full">
+          <List className="size-4" strokeWidth={1.5} aria-hidden="true" />
+          목록보기
+        </button>
       </div>
     </form>
   )

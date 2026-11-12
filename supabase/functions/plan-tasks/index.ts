@@ -8,6 +8,8 @@ import { createOpenAIPlanningProvider } from '../../../packages/parse/src/planni
 import { AnalysisError } from '../../../packages/types/src/aiSchema.ts'
 import { createPlanTasksHandler } from './handler.ts'
 import { sealPlanner } from '../_shared/plannerToken.ts'
+import { createQuotaStore } from '../_shared/aiQuota.ts'
+import { createAIMeter, meterLimits, quotaDay } from '../../../packages/parse/src/aiMeter.ts'
 declare const Deno: { serve: (handler: (request: Request) => Promise<Response>) => void; env: { get(key: string): string | undefined } }
 
 Deno.serve(createPlanTasksHandler({
@@ -18,11 +20,15 @@ Deno.serve(createPlanTasksHandler({
     const { data, error } = await client.auth.getUser(token)
     if (error || !data.user) return null
     const userId = data.user.id
+    const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    // Planning is always a paid call, so it shares the daily quota with parse-schedule.
+    const meter = createAIMeter({ store: service ? createQuotaStore(createClient(url, service, { auth: { persistSession: false } }), userId) : null, limits: meterLimits(key => Deno.env.get(key)), day: quotaDay(new Date(), Deno.env.get('AI_QUOTA_TIMEZONE') || 'Asia/Seoul') })
     const calendars = () => createCalendarRepository(client).getCalendars()
     return {
       userId,
       now: new Date(Date.now()+5*60*1000).toISOString(), // leave time to review before approval
-      provider: createOpenAIPlanningProvider({ key: Deno.env.get('AI_PROVIDER') === 'local' ? undefined : Deno.env.get('OPENAI_API_KEY'), model: Deno.env.get('OPENAI_PLANNING_MODEL') }),
+      provider: createOpenAIPlanningProvider({ key: Deno.env.get('AI_PROVIDER') === 'local' ? undefined : Deno.env.get('OPENAI_API_KEY'), model: Deno.env.get('OPENAI_PLANNING_MODEL'), meter }),
+      usage: () => meter.summary(),
       loadSettings: async () => {
         const preference = await createPreferenceRepository(client).get(userId)
         return planningPreferences(preference)

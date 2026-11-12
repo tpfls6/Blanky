@@ -1,0 +1,62 @@
+/* Phone ergonomics only. Calendar chips and date cells retain their compact sizing. */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), textarea, select { font-size: 16px; }
+  .theme-app-layout { height: var(--mobile-viewport-height, 100dvh); }
+  .theme-app-layout[data-keyboard-open='true'] > .mobile-nav { display: none; }
+  .theme-app-layout[data-keyboard-open='true'] > main { padding-bottom: 16px; }
+  .theme-app-layout :is(.btn, .chip, .settings-chip) { min-height: 44px; touch-action: manipulation; }
+  .theme-app-layout :is(.icon-btn, .icon-btn-primary) { min-width: 44px; min-height: 44px; touch-action: manipulation; }
+  .theme-app-layout .field { min-height: 44px; max-width: 100%; }
+  .theme-app-layout textarea.field { min-height: 120px; }
+  .theme-app-layout .home-page { flex: 1 0 auto; }
+  .theme-app-layout .home-scroll { overflow: visible; }
+  .theme-app-layout .home-content { margin-block: auto; padding: 24px 16px calc(24px + clamp(0px, 8vh, 96px)); }
+  .theme-app-layout .home-content .composer { padding: 16px; border-radius: 16px; }
+  .theme-app-layout .home-content .home-header { margin-bottom: 16px; }
+  /* Type chips wrap (two rows on phones) beside the send button; the 12px row gap keeps 44px hit areas apart. */
+  .theme-app-layout .home-content [data-tour='entry-types'] { flex-wrap: wrap; gap: 12px 8px; }
+  .theme-app-layout .home-content [data-tour='entry-types'] .chip { flex-shrink: 0; min-width: 44px; }
+  .theme-app-layout .settings-page { flex: 0 0 auto; padding: 12px 16px 24px; }
+  .theme-app-layout .settings-content { overflow: visible; padding: 0; border: 0; background: transparent; }
+  .theme-app-layout .settings-content > h1 { font-size: 21px; }
+  .theme-app-layout .settings-chips { margin-bottom: 20px; padding-bottom: 6px; }
+  .theme-app-layout .settings-content [data-tour='settings-body'] { margin-top: 24px; }
+  .theme-app-layout .settings-content .category-row-fields { padding-left: 20px; }
+  .theme-app-layout .profile-image-picker { cursor: pointer; }
+  .theme-app-layout .profile-image-picker:focus-within > span { outline: 2px solid var(--focus-outline); outline-offset: 3px; }
+  .theme-app-layout .memo-layout { gap: 16px; }
+  .theme-app-layout .memo-toolbar { flex-wrap: wrap; gap: 8px; padding: 8px; }
+  .theme-app-layout .memo-writing-area { padding: 16px; }
+  .theme-app-layout .memo-format-toolbar { flex-wrap: nowrap; overflow-x: auto; }
+  .theme-app-layout .memo-format-toolbar > * { flex-shrink: 0; min-height: 40px; }
+  .theme-app-layout .memo-rich-content { font-size: 16px; line-height: 1.8; }
+  .theme-app-layout .memo-footer .btn { min-height: 44px; }
+  .theme-app-layout .memo-row > button { padding-right: 100px; }
+  .theme-app-layout .memo-row-picking > button { padding-right: 0; }
+  .theme-app-layout .diary-editor { padding: 16px; }
+  .theme-app-layout .diary-workspace { min-height: 420px; }
+  .theme-app-layout .diary-choice { width: 40px; height: 40px; }
+  .theme-app-layout .diary-choices > div { gap: 5px; }
+  .theme-app-layout .diary-list-star { width: 44px; height: 44px; }
+  .theme-app-layout .diary-back { min-height: 44px; }
+  .theme-app-layout .reading-status-filters .reading-nav { min-height: 44px; }
+  .theme-app-layout .reading-shelves .reading-nav { min-height: 44px; }
+  .theme-app-layout .reading-layout { grid-template-columns: minmax(0, 1fr); }
+  .theme-app-layout .reading-content { padding: 16px; }
+  .reading-modal-backdrop { align-items: flex-end; padding: 0; }
+  .reading-modal-backdrop .reading-modal { width: 100%; max-height: calc(100dvh - env(safe-area-inset-top) - 12px); border-radius: 20px 20px 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  .reading-modal :is(.btn, .icon-btn, .field) { min-height: 44px; }
+  .reading-modal input, .reading-modal textarea, .reading-modal select { font-size: 16px; }
+  .theme-app-layout :is(.memo-row-actions, .reading-card-actions) { opacity: 1; }
+  :is(.app-confirm-dialog, .analysis-review-dialog, .diary-delete-dialog) {
+    inset: auto 0 0; width: 100%; max-width: none; margin: 0;
+    max-height: calc(100dvh - env(safe-area-inset-top) - 12px);
+    border-radius: 20px 20px 0 0;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+  :is(.app-confirm-dialog, .diary-delete-dialog) .btn { min-height: 48px; min-width: 80px; }
+  .app-confirm-dialog .icon-btn { min-height: 44px; min-width: 44px; }
+  :is(.app-confirm-dialog, .diary-delete-dialog) > div:last-child { flex-wrap: wrap; }
+  .analysis-review-dialog input, .analysis-review-dialog select, .analysis-review-dialog textarea,
+  .diary-delete-dialog input { font-size: 16px; }
+}

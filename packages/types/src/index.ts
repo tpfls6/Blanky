@@ -9,6 +9,8 @@ export type {
   UserClassificationRule,
 } from './feedback.ts'
 export type {
+  AppNotification,
+  AppNotificationType,
   DevicePushToken,
   PushPlatform,
 } from './notification.ts'
@@ -29,7 +31,10 @@ export type {
   Status,
 } from './schedule.ts'
 
-export type { Calendar, CalendarType, CalendarRole, PersonalCalendarInput } from './calendar.ts'
+export type {
+  Calendar, CalendarType, CalendarRole, PersonalCalendarInput, SharedCalendarInput, CalendarEntry, CalendarMember,
+  CalendarInvitation, ReceivedInvitation, InviteLink, InviteLinkPreview, InviteRole,
+} from './calendar.ts'
 export type {
   CalendarError,
   CalendarErrorCode,
@@ -88,4 +93,4 @@ export * from './planning.ts'
 export { PLANNING_ANALYSIS_SCHEMA, validatePlanningAnalysis, validatePlanTasksRequest, validatePlanningRecommendation } from './planningSchema.ts'
 
 export * from './plannerDraft.ts'
-export { isoWeekday, normalizeRepeatDays, repeatsOn } from './recurrence.ts'
+export { isoWeekday, normalizeRepeatDays, normalizeRepeatInterval, repeatsOn } from './recurrence.ts'

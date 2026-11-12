@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 
 const started = new Date().toISOString()
-const evidenceDir = resolve('.audit/runs/customization')
+const evidenceDir = resolve(process.env.BLANKY_AUDIT_DIR ?? '.audit/runs', 'customization')
 await mkdir(evidenceDir, { recursive: true })
 const logLines = [`started ${started}`]
 function log(line) {

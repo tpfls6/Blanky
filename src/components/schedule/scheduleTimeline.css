@@ -22,3 +22,45 @@
 .schedule-card-resize { position: absolute; bottom: 0; left: 0; right: 0; height: 5px; cursor: ns-resize; touch-action: none; }
 .schedule-card-resize:hover, .schedule-card-resize:focus-visible { background: var(--accent-border); }
 @container (max-width: 115px) { .schedule-card-time { font-size: 9px; } }
+.day-task-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr)); gap: 6px; }
+.day-task-card, .task-tint-card { display: flex; align-items: flex-start; gap: 8px; min-width: 0; padding: 6px 8px; border-left: 3px solid var(--cal-color); border-radius: var(--radius); background: color-mix(in srgb, var(--cal-color) 10%, transparent); transition: background-color .15s; }
+.day-task-card:hover, .task-tint-card:hover { background: color-mix(in srgb, var(--cal-color) 16%, transparent); }
+html.dark .day-task-card, html.dark .task-tint-card { background: color-mix(in srgb, var(--cal-color) 18%, transparent); }
+.day-task-title { display: block; overflow: hidden; font-size: 13px; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.day-task-meta { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 2px; font-size: 11px; color: var(--muted); }
+.day-task-meta:empty { display: none; }
+.day-task-done { opacity: .65; }
+.day-task-done .day-task-title { text-decoration: line-through; color: var(--muted); }
+.day-task-card .mt-1 { margin-top: 2px; font-size: 11px; }
+
+/* The page scrolls vertically as one document; only the tabs swipe horizontally. */
+.schedule-mobile { display: flex; flex: 0 0 auto; flex-direction: column; gap: 0.75rem; padding: 0.75rem 1rem 1rem; }
+.schedule-mobile-head { position: relative; z-index: 20; display: grid; gap: 0.5rem; }
+.schedule-mobile-head .composer-line { padding: 4px 6px 4px 12px; border-radius: 14px; gap: 4px; }
+.schedule-mobile-head .composer-line .btn { min-width: 44px; min-height: 44px; padding: 8px; border-radius: 10px; }
+.schedule-mobile-calendar { flex: 0 0 auto; }
+.schedule-mobile-calendar .panel { padding: 8px 12px; }
+.schedule-mobile-calendar [data-theme-slot='calendar-header'] > p { font-size: 13px; }
+.schedule-mobile-calendar .theme-calendar > .mt-4 { margin-top: 4px; font-size: 10px; }
+.schedule-mobile-calendar .theme-calendar > .mt-1 { margin-top: 2px; font-size: 11px; }
+.schedule-mobile-calendar .theme-calendar > .grid button[data-selected] { aspect-ratio: auto; min-height: 34px; height: 34px; }
+.schedule-mobile-calendar [data-calendar-view='detailed'] { border: 0; border-radius: 0; }
+.schedule-mobile-calendar [data-calendar-cell] { min-height: 52px; padding: 2px; border-right-width: 0; gap: 2px; }
+.schedule-mobile-calendar [data-calendar-cell] button[data-selected] { width: 20px; height: 20px; font-size: 10px; }
+.schedule-mobile-calendar .cal-entry { padding: 1px 2px; gap: 2px; font-size: 9px; line-height: 12px; align-items: flex-start; }
+.schedule-mobile-calendar .cal-entry > .truncate { white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.schedule-pager { display: flex; flex: 0 0 auto; min-height: 0; flex-direction: column; }
+.schedule-pager-tabs { position: relative; display: flex; border-bottom: 1px solid var(--line); }
+.schedule-pager-tab { display: inline-flex; flex: 1 1 0; align-items: center; justify-content: center; gap: 0.375rem; min-height: 2.75rem; font-size: 0.875rem; color: var(--muted); -webkit-tap-highlight-color: transparent; }
+.schedule-pager-tab[aria-selected='true'] { color: var(--fg); font-weight: 600; }
+.schedule-pager-tab:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; border-radius: 6px; }
+.schedule-pager-badge { min-width: 1.125rem; padding: 0 0.3125rem; border-radius: 999px; background: var(--hover); font-size: 0.6875rem; font-weight: 500; line-height: 1.125rem; color: var(--muted); }
+.schedule-pager-tab[aria-selected='true'] .schedule-pager-badge { background: var(--accent-light); color: var(--accent-text); }
+.schedule-pager-indicator { position: absolute; bottom: -1px; left: 0; height: 2px; background: var(--accent-color); transition: transform 200ms ease; pointer-events: none; }
+.schedule-pager-track { display: flex; align-items: flex-start; flex: 0 0 auto; min-height: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; margin-inline: -1rem; }
+.schedule-pager-track::-webkit-scrollbar { display: none; }
+.schedule-pager-pane { display: flex; flex: 0 0 100%; min-width: 0; flex-direction: column; gap: 0.75rem; scroll-snap-align: start; scroll-snap-stop: always; padding: 0.75rem 1rem 1rem; }
+/* Let the active pane's full content contribute to the page's scroll height. */
+.schedule-pager-pane .panel:has(> .column-scroll) { max-height: none; overflow: visible; padding-right: 0.875rem; }
+.schedule-pager-pane .column-scroll { overflow: visible; padding-right: 0; }
+@media (prefers-reduced-motion: reduce) { .schedule-pager-indicator { transition: none; } }

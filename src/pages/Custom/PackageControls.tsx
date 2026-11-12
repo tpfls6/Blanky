@@ -6,7 +6,7 @@ import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import { forkSnapshot } from '../../features/marketplace/install.ts'
 import { TemplatePreviewProvider } from '../../features/marketplace/preview.tsx'
 import { useI18n } from '../../i18n/useI18n.ts'
-import { DEFAULT_FIELD_LABELS } from '../../features/pages/templates.ts'
+import { DEFAULT_FIELD_LABELS, initialFieldLabels } from '../../features/pages/templates.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
@@ -214,7 +214,7 @@ function PackagePreview({ pkg }: { pkg: TemplatePackage }) {
 }
 
 function InstalledList({ items, hideEmpty, onRemove }: { items: InstalledTemplatePackage[]; hideEmpty?: boolean; onRemove: (item: InstalledTemplatePackage) => void }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const navigate = useNavigate()
   const { addUserPage, adoptInstalledPage } = useLibrary()
 
@@ -225,7 +225,7 @@ function InstalledList({ items, hideEmpty, onRemove }: { items: InstalledTemplat
         template: kind,
         name: item.manifest.name,
         icon: item.manifest.icon,
-        fieldLabels: item.manifest.fieldLabels ?? { ...DEFAULT_FIELD_LABELS[kind] },
+        fieldLabels: item.manifest.fieldLabels ?? initialFieldLabels(kind, locale),
       })
     }
     if (!item.snapshot) return
