@@ -50,8 +50,9 @@ graphify-out/
 # Windows cache folder created by a mis-resolved %SystemDrive% path
 %SystemDrive%/
 
-# One-off implementation reports at repo root (docs/ is kept)
+# One-off implementation reports (kept locally, not tracked)
 /*_IMPLEMENTATION.md
+docs/implementation/
 
 # Personal grant-application documents (not part of the app)
 application_work/
