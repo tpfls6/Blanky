@@ -1,11 +1,11 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import type { UserPage as UserPageModel } from '../../features/builder/schema.ts'
 import { packDiary, packMemo, recordsForPage, unpackDiary, unpackMemo } from '../../features/pages/pageRecords.ts'
 import { createPageReadingRepository } from '../../features/pages/readingPageRepository.ts'
 import { readingService } from '../../services/reading/index.ts'
-import { initialFieldLabels, shownFieldLabels, type PageTemplateKind } from '../../features/pages/templates.ts'
+import { shownFieldLabels } from '../../features/pages/templates.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary, type LibraryValue } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
@@ -108,33 +108,10 @@ function ReadingHost({ page }: { page: UserPageModel }) {
 }
 
 function Body({ page }: { page: UserPageModel }) {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const { updateUserPage } = useLibrary()
-  const [pick, setPick] = useState(!page.template && page.blocks.length === 0)
-  if (page.blocks.length && !page.template) {
+  if (!page.template) {
     return <PageBuilder blocks={page.blocks} editing={false} onChange={(blocks) => updateUserPage(page.id, { blocks })} />
-  }
-  if (!page.template && pick) {
-    return (
-      <div className="rounded-md border border-line bg-surface p-4">
-        <p className="text-sm">{t('custom.legacyPick')}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(['diary', 'reading', 'memo'] as PageTemplateKind[]).map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              className="chip"
-              onClick={() => {
-                updateUserPage(page.id, { template: kind, fieldLabels: initialFieldLabels(kind, locale) })
-                setPick(false)
-              }}
-            >
-              {t(`custom.kind.${kind}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-    )
   }
   if (page.template === 'diary') return <DiaryHost page={page} />
   if (page.template === 'reading') return <ReadingHost page={page} />

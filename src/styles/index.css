@@ -810,41 +810,6 @@ html.dark .border-neutral-300 {
   color: var(--accent-color);
 }
 
-.template-card {
-  background: var(--surface);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background-color 180ms ease;
-}
-
-@media (hover: hover) {
-  .template-card:hover {
-    transform: scale(1.02);
-    border-color: var(--accent-border);
-    box-shadow: var(--shadow);
-    background: var(--hover);
-  }
-}
-
-.template-card:focus-visible,
-.template-card[aria-pressed='true'] {
-  transform: scale(1.02);
-  border-color: var(--accent-border);
-  box-shadow: var(--shadow);
-}
-
-.page-wizard .template-card:hover,
-.page-wizard .template-card:focus-visible,
-.page-wizard .template-card[aria-pressed='true'] {
-  transform: none;
-  border-color: transparent;
-  box-shadow: none;
-  background: var(--hover);
-}
-
-.template-preview-slot {
-  flex: 1;
-  min-height: 0;
-}
-
 .page-wizard.theme-customizer {
   display: flex;
   flex-direction: column;
@@ -1386,18 +1351,10 @@ html.dark .blanky-themed .theme-calendar button.cal-holiday[data-selected=false]
 .custom-user-page .reading-page,
 .custom-user-page .notebook { max-width: none; min-width: 0; width: 100%; }
 
-.template-choice-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:16px 24px 0; }
-.template-choice-grid .template-card { min-height:88px; justify-content:center; gap:8px; border:1px solid var(--line); }
-.page-wizard .template-choice-grid .template-card[aria-pressed='true'] { border-color:var(--accent-color); background:var(--accent-light); box-shadow:0 0 0 1px var(--accent-color); }
 .template-preview { margin-block:20px; padding:16px; }
 .template-thumb .template-preview { margin:0; padding:16px; }
-/* Wizard preview: the real page, inset from the edges so it doesn't fill the screen edge to edge. */
-.page-wizard .template-preview-slot { margin:20px 24px 24px; }
 .page-wizard.theme-customizer .template-preview { margin:0; padding:20px 24px; border:1px solid var(--line); border-radius:12px; min-height:calc(100dvh - 18rem); }
 @media(max-width:640px) {
-  .template-choice-grid { grid-template-columns:1fr; gap:10px; margin:12px 16px 0; }
-  .template-choice-grid .template-card { min-height:0; }
-  .page-wizard .template-preview-slot { margin:16px 16px 20px; }
   .page-wizard.theme-customizer .template-preview { padding:12px; min-height:60dvh; }
 }
 .btn-line[aria-pressed=true]{background:color-mix(in srgb,var(--line) 70%,transparent)}

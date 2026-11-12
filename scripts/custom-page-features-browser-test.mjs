@@ -230,13 +230,14 @@ try {
   await navigate(base + '/custom')
   await wait('document.querySelector("[data-tour=new-page]")','customization')
   await evaluate('document.querySelector("[data-tour=new-page]").click()')
-  await wait('document.querySelector(".template-choice-grid")','three choices')
-  assert.ok(await evaluate('parseFloat(getComputedStyle(document.querySelector(".template-choice-grid")).gap) >= 16'))
-  await shot('04-choices-desktop')
+  await wait('document.querySelector(".page-wizard")','make template')
+  // Only .blankytpl import remains; the diary/reading/memo choice grid is gone.
+  assert.equal(await evaluate('!!document.querySelector(".template-choice-grid")'),false)
+  assert.equal(await evaluate('!!document.querySelector(".page-wizard input[type=file]")'),true)
+  await shot('04-make-template-desktop')
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true)
-  assert.equal(await evaluate('getComputedStyle(document.querySelector(".template-choice-grid")).gridTemplateColumns.split(" ").length'),1)
-  await shot('05-choices-mobile')
+  await shot('05-make-template-mobile')
   await navigate(base + '/pages/reading-a')
   await wait('document.querySelector(".reading-book-card")','mobile reading')
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true)
@@ -247,7 +248,7 @@ try {
   await shot('07-memo-mobile')
   assert.equal(errors.length,0,errors.join('\n'))
   await finish(true)
-  log('PASS builtin/custom reading controls, shelf CRUD and drag membership, category CRUD and filtering, manual book creation/reload/isolation, memo category persistence, diary favorite/calendar, desktop/mobile choice spacing and overflow')
+  log('PASS builtin/custom reading controls, shelf CRUD and drag membership, category CRUD and filtering, manual book creation/reload/isolation, memo category persistence, diary favorite/calendar, make-template screen without basic choices, mobile overflow')
 
 } catch (error) {
   log('FAIL ' + (error instanceof Error ? error.message : String(error)))

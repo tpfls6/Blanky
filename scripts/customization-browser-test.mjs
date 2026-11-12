@@ -133,7 +133,7 @@ try {
   const heading = text => `document.querySelector('main h1')?.textContent === ${q(text)}`
   const clickMenu = text => evaluate(`[...document.querySelectorAll('main nav a')].find(a => a.textContent === ${q(text)}).click()`)
   const themeState = () => evaluate(`localStorage.getItem('blanky.themes.${owner}')`)
-  await navigate(base + '/custom?group=custom')
+  await navigate(base + '/custom')
   await wait(heading('커스텀 템플릿'), 'template hub')
   assert.equal(await evaluate(`document.querySelectorAll('#app-sidebar a[href="/settings/themes"]').length`), 0)
   assert.equal(await evaluate(`document.querySelector('#app-sidebar a[href="/custom"]').textContent.trim()`), '커스터마이징')
@@ -167,7 +167,8 @@ try {
   await wait(heading('내 테마'), 'back to themes')
   await evaluate('history.back()')
   await wait(heading('커스텀 템플릿'), 'back to templates')
-  assert.equal(await evaluate(`document.querySelector('[role=tab][aria-selected=true]').textContent.trim()`), '커스텀')
+  assert.equal(await evaluate(`!!document.querySelector('main [role=tablist]')`), false)
+  assert.ok(await evaluate(`[...document.querySelectorAll('main article')].some(el => el.textContent.includes('커스터마이징 검증 일기'))`), 'installed diary template listed without a basic tab')
   await clickMenu('앱 레이아웃')
   await wait(heading('앱 레이아웃'), 'layout restored')
   assert.equal(await evaluate(`document.querySelector('main select.w-24').value`), '24')

@@ -1,6 +1,5 @@
-export const PAGE_TEMPLATES = ['diary', 'reading', 'memo'] as const
-
-export type PageTemplateKind = (typeof PAGE_TEMPLATES)[number]
+/** Built-in record page kinds. A .blankytpl package with pageType diary/reading/memo installs one of these. */
+export type PageTemplateKind = 'diary' | 'reading' | 'memo'
 
 export const FIELD_KEYS = {
   diary: ['date', 'mood', 'weather', 'title', 'body', 'tags'],
@@ -11,19 +10,6 @@ export const FIELD_KEYS = {
   ],
   memo: ['title', 'body'],
 } as const
-
-/** Keys that rename words used across the page (buttons, headings, messages) rather than one input. */
-export const TEXT_KEYS: { [K in PageTemplateKind]: readonly (typeof FIELD_KEYS)[K][number][] } = {
-  diary: [],
-  reading: ['item', 'unit', 'library', 'shelf', 'highlight', 'memo', 'tagline', 'statusWant', 'statusReading', 'statusDone', 'statusStopped'],
-  memo: [],
-}
-
-export function isTextKey(template: PageTemplateKind, key: string): boolean {
-  return (TEXT_KEYS[template] as readonly string[]).includes(key)
-}
-
-export type FieldKey<T extends PageTemplateKind = PageTemplateKind> = (typeof FIELD_KEYS)[T][number]
 
 export const DEFAULT_FIELD_LABELS: { [K in PageTemplateKind]: Record<(typeof FIELD_KEYS)[K][number], string> } = {
   diary: {
@@ -102,16 +88,6 @@ export function shownFieldLabels(template: PageTemplateKind | null | undefined, 
   if (locale === 'ko' || !template) return labels
   const defaults = DEFAULT_FIELD_LABELS[template] as Record<string, string>
   return Object.fromEntries(Object.entries(labels).filter(([key, value]) => value.trim() !== defaults[key]))
-}
-
-/** Default labels in the app's language for the label editor's captions and placeholders. Only the reading
- *  template has its words translated (`reading.word.*`); the others keep their Korean defaults. */
-export function defaultFieldLabels(template: PageTemplateKind, locale: string, translate: (key: string) => string): Record<string, string> {
-  if (locale === 'ko' || template !== 'reading') return DEFAULT_FIELD_LABELS[template]
-  return Object.fromEntries(FIELD_KEYS.reading.map((key) => {
-    const word = translate('reading.word.' + key)
-    return [key, word.charAt(0).toUpperCase() + word.slice(1)]
-  }))
 }
 
 export function pageTypeMarker(template: PageTemplateKind): string {

@@ -14,7 +14,7 @@ import { DailyBoard } from '../Schedule/SchedulePage.tsx'
 import { DiaryPage } from '../Diary/DiaryPage.tsx'
 import { MemoPage } from '../Memo/MemoPage.tsx'
 import { ReadingPage } from '../Reading/ReadingPage.tsx'
-import { CreatePageWizard, MakeTemplatePage } from './CreatePageWizard.tsx'
+import { MakeTemplatePage } from './MakeTemplatePage.tsx'
 import { TemplateImport } from './PackageControls.tsx'
 import { CustomizationLayout } from './CustomizationLayout.tsx'
 import { MyThemesPage } from '../Themes/MyThemesPage.tsx'
@@ -25,7 +25,7 @@ function matches(query: string, page: { name: string; description?: string }) {
   return page.name.toLowerCase().includes(text) || (page.description ?? '').toLowerCase().includes(text)
 }
 
-function PageRow({ page, onEdit }: { page: UserPage; onEdit: (page: UserPage) => void }) {
+function PageRow({ page }: { page: UserPage }) {
   const { t } = useI18n()
   const confirm = useConfirm()
   const { records, removeUserPage, updateUserPage } = useLibrary()
@@ -54,8 +54,6 @@ function PageRow({ page, onEdit }: { page: UserPage; onEdit: (page: UserPage) =>
       </div>
       <div className="mt-3 flex gap-1">
         <button type="button" className="btn btn-ghost" onClick={() => {
-          // Template pages edit in the full editor with a live preview, like when they were made.
-          if (page.template) return onEdit(page)
           setName(page.name); setIcon(page.icon); setDescription(page.description ?? ''); setEditing(!editing)
         }}>{t('edit')}</button>
         <button type="button" className="btn btn-ghost" onClick={() => void remove()}>{t('delete')}</button>
@@ -150,35 +148,15 @@ function LayoutPanel() {
 
 export function CustomPage() {
   const { t } = useI18n()
-  const [params, setParams] = useSearchParams()
+  const [params] = useSearchParams()
   const tab = params.get('tab') === 'layout' ? 'layout' : params.get('tab') === 'themes' ? 'themes' : 'templates'
-  const group = params.get('group') === 'custom' ? 'custom' : 'basic'
-  const { customPages, updateUserPage } = useLibrary()
+  const { customPages } = useLibrary()
   const [query, setQuery] = useState('')
-  const [wizard, setWizard] = useState(false)
-  const [editPage, setEditPage] = useState<UserPage | null>(null)
+  const [making, setMaking] = useState(false)
 
-  if (editPage?.template) {
-    return (
-      <CreatePageWizard
-        key={editPage.id}
-        page={{ ...editPage, template: editPage.template }}
-        onCancel={() => setEditPage(null)}
-        onCreate={({ name, icon, description, fieldLabels }) => {
-          updateUserPage(editPage.id, { name, icon, description, fieldLabels })
-          setEditPage(null)
-        }}
-      />
-    )
-  }
+  if (making) return <MakeTemplatePage onCancel={() => setMaking(false)} />
 
-  if (wizard) {
-    return <MakeTemplatePage onCancel={() => setWizard(false)} />
-  }
-
-  const setGroup = (next: 'basic' | 'custom') => setParams(next === 'basic' ? {} : { group: next })
-  const basicPages = customPages.filter((page) => page.template && matches(query, page))
-  const customOnly = customPages.filter((page) => !page.template && matches(query, page))
+  const pages = customPages.filter((page) => matches(query, page))
 
   return (
     <CustomizationLayout>
@@ -188,7 +166,7 @@ export function CustomPage() {
               <h1 className="text-2xl font-medium tracking-tight">{t('custom.tabTemplates')}</h1>
               <div className="ml-auto flex gap-2">
                 <Link className="btn btn-line" to={ROUTES.storeTemplates}>{t('templates.store')}</Link>
-                <button type="button" className="btn btn-primary" data-tour="new-page" onClick={() => setWizard(true)}>
+                <button type="button" className="btn btn-primary" data-tour="new-page" onClick={() => setMaking(true)}>
                   <Plus className="size-3.5" strokeWidth={1.5} />
                   {t('custom.makeTemplate')}
                 </button>
@@ -198,30 +176,12 @@ export function CustomPage() {
               <span className="sr-only">{t('custom.search')}</span>
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('custom.search')} className="field w-full" />
             </label>
-            <div className="theme-editor-tabs" role="tablist" aria-label={t('custom.tabTemplates')}>
-              <button type="button" role="tab" aria-selected={group === 'basic'} className={group === 'basic' ? 'tab tab-on' : 'tab'} onClick={() => setGroup('basic')}>
-                {t('custom.groupBasic')}
-              </button>
-              <button type="button" role="tab" aria-selected={group === 'custom'} className={group === 'custom' ? 'tab tab-on' : 'tab'} onClick={() => setGroup('custom')}>
-                {t('custom.groupCustom')}
-              </button>
-            </div>
-            {group === 'basic' ? (
-              basicPages.length ? (
-                <div className="grid gap-3 xl:grid-cols-2">
-                  {basicPages.map((page) => <PageRow key={page.id} page={page} onEdit={setEditPage} />)}
-                </div>
-              ) : <p className="mt-3 text-sm text-neutral-400">{t('custom.emptyPages')}</p>
-            ) : (
-              <>
-                <TemplateImport dropzone={false} hideEmpty={customOnly.length > 0} />
-                {customOnly.length ? (
-                  <div className="mt-4 grid gap-3 xl:grid-cols-2">
-                    {customOnly.map((page) => <PageRow key={page.id} page={page} onEdit={setEditPage} />)}
-                  </div>
-                ) : null}
-              </>
-            )}
+            <TemplateImport dropzone={false} hideEmpty={pages.length > 0} />
+            {pages.length ? (
+              <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                {pages.map((page) => <PageRow key={page.id} page={page} />)}
+              </div>
+            ) : null}
           </section>
         ) : tab === 'themes' ? <MyThemesPage /> : (
           <>
