@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { PAGE_GAP_OPTIONS, PAGE_IDS, type PageId } from '../../features/pages/layout.ts'
 import { recordsForPage } from '../../features/pages/pageRecords.ts'
-import { type PageTemplateKind } from '../../features/pages/templates.ts'
 import { IconView } from '../../constants/icons.ts'
 import { IconPicker } from '../../components/common/IconPicker.tsx'
 import { useI18n } from '../../i18n/useI18n.ts'
@@ -15,7 +14,7 @@ import { DailyBoard } from '../Schedule/SchedulePage.tsx'
 import { DiaryPage } from '../Diary/DiaryPage.tsx'
 import { MemoPage } from '../Memo/MemoPage.tsx'
 import { ReadingPage } from '../Reading/ReadingPage.tsx'
-import { CreatePageWizard } from './CreatePageWizard.tsx'
+import { CreatePageWizard, MakeTemplatePage } from './CreatePageWizard.tsx'
 import { TemplateImport } from './PackageControls.tsx'
 import { CustomizationLayout } from './CustomizationLayout.tsx'
 import { MyThemesPage } from '../Themes/MyThemesPage.tsx'
@@ -151,13 +150,12 @@ function LayoutPanel() {
 
 export function CustomPage() {
   const { t } = useI18n()
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') === 'layout' ? 'layout' : params.get('tab') === 'themes' ? 'themes' : 'templates'
   const group = params.get('group') === 'custom' ? 'custom' : 'basic'
-  const { customPages, addUserPage, updateUserPage } = useLibrary()
+  const { customPages, updateUserPage } = useLibrary()
   const [query, setQuery] = useState('')
-  const [wizard, setWizard] = useState<PageTemplateKind | true | false>(false)
+  const [wizard, setWizard] = useState(false)
   const [editPage, setEditPage] = useState<UserPage | null>(null)
 
   if (editPage?.template) {
@@ -175,16 +173,7 @@ export function CustomPage() {
   }
 
   if (wizard) {
-    return (
-      <CreatePageWizard
-        initial={wizard === true ? undefined : wizard}
-        onCancel={() => setWizard(false)}
-        onCreate={(input) => {
-          const id = addUserPage(input)
-          navigate(ROUTES.page(id))
-        }}
-      />
-    )
+    return <MakeTemplatePage onCancel={() => setWizard(false)} />
   }
 
   const setGroup = (next: 'basic' | 'custom') => setParams(next === 'basic' ? {} : { group: next })
