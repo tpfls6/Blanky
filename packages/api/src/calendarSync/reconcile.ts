@@ -93,7 +93,7 @@ export function reconcile({ snapshot, page, deferOutbound = false, exportUnlinke
     }
     const row = rowsById.get(link.scheduleId)
     if (!row) {
-      ops.push({ kind: 'delete_google', googleEventId: event.id, etag: event.etag })
+      ops.push({ kind: 'delete_google', scheduleId: link.scheduleId, googleEventId: event.id, etag: event.etag })
       continue
     }
     handledSchedules.add(row.scheduleId)
@@ -141,7 +141,7 @@ export function reconcile({ snapshot, page, deferOutbound = false, exportUnlinke
 
   for (const link of snapshot.links) {
     if (rowsById.has(link.scheduleId) || seenGoogle.has(link.googleEventId)) continue
-    ops.push({ kind: 'delete_google', googleEventId: link.googleEventId, etag: link.appliedEtag })
+    ops.push({ kind: 'delete_google', scheduleId: link.scheduleId, googleEventId: link.googleEventId, etag: link.appliedEtag })
   }
 
   return ops

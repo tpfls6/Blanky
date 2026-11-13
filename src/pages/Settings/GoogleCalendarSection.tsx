@@ -11,7 +11,7 @@ import { isSupabaseConfigured } from '../../services/supabase/client.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
-import { calendarPanel, errorCode, errorLine, lastSyncLine } from './calendarPanel.ts'
+import { calendarPanel, errorCode, errorHint, errorLine, lastSyncLine, syncProblem } from './calendarPanel.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { Choice, SwitchRow } from './bits.tsx'
 import { ArrowRight } from 'lucide-react'
@@ -103,6 +103,7 @@ export function GoogleCalendarSection() {
   if (!view) return <p className="text-sm text-neutral-500" role="status">{t('calendar.reading')}</p>
 
   const panel = calendarPanel(view, locale)
+  const problem = syncProblem(view, locale)
 
   const run = async (work: () => Promise<void>) => {
     if (inFlight.current) return
@@ -112,7 +113,7 @@ export function GoogleCalendarSection() {
     try {
       await work()
     } catch (error) {
-      setMessage(errorLine(error, locale))
+      setMessage(`${errorLine(error, locale)} ${errorHint(error, locale)}`)
     } finally {
       inFlight.current = false
       setBusy(false)
@@ -128,6 +129,17 @@ export function GoogleCalendarSection() {
       {panel.lastSync ? <p className="mt-1 text-sm text-neutral-500">{lastSyncLine(panel.lastSync, locale)}</p> : null}
       {panel.errorText ? <p className="mt-1 text-sm text-neutral-500">{panel.errorText}</p> : null}
       {panel.hint ? <p className="mt-1 text-sm text-neutral-500">{panel.hint}</p> : null}
+      {view.status === 'ready' && problem ? (
+        <div className="mt-2 text-sm text-neutral-500" role="status">
+          <p>{problem.line}</p>
+          {problem.details.length ? (
+            <ul className="mt-1 list-disc pl-5">
+              {problem.details.map((line, index) => <li key={index}>{line}</li>)}
+            </ul>
+          ) : null}
+          {problem.hint ? <p className="mt-1">{problem.hint}</p> : null}
+        </div>
+      ) : null}
       {message ? <p className="mt-1 text-sm text-neutral-500" role="status">{message}</p> : null}
 
       {panel.canConnect ? (
@@ -178,7 +190,7 @@ export function GoogleCalendarSection() {
             className="btn btn-line mt-3"
             disabled={busy}
             onClick={() => void run(async () => {
-              const report = await synchronizeCalendars(user!.id, refreshWork)
+              const report = await synchronizeCalendars(user!.id, refreshWork, { force: true })
               setMessage(t('calendar.synced', { imported: report.imported, exported: report.exported }))
               setView(await getCalendarSyncClient().status())
             })}

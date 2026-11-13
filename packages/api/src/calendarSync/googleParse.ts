@@ -54,12 +54,15 @@ function whenFromGoogle(event: Record<string, unknown>, calendarTimeZone: string
   if (typeof start.dateTime !== 'string') throw new CalendarSyncError('GOOGLE_HTTP', 'Google 일정의 시간을 읽지 못했습니다.')
   const zone = text(start.timeZone) || calendarTimeZone
   const startClock = wallClock(start.dateTime, zone)
-  const endClock = typeof end.dateTime === 'string' ? wallClock(end.dateTime, text(end.timeZone) || zone) : null
+  // Read the end in the start's zone so one Blanky row keeps the real duration even when Google
+  // stores a different end zone (a flight, for example).
+  const endClock = typeof end.dateTime === 'string' ? wallClock(end.dateTime, zone) : null
   return {
     allDay: false,
     date: startClock.date,
     startTime: startClock.time,
-    endTime: endClock && endClock.date === startClock.date ? endClock.time : endClock ? endClock.time : null,
+    endTime: endClock ? endClock.time : null,
+    endDate: endClock && endClock.date > startClock.date ? endClock.date : null,
   }
 }
 

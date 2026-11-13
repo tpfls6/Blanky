@@ -11,7 +11,7 @@ export type CalendarAction =
   | { type: 'start_connect' }
   | { type: 'list_calendars' }
   | { type: 'select_calendar'; googleCalendarId: GoogleCalendarId; firstImport: FirstImport }
-  | { type: 'sync' }
+  | { type: 'sync'; force: boolean }
   | { type: 'set_auto_sync'; enabled: boolean }
   | { type: 'disconnect'; disposition: DisconnectDisposition }
 
@@ -34,9 +34,11 @@ function disposition(value: unknown): DisconnectDisposition {
 export function parseCalendarAction(body: unknown): CalendarAction {
   const row = record(body)
   if (!row || typeof row.type !== 'string') throw new CalendarSyncError('INVALID_COMMAND', 'Calendar 명령을 확인해 주세요.')
-  if (row.type === 'status' || row.type === 'start_connect' || row.type === 'list_calendars' || row.type === 'sync') {
+  if (row.type === 'status' || row.type === 'start_connect' || row.type === 'list_calendars') {
     return { type: row.type }
   }
+  // `force` retries items still waiting for their retry time (the manual "sync now" button).
+  if (row.type === 'sync') return { type: 'sync', force: row.force === true }
   if (row.type === 'set_auto_sync') {
     if (typeof row.enabled !== 'boolean') throw new CalendarSyncError('INVALID_COMMAND', '자동 동기화 값을 확인해 주세요.')
     return { type: 'set_auto_sync', enabled: row.enabled }

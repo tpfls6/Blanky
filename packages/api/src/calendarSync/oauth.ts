@@ -74,19 +74,28 @@ export async function refreshAccessToken(
 ): Promise<TokenSet> {
   const now = input.now ?? new Date()
   if (Date.parse(input.tokens.accessTokenExpiresAt) - now.getTime() > 60_000) return input.tokens
-  const response = await fetcher('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: input.clientId,
-      client_secret: input.clientSecret,
-      refresh_token: input.tokens.refreshToken,
-      grant_type: 'refresh_token',
-    }),
-  })
+  let response: Response
+  try {
+    response = await fetcher('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: input.clientId,
+        client_secret: input.clientSecret,
+        refresh_token: input.tokens.refreshToken,
+        grant_type: 'refresh_token',
+      }),
+    })
+  } catch {
+    throw new CalendarSyncError('GOOGLE_UNAVAILABLE', 'Google 토큰 서버에 연결하지 못했습니다.', 503)
+  }
   const body = record(await response.json().catch(() => null))
+  // Only a refused grant means the user must reconnect. Outages keep the stored refresh token.
+  if (response.status >= 500 || response.status === 429) {
+    throw new CalendarSyncError('GOOGLE_UNAVAILABLE', 'Google 토큰 서버가 응답하지 않습니다.', 503, response.status)
+  }
   if (!response.ok || typeof body.access_token !== 'string') {
-    throw new CalendarSyncError('GOOGLE_DENIED', 'Google Calendar 토큰을 갱신하지 못했습니다.', 502)
+    throw new CalendarSyncError('GOOGLE_DENIED', 'Google Calendar 토큰을 갱신하지 못했습니다.', 502, response.status === 400 ? 401 : response.status)
   }
   return {
     refreshToken: input.tokens.refreshToken,

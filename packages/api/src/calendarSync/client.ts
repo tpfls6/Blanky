@@ -17,7 +17,7 @@ export type CalendarSyncClient = {
     googleCalendarId: GoogleCalendarId
     firstImport: FirstImport
   }): Promise<ConnectionView>
-  sync(): Promise<SyncReport>
+  sync(options?: { force?: boolean }): Promise<SyncReport>
   setAutoSync(enabled: boolean): Promise<ConnectionView>
   disconnect(disposition: DisconnectDisposition): Promise<ConnectionView>
 }
@@ -26,10 +26,14 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {}
 }
 
+type ErrorContext = { status?: unknown; clone?: () => { json?: () => Promise<unknown> }; json?: () => Promise<unknown> }
+
+function errorContext(error: unknown): ErrorContext | undefined {
+  return error && typeof error === 'object' && 'context' in error ? (error as { context?: ErrorContext }).context : undefined
+}
+
 async function functionErrorBody(error: unknown): Promise<Record<string, unknown> | null> {
-  const context = error && typeof error === 'object' && 'context' in error
-    ? (error as { context?: { clone?: () => { json?: () => Promise<unknown> }; json?: () => Promise<unknown> } }).context
-    : undefined
+  const context = errorContext(error)
   if (!context) return null
   const reader = typeof context.clone === 'function' ? context.clone() : context
   if (typeof reader.json !== 'function') return null
@@ -63,6 +67,14 @@ async function invoke(client: SupabaseClient, body: Record<string, unknown>): Pr
         code: 'GOOGLE_FN_MISSING',
         message: 'google-calendar Edge Function이 배포되지 않았습니다.',
       })
+    }
+    const status = typeof errorContext(error)?.status === 'number' ? errorContext(error)!.status as number : 0
+    // Gateway 401 (expired or invalid session JWT) never reaches the function's own error format.
+    if (status === 401) throw asCalendarSyncError({ code: 'UNAUTHENTICATED', message: '로그인이 만료되었습니다.' })
+    // No response at all, or a gateway/worker failure: the request never got a calendar answer.
+    const name = error && typeof error === 'object' && 'name' in error ? String((error as { name: unknown }).name) : ''
+    if (name === 'FunctionsFetchError' || name === 'FunctionsRelayError' || !status || status >= 500) {
+      throw asCalendarSyncError({ code: 'NETWORK', message: error.message || 'Calendar 서버에 연결하지 못했습니다.' })
     }
     throw asCalendarSyncError({ code: 'GOOGLE_HTTP', message: error.message })
   }
@@ -105,8 +117,8 @@ export function createCalendarSyncClient(client: SupabaseClient): CalendarSyncCl
     async selectCalendar(input) {
       return asView(await invoke(client, { type: 'select_calendar', ...input }))
     },
-    async sync() {
-      return await invoke(client, { type: 'sync' }) as unknown as SyncReport
+    async sync(options = {}) {
+      return await invoke(client, { type: 'sync', force: options.force === true }) as unknown as SyncReport
     },
     async setAutoSync(enabled) {
       return asView(await invoke(client, { type: 'set_auto_sync', enabled }))

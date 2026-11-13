@@ -291,7 +291,7 @@ test('cancelled Google event with a link deletes the Blanky row', () => {
 test('orphan link whose schedule is gone deletes the Google event', () => {
   const mapped = link({ scheduleId: asScheduleId('s-gone'), googleEventId: asGoogleEventId('g-1') })
   const ops = run([], [mapped], [])
-  assert.deepEqual(ops, [{ kind: 'delete_google', googleEventId: mapped.googleEventId, etag: mapped.appliedEtag }])
+  assert.deepEqual(ops, [{ kind: 'delete_google', scheduleId: mapped.scheduleId, googleEventId: mapped.googleEventId, etag: mapped.appliedEtag }])
 })
 
 test('wiped mapping rematches by blankyScheduleId and does not insert a second row', () => {
@@ -351,7 +351,7 @@ test('delete_google treats a Google 404 as already gone and still drops the link
   const deleted: Array<{ googleEventId: typeof googleEventId } | { scheduleId: ReturnType<typeof asScheduleId> }> = []
   const googleCalls: Array<{ id: typeof googleEventId; etag: ReturnType<typeof asEtag> }> = []
   const report = await applyOps(
-    [{ kind: 'delete_google', googleEventId, etag: asEtag('etag-1') }],
+    [{ kind: 'delete_google', scheduleId: asScheduleId('s-1'), googleEventId, etag: asEtag('etag-1') }],
     applyDeps({
       async deleteGoogleEvent(input) {
         googleCalls.push(input)
@@ -371,7 +371,7 @@ test('delete_google ok also drops the link', async () => {
   const googleEventId = asGoogleEventId('g-2')
   let gone = ''
   const report = await applyOps(
-    [{ kind: 'delete_google', googleEventId, etag: asEtag('etag-9') }],
+    [{ kind: 'delete_google', scheduleId: asScheduleId('s-2'), googleEventId, etag: asEtag('etag-9') }],
     applyDeps({
       async deleteGoogleEvent() {
         return 'ok'

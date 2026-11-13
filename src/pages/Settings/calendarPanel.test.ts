@@ -81,8 +81,14 @@ test('error maps CalendarError codes including GOOGLE_ENV_MISSING', () => {
     GOOGLE_DENIED: 'Google Calendar 권한이 거부되었습니다.',
     NOT_CONNECTED: 'Google Calendar에 먼저 연결해 주세요.',
     NEEDS_CALENDAR: '캘린더를 선택해 주세요.',
-    GOOGLE_HTTP: 'Google Calendar에 연결하지 못했습니다.',
+    GOOGLE_HTTP: 'Google Calendar 요청을 처리하지 못했습니다.',
     INVALID_COMMAND: '요청을 확인하지 못했습니다.',
+    NETWORK: 'Calendar 서버에 연결하지 못했습니다.',
+    GOOGLE_UNAVAILABLE: 'Google Calendar 서버가 잠시 응답하지 않습니다.',
+    GOOGLE_RATE_LIMITED: 'Google Calendar 요청 한도를 넘었습니다.',
+    GOOGLE_INVALID_EVENT: 'Google Calendar가 일정 내용을 받지 않았습니다.',
+    GOOGLE_CONFLICT: 'Google에서도 바뀐 일정이라 덮어쓰지 않고 보류했습니다.',
+    STORE_FAILED: 'Blanky에 동기화 결과를 저장하지 못했습니다.',
   }
   for (const [code, text] of Object.entries(mapped) as [CalendarErrorCode, string][]) {
     assert.equal(errorLine({ code }), text)
@@ -105,8 +111,8 @@ test('error maps CalendarError codes including GOOGLE_ENV_MISSING', () => {
   assert.match(missingFn.hint ?? '', /google-calendar-oauth/)
 })
 
-test('last sync error is the result line', () => {
-  assert.equal(lastSyncLine({
+test('a failed last sync says it failed instead of echoing the raw server text', () => {
+  assert.match(lastSyncLine({
     at: asIsoDateTime('2026-10-26T00:00:00.000Z'),
     imported: 0,
     exported: 0,
@@ -115,5 +121,5 @@ test('last sync error is the result line', () => {
     skippedUnsupported: 0,
     conflictCount: 0,
     error: '토큰이 만료되었습니다.',
-  }), '토큰이 만료되었습니다.')
+  }), /실패$/)
 })

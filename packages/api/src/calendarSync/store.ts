@@ -12,17 +12,20 @@ import {
   asUserId,
   type CalendarId,
   type ConnectionId,
+  type CalendarErrorCode,
   type DisconnectDisposition,
   type IsoDateTime,
   type LastSync,
   type ScheduleId,
   type SyncCursor,
+  type SyncFailure,
+  type SyncFailureOp,
   type UserId,
 } from '../../../types/src/calendarSync.ts'
 import { isCalendarDate } from '../../../types/src/aiSchema.ts'
 import { mapScheduleRow } from '../scheduleRepository.ts'
 import type { BlankySnapshot, BoundCalendar, Connection, EventLink, ReadyConnection, SnapshotRow, TokenSet } from './domain.ts'
-import { CalendarSyncError } from './errors.ts'
+import { CalendarSyncError, isCalendarError } from './errors.ts'
 import { parseRecurrenceFromSchedule } from './recurrence.ts'
 import { asDateStr, asTimeStr, type PeerWhen } from '../../../types/src/calendarSync.ts'
 
@@ -78,7 +81,7 @@ async function withRepeatUntil<T extends { error: { message: string; code?: stri
 
 async function one(result: PromiseLike<{ data: unknown; error: { message: string } | null }>, fallback = 'Calendar 저장소를 읽지 못했습니다.'): Promise<unknown> {
   const { data, error } = await result
-  if (error) throw new CalendarSyncError('GOOGLE_HTTP', error.message || fallback, 502)
+  if (error) throw new CalendarSyncError('STORE_FAILED', error.message || fallback, 500)
   return data
 }
 
@@ -101,8 +104,29 @@ function lastSync(value: unknown): LastSync {
     skippedUnsupported: typeof row.skippedUnsupported === 'number' ? row.skippedUnsupported : 0,
     conflictCount: typeof row.conflictCount === 'number' ? row.conflictCount : 0,
     error: typeof row.error === 'string' ? row.error : null,
+    errorCode: isCalendarError({ code: row.errorCode, message: '' }) ? row.errorCode as CalendarErrorCode : null,
+    failures: Array.isArray(row.failures) ? row.failures.flatMap(syncFailure) : [],
   }
 }
+
+function syncFailure(value: unknown): SyncFailure[] {
+  const row = record(value)
+  const key = text(row.key)
+  const op = text(row.op)
+  if (!key || !FAILURE_OPS.includes(op as SyncFailureOp) || !isCalendarError({ code: row.code, message: '' })) return []
+  return [{
+    key,
+    op: op as SyncFailureOp,
+    code: row.code as CalendarErrorCode,
+    message: text(row.message),
+    title: text(row.title) || null,
+    googleEventId: text(row.googleEventId) ? asGoogleEventId(row.googleEventId) : null,
+    attempts: typeof row.attempts === 'number' && row.attempts > 0 ? row.attempts : 1,
+    nextRetryAt: asIsoDateTime(text(row.nextRetryAt) || new Date(0).toISOString()),
+  }]
+}
+
+const FAILURE_OPS: readonly SyncFailureOp[] = ['import', 'delete_local', 'create_google', 'update_google', 'delete_google', 'link']
 
 function tokens(row: Record<string, unknown>): TokenSet {
   return {
@@ -267,6 +291,14 @@ export async function saveCursor(admin: DbClient, id: ConnectionId, cursorValue:
   }).eq('id', id).select('id').single())
 }
 
+/** Records a failed sync without moving the cursor, so nothing after the last good point is skipped. */
+export async function saveLastSync(admin: DbClient, id: ConnectionId, report: LastSync): Promise<void> {
+  await one(query(admin, 'google_calendar_connections').update({
+    last_sync: report,
+    updated_at: new Date().toISOString(),
+  }).eq('id', id).select('id').single())
+}
+
 export async function markNeedsReauth(admin: DbClient, id: ConnectionId): Promise<void> {
   await one(query(admin, 'google_calendar_connections').update({
     status: 'needs_reauth',
@@ -304,6 +336,7 @@ function whenFromSchedule(row: { allDay?: boolean; date: string; startTime: stri
     date: asDateStr(row.date),
     startTime: asTimeStr(row.startTime),
     endTime: row.endTime ? asTimeStr(row.endTime) : null,
+    endDate: row.endDate && isCalendarDate(row.endDate) && row.endDate > row.date ? asDateStr(row.endDate) : null,
   }
 }
 
@@ -394,7 +427,7 @@ export async function upsertSchedule(admin: DbClient, input: {
     start_time: when.allDay ? null : when.startTime,
     end_time: when.allDay ? null : when.endTime,
     all_day: when.allDay,
-    end_date: when.allDay ? when.endDate : null,
+    end_date: when.endDate ?? null,
     repeat_rule: input.draft.recurrence.freq,
     repeat_days: input.draft.recurrence.freq === 'weekly' ? [...input.draft.recurrence.days] : [],
     ...columns,
@@ -416,7 +449,7 @@ export async function upsertSchedule(admin: DbClient, input: {
       }
       return { scheduleId: asScheduleId(record(existing).id), updatedAt: input.draft.updatedAt }
     }
-    throw new CalendarSyncError('GOOGLE_HTTP', error.message, 502)
+    throw new CalendarSyncError('STORE_FAILED', error.message, 500)
   }
   const row = record(data)
   return { scheduleId: asScheduleId(row.id), updatedAt: asIsoDateTime(row.updated_at) }
@@ -443,7 +476,7 @@ export async function casUpdateSchedule(admin: DbClient, input: {
     start_time: when.allDay ? null : when.startTime,
     end_time: when.allDay ? null : when.endTime,
     all_day: when.allDay,
-    end_date: when.allDay ? when.endDate : null,
+    end_date: when.endDate ?? null,
     repeat_rule: input.draft.recurrence.freq,
     repeat_days: input.draft.recurrence.freq === 'weekly' ? [...input.draft.recurrence.days] : [],
     ...columns,

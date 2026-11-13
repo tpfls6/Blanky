@@ -29,7 +29,8 @@ export type Recurrence =
 
 export type PeerWhen =
   | { allDay: true; date: DateStr; endDate: DateStr | null }
-  | { allDay: false; date: DateStr; startTime: TimeStr; endTime: TimeStr | null }
+  /** `endDate` is the local date `endTime` falls on when the event crosses midnight or spans days. */
+  | { allDay: false; date: DateStr; startTime: TimeStr; endTime: TimeStr | null; endDate?: DateStr | null }
 
 export type FirstImport =
   | { direction: 'from_google' }
@@ -51,7 +52,24 @@ export type LastSync = {
   deletedGoogle: number
   skippedUnsupported: number
   conflictCount: number
+  /** Whole-sync failure. Item failures live in `failures` and do not set this. */
   error: string | null
+  errorCode?: CalendarErrorCode | null
+  failures?: readonly SyncFailure[]
+}
+
+export type SyncFailureOp = 'import' | 'delete_local' | 'create_google' | 'update_google' | 'delete_google' | 'link'
+
+/** One schedule or Google event the last sync could not apply. Retried after `nextRetryAt`. */
+export type SyncFailure = {
+  key: string
+  op: SyncFailureOp
+  code: CalendarErrorCode
+  message: string
+  title: string | null
+  googleEventId: GoogleEventId | null
+  attempts: number
+  nextRetryAt: IsoDateTime
 }
 
 export type GoogleCalendarChoice = {
@@ -70,6 +88,12 @@ export type CalendarErrorCode =
   | 'NEEDS_CALENDAR'
   | 'GOOGLE_HTTP'
   | 'INVALID_COMMAND'
+  | 'NETWORK'
+  | 'GOOGLE_UNAVAILABLE'
+  | 'GOOGLE_RATE_LIMITED'
+  | 'GOOGLE_INVALID_EVENT'
+  | 'GOOGLE_CONFLICT'
+  | 'STORE_FAILED'
 
 export type CalendarError = {
   code: CalendarErrorCode
@@ -98,7 +122,7 @@ export type ConflictNote = {
   scheduleId: ScheduleId
   googleEventId: GoogleEventId
   reason: 'both_dirty' | 'etag_mismatch'
-  resolved: 'blanky_wins'
+  resolved: 'blanky_wins' | 'held' | 'remote_kept'
 }
 
 export type SyncReport = {
@@ -109,6 +133,8 @@ export type SyncReport = {
   skippedUnsupported: number
   conflicts: readonly ConflictNote[]
   cursor: SyncCursor
+  failures: readonly SyncFailure[]
+  lastSync?: LastSync
 }
 
 function brandedString<T extends string>(value: unknown, label: string): T {

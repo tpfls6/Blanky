@@ -1,8 +1,8 @@
 import type { Etag, GoogleCalendarChoice, GoogleCalendarId, GoogleEventId, PeerWhen, Recurrence, ScheduleId, SyncToken } from '../../../types/src/calendarSync.ts'
 import { asEtag, asGoogleCalendarId, asGoogleEventId } from '../../../types/src/calendarSync.ts'
-import type { GoogleEventWrite, GoogleListResult } from './domain.ts'
+import type { GoogleEventWrite, GoogleListResult, GooglePeerEvent } from './domain.ts'
 import { CalendarSyncError } from './errors.ts'
-import { parseGoogleList } from './googleParse.ts'
+import { parseGoogleEvent, parseGoogleList } from './googleParse.ts'
 import { BLANKY_SCHEDULE_EXTENDED_PROPERTY } from './oauth.ts'
 import { toGoogleRrule } from './recurrence.ts'
 
@@ -25,9 +25,15 @@ function googleWhen(when: PeerWhen, timeZone: string): { start: Record<string, s
     const end = when.endDate ? shiftDate(when.endDate, 1) : shiftDate(when.date, 1)
     return { start: { date: when.date }, end: { date: end } }
   }
+  const endTime = when.endTime ?? when.startTime
+  // Blanky keeps the end date for overnight and multi-day events. Rows saved without one and an
+  // end before the start (23:00-01:00) still end on the next day, as Blanky shows them.
+  const endDate = when.endDate && when.endDate > when.date
+    ? when.endDate
+    : endTime < when.startTime ? shiftDate(when.date, 1) : when.date
   return {
     start: { dateTime: `${when.date}T${when.startTime}:00`, timeZone },
-    end: { dateTime: `${when.date}T${when.endTime ?? when.startTime}:00`, timeZone },
+    end: { dateTime: `${endDate}T${endTime}:00`, timeZone },
   }
 }
 
@@ -44,30 +50,57 @@ export function googleBodyFromWrite(body: GoogleEventWrite, timeZone: string): R
   }
 }
 
+function googleReason(body: Record<string, unknown>): { reason: string; message: string } {
+  const error = record(body.error)
+  const first = record(Array.isArray(error.errors) ? error.errors[0] : null)
+  return { reason: text(first.reason), message: text(error.message) }
+}
+
 async function googleJson(
   input: { accessToken: string; url: string; method?: string; body?: unknown; etag?: Etag },
   fetcher: typeof fetch,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  const response = await fetcher(input.url, {
-    method: input.method ?? 'GET',
-    headers: {
-      Authorization: `Bearer ${input.accessToken}`,
-      ...(input.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(input.etag ? { 'If-Match': input.etag } : {}),
-    },
-    body: input.body ? JSON.stringify(input.body) : undefined,
-  })
+  let response: Response
+  try {
+    response = await fetcher(input.url, {
+      method: input.method ?? 'GET',
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+        ...(input.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(input.etag ? { 'If-Match': input.etag } : {}),
+      },
+      body: input.body ? JSON.stringify(input.body) : undefined,
+    })
+  } catch {
+    throw new CalendarSyncError('GOOGLE_UNAVAILABLE', 'Google Calendar 서버에 연결하지 못했습니다.', 503)
+  }
   const body = record(await response.json().catch(() => null))
+  const { reason } = googleReason(body)
+  if (response.status === 429 || (response.status === 403 && /ratelimit|quotaexceeded/i.test(reason))) {
+    throw new CalendarSyncError('GOOGLE_RATE_LIMITED', 'Google Calendar 요청 한도를 넘었습니다.', 429, response.status)
+  }
   if (response.status === 401 || response.status === 403) {
-    throw new CalendarSyncError('GOOGLE_DENIED', 'Google Calendar 권한이 거부되었습니다.', 502)
+    throw new CalendarSyncError('GOOGLE_DENIED', 'Google Calendar 권한이 거부되었습니다.', 502, response.status)
+  }
+  if (response.status >= 500) {
+    throw new CalendarSyncError('GOOGLE_UNAVAILABLE', 'Google Calendar 서버가 응답하지 않습니다.', 503, response.status)
   }
   return { status: response.status, body }
+}
+
+/** Maps a Google 4xx to a code. The Google message names the bad field and never echoes tokens. */
+function googleFailure(status: number, body: Record<string, unknown>, action: string): CalendarSyncError {
+  const detail = googleReason(body).message
+  const message = detail ? `${action}: ${detail}` : action
+  if (status === 400) return new CalendarSyncError('GOOGLE_INVALID_EVENT', message, 502, status)
+  if (status === 409 || status === 412) return new CalendarSyncError('GOOGLE_CONFLICT', message, 409, status)
+  return new CalendarSyncError('GOOGLE_HTTP', message, 502, status)
 }
 
 export async function listGoogleCalendars(accessToken: string, fetcher: typeof fetch = fetch): Promise<readonly GoogleCalendarChoice[]> {
   const url = new URL('https://www.googleapis.com/calendar/v3/users/me/calendarList')
   const { status, body } = await googleJson({ accessToken, url: url.toString() }, fetcher)
-  if (status >= 400) throw new CalendarSyncError('GOOGLE_HTTP', 'Google 캘린더 목록을 읽지 못했습니다.', 502)
+  if (status >= 400) throw googleFailure(status, body, 'Google 캘린더 목록을 읽지 못했습니다')
   return (Array.isArray(body.items) ? body.items : []).flatMap((item) => {
     const row = record(item)
     const id = text(row.id)
@@ -92,8 +125,21 @@ export async function listGoogleEvents(
   if (input.pageToken) url.searchParams.set('pageToken', input.pageToken)
   const { status, body } = await googleJson({ accessToken: input.accessToken, url: url.toString() }, fetcher)
   if (status === 410) return { kind: 'gone' }
-  if (status >= 400) throw new CalendarSyncError('GOOGLE_HTTP', 'Google 일정을 읽지 못했습니다.', 502)
+  if (status >= 400) throw googleFailure(status, body, 'Google 일정을 읽지 못했습니다')
   return { kind: 'page', page: parseGoogleList(body, input.timeZone) }
+}
+
+/** Reads one event again after a 412. `null` means Google no longer has it. */
+export async function getGoogleEvent(
+  input: { accessToken: string; googleCalendarId: GoogleCalendarId; id: GoogleEventId; timeZone: string },
+  fetcher: typeof fetch = fetch,
+): Promise<GooglePeerEvent | null> {
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(input.googleCalendarId)}/events/${encodeURIComponent(input.id)}`
+  const { status, body } = await googleJson({ accessToken: input.accessToken, url }, fetcher)
+  if (status === 404 || status === 410) return null
+  if (status >= 400) throw googleFailure(status, body, 'Google 일정을 다시 읽지 못했습니다')
+  const event = parseGoogleEvent(body, input.timeZone)
+  return event.status === 'cancelled' ? null : event
 }
 
 export async function createGoogleEvent(
@@ -107,7 +153,8 @@ export async function createGoogleEvent(
     method: 'POST',
     body: googleBodyFromWrite(input.body, input.timeZone),
   }, fetcher)
-  if (status >= 400 || !body.id) throw new CalendarSyncError('GOOGLE_HTTP', 'Google 일정을 만들지 못했습니다.', 502)
+  if (status >= 400) throw googleFailure(status, body, 'Google 일정을 만들지 못했습니다')
+  if (!body.id) throw new CalendarSyncError('GOOGLE_HTTP', 'Google 일정을 만들지 못했습니다.', 502, status)
   return { id: asGoogleEventId(body.id), etag: asEtag(text(body.etag) || 'etag-missing') }
 }
 
@@ -124,18 +171,19 @@ export async function updateGoogleEvent(
     body: googleBodyFromWrite(input.body, input.timeZone),
   }, fetcher)
   if (status === 412) return { kind: 'etag_mismatch' }
-  if (status >= 400) throw new CalendarSyncError('GOOGLE_HTTP', 'Google 일정을 수정하지 못했습니다.', 502)
+  if (status >= 400) throw googleFailure(status, body, 'Google 일정을 수정하지 못했습니다')
   return { etag: asEtag(text(body.etag) || input.etag) }
 }
 
 export async function deleteGoogleEvent(
   input: { accessToken: string; googleCalendarId: GoogleCalendarId; id: GoogleEventId; etag: Etag },
   fetcher: typeof fetch = fetch,
-): Promise<'ok' | 'already_gone'> {
+): Promise<'ok' | 'already_gone' | 'etag_mismatch'> {
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(input.googleCalendarId)}/events/${encodeURIComponent(input.id)}`
-  const { status } = await googleJson({ accessToken: input.accessToken, url, method: 'DELETE', etag: input.etag }, fetcher)
+  const { status, body } = await googleJson({ accessToken: input.accessToken, url, method: 'DELETE', etag: input.etag }, fetcher)
   if (status === 404 || status === 410) return 'already_gone'
-  if (status >= 400 && status !== 204) throw new CalendarSyncError('GOOGLE_HTTP', 'Google 일정을 삭제하지 못했습니다.', 502)
+  if (status === 412) return 'etag_mismatch'
+  if (status >= 400) throw googleFailure(status, body, 'Google 일정을 삭제하지 못했습니다')
   return 'ok'
 }
 

@@ -5,7 +5,7 @@ import type { ApplyDeps } from './apply.ts'
 import type { Connection, ReadyConnection } from './domain.ts'
 import type { GoogleCalendarSecrets } from './env.ts'
 import { CalendarSyncError, asCalendarSyncError, calendarError, errorStatus } from './errors.ts'
-import { createGoogleEvent, deleteGoogleEvent, listGoogleCalendars, listGoogleEvents, updateGoogleEvent } from './googleApi.ts'
+import { createGoogleEvent, deleteGoogleEvent, getGoogleEvent, listGoogleCalendars, listGoogleEvents, updateGoogleEvent } from './googleApi.ts'
 import { consentUrl, createOAuthState, hashOAuthState, refreshAccessToken } from './oauth.ts'
 import {
   bindPersonalToCalendar,
@@ -19,6 +19,7 @@ import {
   saveAwaitingConsent,
   saveAutoSync,
   saveCursor,
+  saveLastSync,
   saveReadyBind,
   upsertLink,
   upsertSchedule,
@@ -54,7 +55,7 @@ function ready(connection: Connection | null): ReadyConnection {
   return connection
 }
 
-function lastSyncOf(report: Pick<SyncReport, 'imported' | 'exported' | 'deletedLocal' | 'deletedGoogle' | 'skippedUnsupported' | 'conflicts'>): LastSync {
+function lastSyncOf(report: Pick<SyncReport, 'imported' | 'exported' | 'deletedLocal' | 'deletedGoogle' | 'skippedUnsupported' | 'conflicts'> & { failures?: SyncReport['failures'] }): LastSync {
   return {
     at: asIsoDateTime(new Date().toISOString()),
     imported: report.imported,
@@ -64,6 +65,24 @@ function lastSyncOf(report: Pick<SyncReport, 'imported' | 'exported' | 'deletedL
     skippedUnsupported: report.skippedUnsupported,
     conflictCount: report.conflicts.length,
     error: null,
+    errorCode: null,
+    failures: report.failures ?? [],
+  }
+}
+
+/** A sync that stopped as a whole keeps the item failures it knew and the old cursor. */
+function failedSyncOf(error: CalendarSyncError, previous: LastSync | null): LastSync {
+  return {
+    at: asIsoDateTime(new Date().toISOString()),
+    imported: 0,
+    exported: 0,
+    deletedLocal: 0,
+    deletedGoogle: 0,
+    skippedUnsupported: 0,
+    conflictCount: 0,
+    error: error.message,
+    errorCode: error.code,
+    failures: previous?.failures ?? [],
   }
 }
 
@@ -75,8 +94,9 @@ async function withTokens(connection: Extract<Connection, { tokens: unknown }>, 
       tokens: connection.tokens,
     }, deps.fetch)
   } catch (error) {
-    await markNeedsReauth(deps.admin, connection.id)
-    throw asCalendarSyncError(error, 'GOOGLE_DENIED')
+    const mapped = asCalendarSyncError(error, 'GOOGLE_UNAVAILABLE')
+    if (mapped.code === 'GOOGLE_DENIED') await markNeedsReauth(deps.admin, connection.id)
+    throw mapped
   }
 }
 
@@ -111,6 +131,66 @@ async function applyFor(connection: ReadyConnection, accessToken: string, deps: 
       googleCalendarId: connection.calendar.googleCalendarId,
       ...input,
     }, deps.fetch),
+    getGoogleEvent: (id) => getGoogleEvent({
+      accessToken,
+      googleCalendarId: connection.calendar.googleCalendarId,
+      id,
+      timeZone: connection.calendar.timeZone,
+    }, deps.fetch),
+  }
+}
+
+async function syncReady(
+  deps: HandleDeps,
+  connection: ReadyConnection,
+  accessToken: string,
+  options: { exportUnlinked?: boolean; force: boolean; previous: LastSync | null },
+): Promise<SyncReport> {
+  const userId = connection.userId
+  const report = await runSync({
+    connection,
+    google: {
+      list: (input) => listGoogleEvents({
+        accessToken,
+        googleCalendarId: connection.calendar.googleCalendarId,
+        timeZone: connection.calendar.timeZone,
+        ...input,
+      }, deps.fetch),
+    },
+    exportUnlinked: options.exportUnlinked,
+    findOriginalRows: (ids) => findOwnedSchedules(deps.admin, userId, ids),
+    loadSnapshot: (current) => loadSnapshot(deps.admin, current),
+    wipeLinks: (id) => wipeLinks(deps.admin, id),
+    saveCursor: async (id, cursor) => {
+      await saveCursor(deps.admin, id, cursor, { ...lastSyncOf({
+        imported: 0,
+        exported: 0,
+        deletedLocal: 0,
+        deletedGoogle: 0,
+        skippedUnsupported: 0,
+        conflicts: [],
+      }), failures: options.previous?.failures ?? [] })
+    },
+    apply: await applyFor(connection, accessToken, deps),
+    retry: { previous: options.previous?.failures ?? [], force: options.force },
+  })
+  const lastSync = lastSyncOf(report)
+  await saveCursor(deps.admin, connection.id, report.cursor, lastSync)
+  return { ...report, lastSync }
+}
+
+/** Runs a sync and records its outcome, including a sync that failed as a whole. */
+async function recordedSync(deps: HandleDeps, connection: ReadyConnection, run: () => Promise<SyncReport>): Promise<SyncReport> {
+  try {
+    return await run()
+  } catch (error) {
+    const mapped = asCalendarSyncError(error, 'GOOGLE_HTTP')
+    try {
+      await saveLastSync(deps.admin, connection.id, failedSyncOf(mapped, connection.lastSync))
+    } catch {
+      // The store itself is failing; the caller still gets the original error.
+    }
+    throw mapped
   }
 }
 
@@ -180,66 +260,21 @@ export async function handleCalendarAction(deps: HandleDeps): Promise<HandleResu
       }
       const bound = await loadConnection(deps.admin, userId)
       const readyConnection = ready(bound)
-      const report = await runSync({
-        connection: readyConnection,
-        google: {
-          list: (input) => listGoogleEvents({
-            accessToken: tokens.accessToken,
-            googleCalendarId: readyConnection.calendar.googleCalendarId,
-            timeZone: readyConnection.calendar.timeZone,
-            ...input,
-          }, deps.fetch),
-        },
+      await recordedSync(deps, readyConnection, () => syncReady(deps, readyConnection, tokens.accessToken, {
         exportUnlinked: action.firstImport.direction === 'from_blanky',
-        findOriginalRows: (ids) => findOwnedSchedules(deps.admin, userId, ids),
-        loadSnapshot: (current) => loadSnapshot(deps.admin, current),
-        wipeLinks: (id) => wipeLinks(deps.admin, id),
-        saveCursor: async (id, cursor) => {
-          await saveCursor(deps.admin, id, cursor, lastSyncOf({
-            imported: 0,
-            exported: 0,
-            deletedLocal: 0,
-            deletedGoogle: 0,
-            skippedUnsupported: 0,
-            conflicts: [],
-          }))
-        },
-        apply: await applyFor(readyConnection, tokens.accessToken, deps),
-      })
-      await saveCursor(deps.admin, readyConnection.id, report.cursor, lastSyncOf(report))
+        force: true,
+        previous: null,
+      }))
       const latest = await loadConnection(deps.admin, userId)
       return { status: 200, body: viewFromConnection(latest) }
     }
 
     if (action.type === 'sync') {
       const readyConnection = ready(connection)
-      const tokens = await withTokens(readyConnection, deps)
-      const report = await runSync({
-        findOriginalRows: (ids) => findOwnedSchedules(deps.admin, userId, ids),
-        connection: readyConnection,
-        google: {
-          list: (input) => listGoogleEvents({
-            accessToken: tokens.accessToken,
-            googleCalendarId: readyConnection.calendar.googleCalendarId,
-            timeZone: readyConnection.calendar.timeZone,
-            ...input,
-          }, deps.fetch),
-        },
-        loadSnapshot: (current) => loadSnapshot(deps.admin, current),
-        wipeLinks: (id) => wipeLinks(deps.admin, id),
-        saveCursor: async (id, cursor) => {
-          await saveCursor(deps.admin, id, cursor, lastSyncOf({
-            imported: 0,
-            exported: 0,
-            deletedLocal: 0,
-            deletedGoogle: 0,
-            skippedUnsupported: 0,
-            conflicts: [],
-          }))
-        },
-        apply: await applyFor(readyConnection, tokens.accessToken, deps),
+      const report = await recordedSync(deps, readyConnection, async () => {
+        const tokens = await withTokens(readyConnection, deps)
+        return syncReady(deps, readyConnection, tokens.accessToken, { force: action.force, previous: readyConnection.lastSync })
       })
-      await saveCursor(deps.admin, readyConnection.id, report.cursor, lastSyncOf(report))
       return { status: 200, body: report }
     }
 

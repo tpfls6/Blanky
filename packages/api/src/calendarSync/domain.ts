@@ -1,5 +1,6 @@
 import type {
   CalendarId,
+  ConflictNote,
   ConnectionId,
   Etag,
   GoogleCalendarId,
@@ -118,19 +119,14 @@ export type GoogleEventWrite = {
   colorId: string | null
 }
 
-export type ConflictNote = {
-  scheduleId: ScheduleId
-  googleEventId: GoogleEventId
-  reason: 'both_dirty' | 'etag_mismatch'
-  resolved: 'blanky_wins'
-}
+export type { ConflictNote }
 
 export type ReconcileOp =
   | { kind: 'upsert_blanky'; googleEventId: GoogleEventId; etag: Etag; origin: EventLink['origin']; draft: SnapshotRow }
   | { kind: 'delete_blanky'; scheduleId: ScheduleId; googleEventId: GoogleEventId }
   | { kind: 'create_google'; scheduleId: ScheduleId; body: GoogleEventWrite }
   | { kind: 'update_google'; scheduleId: ScheduleId; googleEventId: GoogleEventId; etag: Etag; body: GoogleEventWrite }
-  | { kind: 'delete_google'; googleEventId: GoogleEventId; etag: Etag }
+  | { kind: 'delete_google'; scheduleId: ScheduleId; googleEventId: GoogleEventId; etag: Etag }
   | { kind: 'link'; scheduleId: ScheduleId; googleEventId: GoogleEventId; etag: Etag; origin: EventLink['origin']; appliedBlankyUpdatedAt: IsoDateTime }
   | { kind: 'skip_unsupported'; googleEventId: GoogleEventId }
   | { kind: 'conflict'; note: ConflictNote; follow: Extract<ReconcileOp, { kind: 'update_google' }> }
