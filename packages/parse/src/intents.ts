@@ -118,6 +118,8 @@ const SEQUENTIAL_CONJUNCTION = /그다음|그 다음|그러고|후|이후/
 // Cut after verbal connectors ("퇴근하고 ", "끝난 후 ") so the verb stays with its clause.
 const SPLIT = /[,，;\n]+\s*|[.!?]+\s+|\s+(?:그리고|그다음에?|그 다음에?|그러고\s*나서|그 후에?|이후에?)\s+|(?<=(?:하|되|끝나|마치|나|가|오|보|먹|있|없|됐|했|갔|왔|봤|이|만나|쉬|취소되|취소하|(?:옮겨|바꿔|미뤄|당겨|늦춰|지워|빼|넣어|추가해|취소해)\s*주))(?:고\s*나서|고|면|는데|지만|며)\s+|(?<=[가-힣](?:한|난|친|본|간|온|된|은|는))\s*(?:다음|뒤|후)에?\s+/g
 
+const TRAILING_CONNECTOR = /(?<=[가-힣](?:하|되))(?:고\s*나서|고|며)$/
+
 function splitClauses(text: string): Segment[] {
   const segments: Segment[] = []
   let last = 0
@@ -131,7 +133,9 @@ function splitClauses(text: string): Segment[] {
     const verbal = /^(?:고|면|는데|지만|며|\s*(?:다음|뒤|후))/.test(raw)
     const cut = verbal ? index + raw.length : index
     const piece = text.slice(last, cut).trim()
-    if (piece) segments.push({ text: piece, sequential, connector: verbal ? raw.trim() : '' })
+    // "자료 정리하고, 대본 작성하고, 검토": a comma after a verbal ending still ends the clause with that connector.
+    const trailing = verbal ? null : TRAILING_CONNECTOR.exec(piece)
+    if (piece) segments.push({ text: piece, sequential, connector: verbal ? raw.trim() : trailing?.[0] ?? '' })
     const word = raw.trim()
     sequential = verbal ? /나서|면|다음|뒤|후/.test(raw) || /^고/.test(raw) : CONJUNCTION.test(word) && SEQUENTIAL_CONJUNCTION.test(word)
     last = index + raw.length

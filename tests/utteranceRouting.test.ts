@@ -56,6 +56,13 @@ test('a clause opening with a relative day takes the previous clause date', asyn
   assert.deepEqual(newYear.map(item => [item.type, item.draft.title, item.draft.date ?? item.draft.dueDate]), [['event', '행사', '2027-01-01'], ['task', '준비', '2026-12-31']])
 })
 
+test('comma-separated task steps drop the trailing 하고 from their titles', () => {
+  const { intents } = extractIntents('다음 주 월요일 프로젝트 회의 전까지 발표 자료 정리하고, 발표 대본 작성하고, 최종 검토', new Date(2026, 10, 13))
+  assert.deepEqual(intents.map(intent => [intent.kind, intent.title]), [
+    ['create_task', '프로젝트 회의 발표 자료 정리'], ['create_task', '발표 대본 작성'], ['create_task', '최종 검토'],
+  ])
+})
+
 test('routeUtterance: records, explicit prefixes, planner and pending in one order', () => {
   assert.deepEqual(routeUtterance('오늘 친구랑 카페 다녀왔는데 즐거웠다', { today: TODAY }), { kind: 'record', type: 'diary', original: '오늘 친구랑 카페 다녀왔는데 즐거웠다' })
   // An explicit prefix wins over a planning word inside the memo.
