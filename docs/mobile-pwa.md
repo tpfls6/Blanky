@@ -106,3 +106,16 @@ npm run test:pwa-browser      # 빌드 → 설치 가능 여부(Chromium), 아�
 ```
 
 결과와 스크린샷은 `.audit/runs/mobile-layout`, `.audit/runs/pwa`에 저장됩니다. 두 테스트 모두 로컬 계정(Supabase 미연결)으로 실행하므로 실제 Google 로그인과 서버 동기화는 검증하지 않습니다.
+
+## Android 앱 (Capacitor)
+
+같은 웹 빌드(`dist`)를 Capacitor로 감싸 `android/` 프로젝트에 넣습니다. 설정은 `capacitor.config.json`(appId `com.blanky.app`)입니다.
+
+1. `npm run android:sync` — 웹 빌드 후 `android/app/src/main/assets/public`으로 복사합니다.
+2. `npm run android:open` — Android Studio에서 열어 기기·에뮬레이터로 실행합니다.
+   - **JDK 21 필요**: Android Studio 내장 JDK 25는 Gradle 8.14에서 `Unsupported class file major version 69`로 실패합니다. Android Studio의 Settings › Build Tools › Gradle › Gradle JDK를 21로 지정합니다.
+   - 명령줄 빌드: `android/`에서 `JAVA_HOME`을 JDK 21로 지정하고 `gradlew assembleDebug`.
+
+- 앱 안에서는 Service Worker를 등록하지 않습니다(파일이 APK에 포함되어 있음).
+- **아직 지원하지 않음**: Google 로그인·Google Calendar 연결. Google이 앱 내 WebView의 OAuth를 차단하므로 딥링크 + 외부 브라우저 흐름과 Supabase Redirect URL 추가가 필요합니다. 이메일·비밀번호 로그인은 동작합니다.
+- 앱의 `window.location.origin`은 `https://localhost`이므로 초대·공유 링크는 배포 주소로 바꿔야 합니다.

@@ -57,6 +57,8 @@
     "dev:mobile": "vite --host 0.0.0.0",
     "preview:mobile": "vite build && vite preview --host 0.0.0.0 --port 4173 --strictPort",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs",
+    "android:sync": "vite build && cap sync android",
+    "android:open": "cap open android",
     "test:mobile-browser": "node scripts/mobile-layout-browser-test.mjs",
     "test:mobile-ux-browser": "node scripts/mobile-ux-browser-test.mjs",
     "test:pwa-browser": "node scripts/pwa-browser-test.mjs",
@@ -100,6 +102,8 @@
     "test:planner-large-browser": "node scripts/planner-large-browser-test.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "@fullcalendar/react": "^7.1.0",
     "@supabase/supabase-js": "^2.117.2",
     "@tiptap/pm": "^3.32.0",
@@ -112,6 +116,7 @@
     "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",

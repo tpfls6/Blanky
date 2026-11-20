@@ -1,6 +1,8 @@
 // Registers /sw.js in production builds and reports when a new version waits.
 // The waiting worker only takes over after the user chooses to reload, so a
 // half-filled form is never swapped out under them.
+import { Capacitor } from '@capacitor/core'
+
 type Listener = () => void
 
 let waiting: ServiceWorker | null = null
@@ -27,7 +29,8 @@ export function applyUpdate() {
 }
 
 export function registerServiceWorker() {
-  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return
+  // The Android app ships its files inside the APK, so it needs no offline cache or update prompt.
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator) || Capacitor.isNativePlatform()) return
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((registration) => {
       const track = (worker: ServiceWorker | null) => {

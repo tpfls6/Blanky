@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Blanky</string>
+    <string name="title_activity_main">Blanky</string>
+    <string name="package_name">com.blanky.app</string>
+    <string name="custom_url_scheme">com.blanky.app</string>
+</resources>

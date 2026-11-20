@@ -1,0 +1,8 @@
+{
+  "appId": "com.blanky.app",
+  "appName": "Blanky",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}
