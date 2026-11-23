@@ -196,19 +196,19 @@ try {
 
   // Cold start: the first load waits for Vite to finish optimizing dependencies.
   await setViewport(390, 800, true)
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   for (let i = 0; i < 100 && !(await evaluate('Boolean(document.querySelector(".mobile-nav [data-mobile-tab]"))')); i++) await pause(200)
 
   for (const width of [360, 390, 430]) {
     await setViewport(width, 800, true)
     // ---------- Mobile nav ----------
     await scenario(`${width} nav-core-tabs`, async () => {
-      await navigate(base + '/')
+      await navigate(base + '/schedule?add=quick')
       await pause(900)
       const tabs = await evaluate('[...document.querySelectorAll(".mobile-nav > ul [data-mobile-tab]")].map((el) => el.dataset.mobileTab).join(",")')
-      if (tabs !== 'home,schedule,memo,reading,diary') return 'tabs ' + tabs
-      // More and the bell live in the top bar: menu top-left, bell top-right.
-      const top = await evaluate('(() => { const m = document.querySelector("[data-mobile-topbar] [data-mobile-tab=more]")?.getBoundingClientRect(); return Boolean(m) && m.left < innerWidth / 2 && m.top < 60 })()')
+      if (tabs !== 'schedule,memo,reading,diary') return 'tabs ' + tabs
+      // More sits top-left: in the top bar, or in the schedule screen's own one-line header.
+      const top = await evaluate('(() => { const m = document.querySelector("[data-mobile-tab=more]")?.getBoundingClientRect(); return Boolean(m) && m.left < innerWidth / 2 && m.top < 60 })()')
       if (!top) return 'more icon not top-left'
       const sizes = await evaluate('[...document.querySelectorAll(".mobile-nav > ul .mobile-link")].map((el) => { const r = el.getBoundingClientRect(); return Math.round(Math.min(r.width, r.height)) })')
       if (sizes.some((size) => size < 44)) return 'small tab ' + sizes.join(',')
@@ -237,7 +237,7 @@ try {
     })
     // ---------- Home ----------
     await scenario(`${width} home-cleanup`, async () => {
-      await navigate(base + '/')
+      await navigate(base + '/schedule?add=quick')
       await pause(900)
       const text = await evaluate('document.querySelector("main").innerText')
       const gone = ['활동 기록', 'Shift', '입력 도움말', '예시', '이어서 수정할 수 있어요'].filter((word) => text.includes(word))
@@ -256,42 +256,30 @@ try {
       return count === 3 ? 'ok' : 'stored ' + count
     })
     // ---------- Schedule ----------
-    await scenario(`${width} schedule-pager`, async () => {
+    await scenario(`${width} schedule-calendar-home`, async () => {
       await navigate(base + '/schedule')
       await pause(1000)
       for (let i = 0; i < 100 && !(await evaluate('Boolean(document.querySelector("[data-schedule-mobile]"))')); i++) await pause(100)
       if (!(await evaluate('Boolean(document.querySelector("[data-schedule-mobile]"))'))) return 'phone layout missing'
-      if ((await activeTab()) !== 'timeline') return 'default ' + await activeTab()
+      const grid = await evaluate('(() => { const cells = [...document.querySelectorAll(".mcal-cell")]; const r = cells.map((c) => c.getBoundingClientRect()); return { count: cells.length, small: r.filter((x) => x.width < 44 || x.height < 44).length, today: Boolean(document.querySelector(".mcal-cell[aria-current=date]")) } })()')
+      if (grid.count !== 42 || grid.small || !grid.today) return 'grid ' + JSON.stringify(grid)
       if (width === 390) await shot('schedule-calendar')
-      const calendarScroll = await evaluate(`(() => { const c = document.querySelector('.schedule-mobile-calendar'), main = document.querySelector('main'); if (!c.querySelector('[data-calendar-view="detailed"]')) return 'detailed view missing'; if (c.scrollHeight > c.clientHeight + 1) return 'calendar has its own scroll'; const cell = c.querySelector('[data-calendar-cell]'); if (parseFloat(getComputedStyle(cell).borderRightWidth)) return 'vertical borders remain'; const label = c.querySelector('.cal-entry > .truncate'); if (label && (getComputedStyle(label).whiteSpace !== 'nowrap' || getComputedStyle(label).textOverflow !== 'clip')) return 'chip must be one line without ellipsis'; const tabs = document.querySelector('.schedule-pager-tabs'); if (tabs.getBoundingClientRect().top < c.getBoundingClientRect().bottom) return 'tabs overlap calendar'; main.scrollTop = 180; const moved = main.scrollTop > 0 && c.scrollTop === 0; main.scrollTop = 0; return moved ? 'ok' : 'page did not scroll' })()`)
-      if (calendarScroll !== 'ok') return calendarScroll
-      const checkBottom = () => evaluate(`(() => { const main = document.querySelector('main'); main.scrollTop = main.scrollHeight; const pane = document.querySelector('[data-schedule-pane]:not([inert])'); const bottom = pane.getBoundingClientRect().bottom; const navTop = document.querySelector('.mobile-nav').getBoundingClientRect().top; return bottom <= navTop - 4 ? 'ok' : 'content hidden under bottom navigation: ' + JSON.stringify({ bottom, navTop, scrollTop: main.scrollTop, scrollHeight: main.scrollHeight }) })()`)
-      const timelineBottom = await checkBottom()
-      if (timelineBottom !== 'ok') return timelineBottom
-      if (width === 390) await shot('schedule-timeline-bottom')
-      await evaluate('document.querySelector("main").scrollTop = 0')
+      const month = await evaluate('document.querySelector(".mcal-ym").textContent')
+      await swipe('.mcal-grid', -Math.round(width * 0.6))
+      await pause(400)
+      if ((await evaluate('document.querySelector(".mcal-ym").textContent')) === month) return 'month swipe did not move'
+      await swipe('.mcal-grid', Math.round(width * 0.6))
+      await pause(400)
+      await evaluate('document.querySelector(".mcal-cell[aria-current=date]").click()')
+      await pause(500)
+      if ((await evaluate('document.querySelector("[data-schedule-mobile]").dataset.snap')) !== 'half') return 'day sheet did not open'
+      await evaluate('[...document.querySelectorAll(".mcal-seg button")].find((b) => b.textContent === "타임라인").click()')
+      await pause(400)
+      if (!(await evaluate('Boolean(document.querySelector(".mcal-tl-grid"))'))) return 'timeline missing'
       if (width === 390) await shot('schedule-timeline')
-      await swipe('[data-schedule-pane=timeline]', -Math.round(width * 0.7))
-      if ((await activeTab()) !== 'tasks') return 'swipe 2 -> ' + await activeTab()
-      const snapped = await evaluate('(() => { const t = document.querySelector(".schedule-pager-track"); return Math.abs(t.scrollLeft - t.clientWidth) < 2 })()')
-      if (!snapped) return 'swipe stopped between panes'
-      if (width === 390) await shot('schedule-tasks')
-      await swipe('[data-schedule-pane=tasks]', Math.round(width * 0.7))
-      if ((await activeTab()) !== 'timeline') return 'swipe back -> ' + await activeTab()
-      await evaluate('window.__tabEvents = []; for (const type of ["pointerdown", "click", "touchstart"]) document.addEventListener(type, (event) => window.__tabEvents.push(type + ":" + (event.target.closest?.("[data-schedule-tab]")?.dataset.scheduleTab ?? event.target.tagName)), { capture: true })')
-      await tap('[data-schedule-tab=timeline]')
+      await evaluate('history.back()')
       await pause(500)
-      const events = await evaluate('window.__tabEvents.join(",") + " left=" + Math.round(document.querySelector(".schedule-pager-track").scrollLeft)')
-      if ((await activeTab()) !== 'timeline') return 'tab click events ' + events
-      const left = await evaluate(`Math.round(document.querySelector('[data-schedule-pane=timeline]').getBoundingClientRect().left)`)
-      if ((await activeTab()) !== 'timeline' || Math.abs(left) > 2) return 'tab click -> ' + await activeTab() + ' left ' + left
-      await tap('[data-schedule-tab=tasks]')
-      await pause(500)
-      const tasksText = await evaluate('document.querySelector("[data-schedule-pane=tasks]").innerText')
-      if ((await activeTab()) !== 'tasks' || !tasksText.includes('과제 제출 준비하기')) return 'tasks tab content'
-      const tasksBottom = await checkBottom()
-      if (tasksBottom !== 'ok') return tasksBottom
-      if (width === 390) await shot('schedule-tasks-bottom')
+      if ((await evaluate('document.querySelector("[data-schedule-mobile]").dataset.snap')) !== 'closed') return 'Back did not close the day sheet'
       const scroll = await evaluate(overflow)
       return scroll > 1 ? 'horizontal page scroll ' + scroll : 'ok'
     })
@@ -299,7 +287,7 @@ try {
 
   await setViewport(390, 844, true)
   await scenario('mobile-keyboard-layout', async () => {
-    await navigate(base + '/')
+    await navigate(base + '/schedule?add=quick')
     for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("#home-entry"))')); i++) await pause(100)
     await evaluate(`(() => { const input = document.querySelector('#home-entry'); input.focus(); Object.defineProperty(visualViewport, 'height', { configurable: true, get: () => innerHeight - 300 }); visualViewport.dispatchEvent(new Event('resize')); })()`)
     await pause(300)
@@ -318,11 +306,12 @@ try {
     await evaluate('document.querySelector("[data-mobile-nav-settings] li:first-child button:last-child").click()')
     await pause(300)
     const tabs = () => evaluate('[...document.querySelectorAll(".mobile-nav [data-mobile-tab]")].map(e => e.dataset.mobileTab).join(",")')
-    if (await tabs() !== 'schedule,activity,memo,reading,diary') return 'saved order not applied: ' + await tabs()
+    // Slot 1 (schedule) becomes activity, then moves down one place.
+    if (await tabs() !== 'memo,activity,reading,diary') return 'saved order not applied: ' + await tabs()
     await navigate(base + '/more')
     for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-more-page]"))')); i++) await pause(100)
-    if (await tabs() !== 'schedule,activity,memo,reading,diary') return 'order lost after reload'
-    if (!(await evaluate('Boolean(document.querySelector("[data-more-link=home]")) && !document.querySelector("[data-more-link=activity]")'))) return 'More did not follow mobile pins'
+    if (await tabs() !== 'memo,activity,reading,diary') return 'order lost after reload'
+    if (!(await evaluate('Boolean(document.querySelector("[data-more-link=schedule]")) && !document.querySelector("[data-more-link=activity]")'))) return 'More did not follow mobile pins'
     const desktopAfter = await evaluate(`JSON.stringify(JSON.parse(localStorage.getItem('blanky.library.${owner}')).settings.nav)`)
     if (desktopBefore !== desktopAfter) return 'mobile setting changed desktop menu'
     await tap('[data-more-link=mobile-navigation]')
@@ -332,32 +321,37 @@ try {
     await shot('mobile-menu-settings')
     await evaluate('document.querySelector("[data-mobile-nav-settings] > button").click()')
     await pause(300)
-    return await tabs() === 'home,schedule,memo,reading,diary' ? 'ok' : 'restore failed'
+    return await tabs() === 'schedule,memo,reading,diary' ? 'ok' : 'restore failed'
   })
   await scenario('schedule-category-create', async () => {
     await navigate(base + '/schedule')
     await pause(1000)
-    await evaluate('[...document.querySelectorAll("main button")].find((b) => b.textContent.trim() === "직접 추가").click()')
-    await pause(400)
-    await evaluate('document.querySelector("main [aria-haspopup=listbox]").click()')
+    await evaluate('document.querySelector(".mcal-fab").click()')
     await pause(300)
-    await typeInto('input[aria-label="카테고리 검색"]', '운동 루틴')
+    await evaluate('document.querySelector("[data-add=manual]").click()')
+    await pause(500)
+    const openSheet = () => evaluate('[...document.querySelectorAll("[data-mobile-draft] .mdraft-row")].find((b) => b.textContent.includes("카테고리")).click()')
+    await openSheet()
+    await pause(400)
+    await typeInto('[data-mobile-sheet] input', '운동 루틴')
     await pause(300)
     const offer = await evaluate('document.querySelector("[data-category-create]")?.textContent ?? ""')
     await shot('category-create-offer')
     if (!offer.includes('운동 루틴')) return 'no create option: ' + offer
     await evaluate('document.querySelector("[data-category-create]").click()')
     await pause(400)
-    const label = await evaluate('document.querySelector("main [aria-haspopup=listbox]").textContent.trim()')
+    const label = await evaluate('[...document.querySelectorAll("[data-mobile-draft] .mdraft-row")].find((b) => b.textContent.includes("카테고리")).querySelector(".mdraft-val").textContent.trim()')
     const saved = await stored('d.categories.map((c) => c.name).join(",")')
-    if (label !== '운동 루틴') return 'picker label ' + label
+    if (label !== '운동 루틴') return 'row value ' + label
     if (!saved.includes('운동 루틴')) return 'not persisted: ' + saved
-    // Searching an existing name keeps the old search and offers nothing new.
-    await evaluate('document.querySelector("main [aria-haspopup=listbox]").click()')
+    // Searching an existing name lists it and offers nothing new.
+    await openSheet()
+    await pause(400)
+    await typeInto('[data-mobile-sheet] input', '학교')
     await pause(300)
-    await typeInto('input[aria-label="카테고리 검색"]', '학교')
+    const search = await evaluate('[...document.querySelectorAll("[data-mobile-sheet] [role=option]")].map((o) => o.textContent.trim()).join("|") + (document.querySelector("[data-category-create]") ? "|create" : "")')
+    await evaluate('history.back()')
     await pause(300)
-    const search = await evaluate('[...document.querySelectorAll("[role=listbox] [role=option]")].map((o) => o.textContent.trim()).join("|")')
     return search === '학교' ? 'ok' : 'search result ' + search
   })
 
@@ -494,7 +488,7 @@ try {
     await pause(800)
     const memo = await evaluate('getComputedStyle(document.querySelector("[data-memo-row] .memo-row-actions")).opacity')
     await shot('desktop-memo')
-    await navigate(base + '/')
+    await navigate(base + '/schedule?add=quick')
     await pause(800)
     await shot('desktop-home')
     return memo === '0' ? 'ok' : 'memo actions opacity ' + memo

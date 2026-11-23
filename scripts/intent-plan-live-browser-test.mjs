@@ -144,7 +144,7 @@ try {
       return data
     }
     const workOn = (rows, day) => rows.filter(row => (row.id === workId || row.series_id === workId) && occurs(row, day))
-    await navigate(base + '/')
+    await navigate(base + '/schedule?add=quick')
     await wait('document.querySelector("#home-entry")', 'home with seed')
 
     // 1. The reported sentence: preview first, nothing written yet.
@@ -174,7 +174,7 @@ try {
     steps.push('series-once-and-create')
 
     // 3. Reload: the app reads the server rows back the same way.
-    await navigate(base + '/')
+    await navigate(base + '/schedule?add=quick')
     await wait('document.querySelector("#home-entry")', 'reloaded')
     steps.push('reload')
 

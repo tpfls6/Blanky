@@ -12,7 +12,6 @@ const LandingPage=lazy(()=>import('./pages/Landing/LandingPage.tsx').then(module
 const GuidePage=lazy(()=>import('./pages/Guide/GuidePage.tsx').then(module=>({default:module.GuidePage})))
 const DiaryPage = lazy(()=>import('./pages/Diary/DiaryPage.tsx').then(module=>({default:module.DiaryPage})))
 const ActivityPage = lazy(()=>import('./pages/Activity/ActivityPage.tsx').then(module=>({default:module.ActivityPage})))
-const HomePage = lazy(()=>import('./pages/Home/HomePage.tsx').then(module=>({default:module.HomePage})))
 const MemoPage = lazy(()=>import('./pages/Memo/MemoPage.tsx').then(module=>({default:module.MemoPage})))
 const MorePage = lazy(()=>import('./pages/More/MorePage.tsx').then(module=>({default:module.MorePage})))
 const ReadingPage = lazy(()=>import('./pages/Reading/ReadingPage.tsx').then(module=>({default:module.ReadingPage})))
@@ -65,7 +64,7 @@ function GuestOnly() {
   const { user, loading } = useSession()
   const { t } = useI18n()
   if (loading) return <p role="status" className="p-6 text-sm text-neutral-500">{t('checkingLogin')}</p>
-  if (user) return <Navigate to={ROUTES.home} replace />
+  if (user) return <Navigate to={ROUTES.start} replace />
   return <Outlet />
 }
 
@@ -88,7 +87,8 @@ function AppRoutes() {
       </Route>
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
-          <Route path={ROUTES.home} element={<HomePage />} />
+          {/* Home was folded into the schedule screen; its composer opens from the + button there. */}
+          <Route path={ROUTES.home} element={<Navigate to={ROUTES.start} replace />} />
           <Route path={ROUTES.more} element={<MorePage />} />
           <Route path={ROUTES.activity} element={<ActivityPage />} />
           <Route path={ROUTES.schedule} element={<SchedulePage />} />
@@ -114,7 +114,7 @@ function AppRoutes() {
           <Route path="/records/:typeId" element={<RecordPage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to={ROUTES.home} replace />} />
+      <Route path="*" element={<Navigate to={ROUTES.start} replace />} />
     </Routes>
   )
 }

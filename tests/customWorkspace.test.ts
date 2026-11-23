@@ -55,10 +55,10 @@ test('nav label follows locale without changing the route', () => {
 
 test('sidebar nav keeps builtins and drops custom record pages', () => {
   const items = visibleNav([...DEFAULT_NAV, { id: 'workout-record', visible: true }])
-  assert.deepEqual(items.map((item) => item.id), ['home', 'schedule', 'activity', 'diary', 'reading', 'memo'])
+  assert.deepEqual(items.map((item) => item.id), ['schedule', 'activity', 'diary', 'reading', 'memo'])
   assert.equal(isRecordNav('activity'), true)
   assert.equal(isRecordNav('workout-record'), false)
-  assert.equal(visibleNav([{ id: 'memo', visible: false }, { id: 'home', visible: true }]).map((item) => item.id).join(','), 'home')
+  assert.equal(visibleNav([{ id: 'memo', visible: false }, { id: 'home', visible: true }, { id: 'schedule', visible: true }]).map((item) => item.id).join(','), 'schedule')
   assert.equal(items.some((item) => item.to.startsWith('/pages/')), false)
   const pages = pageNav([{ id: 'workout-page', name: '운동 기록', icon: 'Dumbbell' }])
   assert.deepEqual(pages.map((item) => item.to), ['/pages/workout-page'])

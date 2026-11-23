@@ -113,7 +113,7 @@ try {
     }))
     localStorage.setItem('home-batch-seeded', '1')
   }).toString() + ')()' })
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home loaded')
   assert.equal(await evaluate('JSON.parse(localStorage.getItem(' + q(library) + ')).items.length'), 4)
 

@@ -167,7 +167,7 @@ try {
       retry: [{ id: retryId, kind: 'event', title: '라이브재시도', date: tomorrow, startTime: '19:00', endTime: null, description: '', status: 'todo', repeat: 'none', repeatDays: [] }] }
     for (const id of ['r1', 'r2']) {
       await evaluate('(()=>{const key="blanky.homeChat.' + a.userId + '";const rows=JSON.parse(localStorage.getItem(key)??"[]");rows.push(' + JSON.stringify({ ...interrupted, id }) + ');localStorage.setItem(key,JSON.stringify(rows))})()')
-      await navigate(base + '/')
+      await navigate(base + '/schedule?add=quick')
       await wait('document.querySelector("#home-entry")', 'reload')
       await evaluate(history + '.click()')
       await wait(lastStatus + ' === "failed"', 'interrupted shown')

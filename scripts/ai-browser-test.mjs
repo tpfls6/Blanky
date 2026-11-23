@@ -79,7 +79,7 @@ try {
     ],settings:{}}));
     localStorage.setItem('schedule-test-seeded','1');
   }).toString() + ')()' });
-  await navigate(base + '/');
+  await navigate(base + '/schedule?add=quick');
   await wait('document.querySelector("#home-entry")', 'home loaded');
   const initial = await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items.length');
   assert.ok(await evaluate('[...document.querySelectorAll("button")].some(b=>b.textContent==="자동 분류"&&b.getAttribute("aria-pressed")==="true")'));
@@ -145,7 +145,7 @@ try {
   await wait('JSON.parse(localStorage.getItem('+q(library)+')).items.some(i=>i.title==="수동 반복 검증")','manual recurrence saved');
   const manual = await evaluate('JSON.parse(localStorage.getItem('+q(library)+')).items.find(i=>i.title==="수동 반복 검증")');
   assert.equal(manual.repeat,'weekly'); assert.equal(manual.duration,540); assert.ok(manual.repeatDays.includes(1)&&manual.repeatDays.includes(7));
-  await navigate(base + '/');
+  await navigate(base + '/schedule?add=quick');
   await wait('document.querySelector("#home-entry")', 'home reloaded');
   await fill('#home-entry', '오후 3시 날짜없는회의');
   await click('button[aria-label="보내기"]');

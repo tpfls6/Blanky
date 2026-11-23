@@ -21,6 +21,8 @@
   --accent-on: #ffffff;
   --accent-border: color-mix(in srgb, var(--accent-color) 40%, var(--line));
   --danger: #dc2626;
+  /* Saturday numbers in the phone month calendar (Sunday uses .cal-holiday). */
+  --cal-saturday: #2563eb;
   color-scheme: light;
 }
 
@@ -110,6 +112,7 @@ html.dark {
   --surface: #1c1c1c;
   --shadow: 0 8px 24px rgb(0 0 0 / 0.28);
   --danger: #f87171;
+  --cal-saturday: #7aa0f0;
   color-scheme: dark;
 }
 
@@ -1382,7 +1385,8 @@ html { -webkit-tap-highlight-color: transparent; }
 .app-status-notice {
   position: fixed;
   inset-inline: 1rem;
-  bottom: calc(5rem + env(safe-area-inset-bottom));
+  /* --toast-lift: height of an open phone bottom sheet, so the toast sits above it. */
+  bottom: max(calc(5rem + env(safe-area-inset-bottom)), calc(var(--toast-lift, 0px) + 12px));
   z-index: 60;
   display: grid;
   gap: 0.5rem;
@@ -1403,7 +1407,7 @@ html { -webkit-tap-highlight-color: transparent; }
   box-shadow: 0 8px 28px rgb(0 0 0 / 12%);
   pointer-events: auto;
 }
-@media (min-width: 768px) { .app-status-notice { bottom: 1.5rem; } }
+@media (min-width: 768px) { .app-status-notice { bottom: max(1.5rem, calc(var(--toast-lift, 0px) + 12px)); } }
 /* Result toast: one line that truncates instead of growing past the viewport. */
 .app-status-notice [data-status-toast] { min-width: 0; max-width: min(28rem, 100%); padding-block: 0.25rem; }
 /* The toast action reads as a link in the accent color (outranks .btn-ghost's muted color). */

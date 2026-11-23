@@ -15,6 +15,8 @@ export function MobileTopBar() {
   const { rest } = mobileTabs([...visibleNav(settings.nav), ...pageNav(customPages), CUSTOM_NAV, STORE_NAV, TRASH_NAV, SETTINGS_NAV], settings.mobileBarIds)
   const activeRest = rest.find((item) => matchPath({ path: new URL(item.to, 'http://x').pathname, end: item.end ?? false }, pathname))
   const moreActive = pathname === ROUTES.more || Boolean(activeRest)
+  // The schedule screen draws its own one-line header (menu, month, tasks, search, bell).
+  if (pathname === ROUTES.schedule) return null
 
   return (
     <div className="mobile-topbar sticky top-0 z-20 flex shrink-0 items-center justify-between bg-surface px-2 pb-1 pt-[calc(env(safe-area-inset-top)+0.25rem)] md:hidden" data-mobile-topbar>

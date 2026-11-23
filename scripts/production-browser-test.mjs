@@ -81,7 +81,7 @@ try {
     ],settings:{}}));
     localStorage.setItem('schedule-test-seeded','1');
   }).toString() + ')()' });
-  await navigate(base + '/');
+  await navigate(base + '/schedule?add=quick');
   await wait('document.querySelector("#home-entry")','Home loaded');
 
  assert.ok(!await evaluate('performance.getEntriesByType("resource").some(row=>row.name.includes("readingIconCatalog"))'),'Reading catalog must stay lazy on Home');

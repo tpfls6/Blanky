@@ -77,7 +77,7 @@ try {
   await button('개인화 설정 저장');await wait('document.body.textContent.includes("개인화 설정을 저장했어요")','settings server save');
   await navigate(base+'/settings/planning');await wait('document.querySelectorAll("section[aria-label] input[type=time]")[2]?.value==="14:00"','settings reload persistence');
   const pref=await session.client.from('user_preferences').select('settings').eq('user_id',session.userId).single();assert.equal(pref.data.settings.scheduling.placementMode,'focus');
-  await navigate(base+'/');await wait('document.querySelector("#home-entry")','Home');
+  await navigate(base+'/schedule?add=quick');await wait('document.querySelector("#home-entry")','Home');
   const text='이번 주에 데이터 분석 30분, 문서 작성 30분 해야 해. 일정 알아서 짜줘.';
   await fill('#home-entry',text);await click('button[aria-label="보내기"]');
   await wait('document.querySelectorAll("[data-planner-block]").length===2','real personalized preview');
@@ -94,7 +94,7 @@ try {
   const ai=(await session.client.from('schedules').select('*').eq('title','개인화 승인 작업').single()).data;assert.ok(ai);
   await button('닫기');assert.equal(await evaluate('document.querySelector("#home-entry").value'),text);
   const fixed=await session.client.from('schedules').insert({user_id:session.userId,title:'UI 고정 충돌 테스트',kind:'event',date:ai.date,start_time:ai.start_time,end_time:ai.end_time,duration_minutes:30}).select('*').single();assert.equal(fixed.error,null);
-  await navigate(base+'/');await wait('document.body.textContent.includes("다른 일정과 겹쳐요")','automatic conflict notice');
+  await navigate(base+'/schedule?add=quick');await wait('document.body.textContent.includes("다른 일정과 겹쳐요")','automatic conflict notice');
   await button('재배치 추천 보기');await wait('document.body.textContent.includes("재배치 전후 비교")','reschedule comparison');
   const before=(await session.client.from('schedules').select('*').order('id')).data;assert.equal(before.length,3);
   await mkdir(resolve('.tmp/ai-tests'),{recursive:true});const screenshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(resolve('.tmp/ai-tests/personalization-reschedule.png'),Buffer.from(screenshot.data,'base64'));

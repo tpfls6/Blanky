@@ -128,7 +128,7 @@ try {
     localStorage.setItem('blanky.library.' + ownerId, JSON.stringify({ categories: [], items: [meeting], settings: { onboardingDone: true, onboardingPages: ['memo', 'diary', 'reading'] } }))
     localStorage.setItem('partial-e2e-seeded', '1')
   }).toString() + ')()' })
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home loaded')
 
   await check('partial failure: the cancel and one new item land, the failed item is kept for 실행', async () => {

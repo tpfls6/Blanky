@@ -104,7 +104,6 @@ export type NavPref = {
 }
 
 export const DEFAULT_NAV: NavPref[] = [
-  { id: 'home', visible: true },
   { id: 'schedule', visible: true },
   { id: 'activity', visible: true },
   { id: 'diary', visible: true },

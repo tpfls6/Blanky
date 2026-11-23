@@ -90,7 +90,7 @@ try {
   await send('Page.enable'); await send('Runtime.enable')
   await desktop()
   await send('Page.addScriptToEvaluateOnNewDocument', { source: 'if(location.origin === ' + q(base) + ' && !localStorage.getItem("blanky.onboarding.test.seeded")){ localStorage.clear(); localStorage.setItem("blanky.accounts.v1",' + q(JSON.stringify([account(owner, 'fresh'), account(legacy, 'legacy')])) + ');localStorage.setItem("blanky.session.v1",' + q(owner) + ');localStorage.setItem("blanky.onboarding.test.seeded","1"); }' })
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
 
   // 1. A fresh account stores nothing sample-like.
   await wait('document.querySelectorAll("[data-page-tour]").length === 1', 'home guide')
@@ -176,7 +176,7 @@ try {
 
   // 8. Reload, and a device without the local completion keys, keep the synced preference state.
   await evaluate('Object.keys(localStorage).filter(k => k.startsWith("blanky.onboarding.' + owner + '")).forEach(k => localStorage.removeItem(k))')
-  for (const path of ['/', '/diary', '/reading', '/memo', '/store', '/custom', '/settings/general']) {
+  for (const path of ['/schedule?add=quick', '/diary', '/reading', '/memo', '/store', '/custom', '/settings/general']) {
     await navigate(base + path); await settle()
     assert.equal(await tours(), 0, path)
   }
@@ -184,7 +184,7 @@ try {
 
   // 9. Replay from settings and the guide page.
   await navigate(base + '/settings/general')
-  await wait('[...document.querySelectorAll("a")].filter(a => a.getAttribute("href")?.endsWith("?tour=1")).length === 8', 'settings replay links')
+  await wait('[...document.querySelectorAll("a")].filter(a => /[?&]tour=1$/.test(a.getAttribute("href") ?? "")).length === 8', 'settings replay links')
   await navigate(base + '/diary?tour=1')
   await wait('document.querySelectorAll("[data-page-tour]").length === 1', 'diary replay')
   await tourButton('다음'); await tourButton('다음'); await tourButton('완료'); await settle()
@@ -195,7 +195,7 @@ try {
   await tourButton('건너뛰기'); await settle()
   assert.equal(await tours(), 0)
   await navigate(base + '/guide')
-  await wait('[...document.querySelectorAll("a")].filter(a => a.getAttribute("href")?.endsWith("?tour=1")).length === 7', 'guide replay links')
+  await wait('[...document.querySelectorAll("a")].filter(a => /[?&]tour=1$/.test(a.getAttribute("href") ?? "")).length === 7', 'guide replay links')
   checks.push('Replay links in settings and /guide reopen a page guide; closing clears ?tour')
 
   // 10. Mobile: guide and examples fit the screen.
@@ -220,7 +220,8 @@ try {
   // Spotlight geometry, tab transitions, keyboard and absent targets in real Chromium.
   for (const width of [1440, 375]) {
     await send('Emulation.setDeviceMetricsOverride', { width, height: width === 375 ? 812 : 1000, deviceScaleFactor: 1, mobile: width === 375 })
-    for (const [path, count] of [['/', 3], ['/diary', 3], ['/reading', 3], ['/memo', 3], ['/store', 2], ['/store?tab=templates', 2], ['/custom', 3], ['/settings/general', 2]]) {
+    // The home guide now runs on the schedule screen's quick-add sheet.
+    for (const [path, count] of [['/schedule?add=quick', 3], ['/diary', 3], ['/reading', 3], ['/memo', 3], ['/store', 2], ['/store?tab=templates', 2], ['/custom', 3], ['/settings/general', 2]]) {
       await navigate(base + path + (path.includes('?') ? '&' : '?') + 'tour=1')
       for (let step = 0; step < count; step++) {
         await wait(`(()=>{const p=document.querySelector('[data-page-tour]');return p && getComputedStyle(p).visibility==='visible' && p.textContent.includes('${step + 1} / ${count}')})()`, path + ' spotlight ' + step)
@@ -230,7 +231,7 @@ try {
         assert.equal(geometry.overlap, 0, path + ' must not cover its target')
         assert.equal(geometry.overflow, 0, path + ' horizontal overflow')
         assert.ok(geometry.focus, path + ' keyboard focus')
-        if (path === '/' && step === 2) assert.equal(await evaluate('document.querySelector("[aria-controls=home-chat-panel]").getAttribute("aria-expanded")'), 'true')
+        if (path === '/schedule?add=quick' && step === 2) assert.equal(await evaluate('document.querySelector("[aria-controls=home-chat-panel]").getAttribute("aria-expanded")'), 'true')
         await screenshot('spotlight-' + width + '-' + path.replaceAll(/[^a-z]/g, '') + '-' + step)
         if (step === 1) {
           await click('.spotlight-actions .btn-line')
@@ -257,7 +258,7 @@ try {
   assert.ok(await evaluate('document.querySelector(".spotlight-popover").getBoundingClientRect().right <= innerWidth'), 'active tour repositions on resize')
   await click('.spotlight-actions .btn-primary')
   await desktop()
-  await navigate(base + '/?tour=1')
+  await navigate(base + '/schedule?add=quick&tour=1')
   await wait('!!document.querySelector(".spotlight-popover h2:focus")', 'focus on open')
   const inputPoint = await evaluate('(()=>{const r=document.querySelector("#home-entry").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()')
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...inputPoint })
@@ -278,7 +279,7 @@ try {
 
   // 11. Legacy account: existing data and settings are untouched, the legacy home flag is respected.
   await evaluate('localStorage.setItem(' + q(libraryKey(legacy)) + ',' + q(JSON.stringify(legacyLibrary)) + ');localStorage.setItem("blanky.session.v1",' + q(legacy) + ')')
-  await navigate(base + '/'); await settle()
+  await navigate(base + '/schedule?add=quick'); await settle()
   assert.equal(await tours(), 0, 'legacy onboardingDone hides the home guide')
   for (const path of ['/schedule', '/memo', '/diary']) { await navigate(base + path); await settle() }
   await navigate(base + '/memo'); await settle()

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ROUTES } from '../../constants/routes.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { schedulingSettings } from '../../../packages/scheduling/src/settings.ts'
@@ -31,7 +32,7 @@ export function PlanningPreferences(){
   updateSettings(next);setMessage(t('settings.ai.planning.saved'))
  }catch(error){setMessage(error instanceof Error?error.message:t('settings.ai.planning.saveFailed'))}finally{setBusy(false)}}
  return <section aria-label={t('settings.ai.workHoursLabel')} className="space-y-4">
-  <div><h3 className="text-sm font-medium">{t('settings.ai.workHoursTitle')}</h3><p className="mt-1 text-xs text-neutral-500">{t('settings.ai.workHoursHint')} <Link className="text-blue-600" to="/">{t('settings.ai.openPlanner')}</Link></p></div>
+  <div><h3 className="text-sm font-medium">{t('settings.ai.workHoursTitle')}</h3><p className="mt-1 text-xs text-neutral-500">{t('settings.ai.workHoursHint')} <Link className="text-blue-600" to={ROUTES.quickAdd}>{t('settings.ai.openPlanner')}</Link></p></div>
   <div className="flex flex-wrap gap-2" role="group" aria-label={t('settings.ai.planning.workDays')}>{dayNames.map((day,index)=><button key={index} type="button" aria-pressed={draft.workDays.includes(index+1)} className={draft.workDays.includes(index+1)?'chip chip-on':'chip'} onClick={()=>patch({workDays:draft.workDays.includes(index+1)?draft.workDays.filter(value=>value!==index+1):[...draft.workDays,index+1].sort()})}>{day}</button>)}</div>
   <div className="grid grid-cols-2 gap-3">{(['dayStartTime','dayEndTime'] as const).map((key,index)=><label key={key} className="text-xs">{t(index?'settings.ai.planning.dayEnd':'settings.ai.planning.dayStart')}<input className="field mt-1 w-full" type="time" value={draft[key]} onChange={e=>patch({[key]:e.target.value})}/></label>)}<label className="text-xs">{t('settings.ai.planning.maxDaily')}<input className="field mt-1 w-full" type="number" min="25" max="1440" value={draft.maxDailyMinutes} onChange={e=>patch({maxDailyMinutes:Number(e.target.value)})}/></label><label className="text-xs">{t('settings.ai.planning.defaultDuration')}<select className="field select mt-1 w-full" value={draft.defaultDurationMinutes} onChange={e=>patch({defaultDurationMinutes:Number(e.target.value),minBlockMinutes:Math.min(draft.minBlockMinutes,Number(e.target.value))})}>{[15,30,45,60,90,120].map(value=><option key={value} value={value}>{value}</option>)}</select></label></div>
   <details><summary className="cursor-pointer text-sm text-blue-600">{t('settings.ai.planning.advanced')}</summary><div className="mt-3 space-y-3">

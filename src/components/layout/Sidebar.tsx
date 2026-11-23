@@ -1,7 +1,9 @@
 import { Fragment } from 'react'
 import { BrandLogo } from '../common/BrandLogo.tsx'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
-import { NavLink, useLocation } from 'react-router-dom'
+import { Sparkles } from 'lucide-react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
+import { ROUTES } from '../../constants/routes.ts'
 import { CalendarList } from '../calendars/CalendarList.tsx'
 import { NotificationBell } from '../calendars/NotificationBell.tsx'
 import { isSupabaseConfigured } from '../../services/supabase/client.ts'
@@ -66,6 +68,11 @@ export function Sidebar() {
           }
           return <Fragment key={item.id}>{row}</Fragment>
         })}
+        {/* Home was folded into the schedule screen: its composer (diary, memo, reading, planner) opens from here. */}
+        <Link data-theme-slot="sidebar-item" to={ROUTES.quickAdd} replace={onSchedule} data-nav-quick-add className="nav-link min-w-0">
+          <ThemeIcon name="quickAdd" fallback={Sparkles} strokeWidth={1.5} aria-hidden="true" />
+          <span className="min-w-0 truncate">{t('nav.quickAdd')}</span>
+        </Link>
         {pages.length > 0 ? <p className="mt-6 px-2 pb-1 text-[11px] tracking-wide text-neutral-400">{t('nav.pages')}</p> : null}
         {pages.map((item) => (
           <NavRow key={item.id} id={item.id} to={item.to} icon={item.icon} label={item.label} />

@@ -52,11 +52,30 @@ const isOnDay = (createdAt: string | undefined, day: string) => {
 }
 type Translate = ReturnType<typeof useI18n>['t']
 const savedText = (t: Translate, count: number, waiting: number) => [count ? t('home.savedCount', { count }) : '', waiting ? t('home.waitingCount', { count: waiting }) : ''].filter(Boolean).join(' ')
-export function HomePage() {
+/** The home route's composer, kept for the theme preview; the app opens it as the schedule screen's quick-add sheet. */
+export function HomePage() { return <QuickAdd /> }
+
+/**
+ * The capture composer (auto / schedule / task / diary / memo / reading) with its analysis, review,
+ * undo, planner and draft sync. `page` is the full home layout; `sheet` is the compact body of the
+ * schedule screen's quick-add sheet, which stays mounted while hidden so results and toasts survive closing.
+ */
+export function QuickAdd({ layout = 'page', active = true, seed, onReveal }: {
+  layout?: 'page' | 'sheet'
+  /** False while the sheet is hidden: the first-run guide waits until it is shown. */
+  active?: boolean
+  /** Text to place in the box (an example card); a new key places it again. */
+  seed?: { key: string; text: string }
+  /** Shows the hidden sheet again (a toast's 기록 보기 opens the history inside it). */
+  onReveal?: () => void
+}) {
   const { t } = useI18n()
   const library=useLibrary()
   const {user}=useSession(),plannerKey='blanky.planner.'+(user?.id??'anonymous'),chatKey=homeChatKey(user?.id??'anonymous')
   const [text,setText]=useState(''),[type,setType]=useState<EntryType>('auto'),[busy,setBusy]=useState(false)
+  const [seeded,setSeeded]=useState(seed?.key)
+  if(seed&&seed.key!==seeded){setSeeded(seed.key);setText(seed.text)}
+  const sheet=layout==='sheet'
   // History belongs to one account: switching users swaps the stored conversation before rendering.
   const [chat,setChat]=useState(()=>({key:chatKey,messages:loadChat(localStorage,chatKey)}))
   if(chat.key!==chatKey)setChat({key:chatKey,messages:loadChat(localStorage,chatKey)})
@@ -83,7 +102,7 @@ export function HomePage() {
   useEffect(()=>{panelOpen.current=panel.open;if(panel.open)dismissStatusToast();else{restoreTo.current?.focus();restoreTo.current=null}},[panel.open])
   useEffect(()=>dismissStatusToast,[])
   // Results that need a look and failures stay up until acted on; plain saves fade out.
-  const notify=(text:string,tone:'saved'|'failed',sticky=tone==='failed')=>{if(panelOpen.current)return;notified.current=true;showStatusToast({text,tone,sticky,action:{label:t('home.viewHistory'),run:()=>openPanel('toast')}})}
+  const notify=(text:string,tone:'saved'|'failed',sticky=tone==='failed')=>{if(panelOpen.current)return;notified.current=true;showStatusToast({text,tone,sticky,action:{label:t('home.viewHistory'),run:()=>{onReveal?.();openPanel('toast')}}})}
   const saveRecord = (input:string, recordType:RecordType) => {
     const result=library.saveCapture(input,recordType)
     if(result.error) throw new Error(result.error)
@@ -427,9 +446,10 @@ export function HomePage() {
   </div>
   return <div className="home-page flex min-h-0 flex-1">
     <div className="home-scroll flex min-w-0 flex-1 flex-col overflow-y-auto">
-    <div className="home-content m-auto flex w-full max-w-2xl shrink-0 flex-col px-6 py-12"><Onboarding /><div data-theme-slot="page-header" className="home-header"><h1 className="home-title">{t('home.title')}</h1><p className="home-muted mt-1 text-sm">{t('home.tagline')}</p></div>
-    <div className="composer"><label className="sr-only" htmlFor="home-entry">{t('home.inputLabel')}</label><textarea ref={entry} data-theme-slot="input" id="home-entry" rows={3} value={text} placeholder={t('home.placeholder')} className="w-full resize-none bg-transparent leading-relaxed outline-none" onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'&&text){e.preventDefault();setText('')}if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void send()}}}/>
+    <div className="home-content m-auto flex w-full max-w-2xl shrink-0 flex-col px-6 py-12">{active?<Onboarding />:null}{sheet?null:<div data-theme-slot="page-header" className="home-header"><h1 className="home-title">{t('home.title')}</h1><p className="home-muted mt-1 text-sm">{t('home.tagline')}</p></div>}
+    <div className="composer"><label className="sr-only" htmlFor="home-entry">{t('home.inputLabel')}</label><textarea ref={entry} data-theme-slot="input" id="home-entry" rows={sheet?2:3} value={text} placeholder={t('home.placeholder')} className="w-full resize-none bg-transparent leading-relaxed outline-none" onChange={e=>setText(e.target.value)} onKeyDown={e=>{if(e.key==='Escape'&&text){e.preventDefault();setText('')}if(e.key==='Enter'&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void send()}}}/>
       <div className="home-composer-bar mt-3 flex justify-between gap-2 border-t border-line pt-2"><div data-tour="entry-types" className="flex min-w-0 flex-1 flex-wrap">{[{id:'auto' as EntryType,label:t('type.auto')},...ENTRY_OPTIONS.map(option=>({...option,label:t(`type.${option.id}`)}))].map(option=><button data-theme-slot="button" key={option.id} className={type===option.id?'chip chip-on':'chip'} onClick={()=>setType(option.id)} aria-pressed={type===option.id}>{option.label}</button>)}</div><button data-theme-slot="button-primary" disabled={busy||!text.trim()} className="icon-btn-primary self-end" aria-label={t('home.send')} onClick={()=>void send()}><ArrowUp className="size-4"/></button></div></div>
+    {sheet?<p className="quick-add-hint">{t('schedule.mobile.quickHint')}</p>:null}
     {/* Secondary row: the personalization link and progress on the left, the history toggle on the right. */}
     <div className="home-aux mt-2 flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3"><Link to={settingsPath('ai')} className="home-settings-link shrink-0 text-xs">{t('home.planningLink')}</Link><p role="status" className="home-muted min-w-0 truncate text-xs">{busy&&!panel.open?t('home.working'):''}</p></div>

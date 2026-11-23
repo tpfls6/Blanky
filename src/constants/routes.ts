@@ -1,5 +1,9 @@
 export const ROUTES = {
   home: '/',
+  /** Where the app opens: the schedule screen (home was folded into it). */
+  start: '/schedule',
+  /** The schedule screen with the quick-add composer (the former home input) open. */
+  quickAdd: '/schedule?add=quick',
   more: '/more',
   activity: '/activity',
   schedule: '/schedule',

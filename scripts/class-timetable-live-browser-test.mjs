@@ -146,7 +146,7 @@ try {
     console.log('PASS live 4: weekly occurrences on Tuesday and Wednesday')
 
     // 5. Regression with the deployed function: multi-weekday work, single event, compound task; closed without saving.
-    await navigate(base + '/'); await wait('document.querySelector("#home-entry")', 'reload Home')
+    await navigate(base + '/schedule?add=quick'); await wait('document.querySelector("#home-entry")', 'reload Home')
     await evaluate('window.confirm=()=>true')
     for (const [text, check] of [
       ['화요일 오전 9~13시, 목/금 9to6 근로', items => items.length === 3 && items.every(i => i.title === '근로' && i.repeat === 'weekly')],

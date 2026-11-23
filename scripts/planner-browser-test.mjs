@@ -81,7 +81,7 @@ try {
     ],settings:{}}));
     localStorage.setItem('schedule-test-seeded','1');
   }).toString() + ')()' });
-  await navigate(base + '/');
+  await navigate(base + '/schedule?add=quick');
   await wait('document.querySelector("#home-entry")','Home loaded');
   await mkdir(resolve('.tmp/ai-tests'),{recursive:true});
   await writeFile(resolve('.tmp/ai-tests/planner-harness.jsx'),`

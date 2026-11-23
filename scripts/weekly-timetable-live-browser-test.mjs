@@ -127,7 +127,7 @@ try {
       else assert.ok(!(await evaluate(`${listed}.includes("근로")`)), 'no 근로 on ' + day)
       if (title) assert.ok(await evaluate(`document.querySelector(${q('button[aria-label="' + day + '"]')}).dataset.hasEvent === "true"`), day)
     }
-    await navigate(base + '/'); await wait('document.querySelector("#home-entry")', 'reload Home')
+    await navigate(base + '/schedule?add=quick'); await wait('document.querySelector("#home-entry")', 'reload Home')
     await wait('JSON.parse(localStorage.getItem(' + q(key) + ')||"{}").items?.filter(i=>i.title.startsWith("근로")&&i.repeat==="weekly"&&!i.calendarId?.startsWith("local-")).length===2', 'saved rows reload from Supabase')
     console.log('PASS live 3-4: edit, exclusion, confirmation, Supabase save, calendar occurrences, reload')
 

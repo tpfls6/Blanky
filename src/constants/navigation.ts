@@ -1,4 +1,4 @@
-import { Store, Palette, History, BookOpen, CalendarDays, House, Library, Settings, SlidersHorizontal, StickyNote, Trash2 } from 'lucide-react'
+import { Store, Palette, History, BookOpen, CalendarDays, Library, Settings, SlidersHorizontal, StickyNote, Trash2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { iconByName } from './icons.ts'
 import { ROUTES } from './routes.ts'
@@ -14,7 +14,6 @@ export type NavItem = {
 }
 
 const BUILTIN: readonly NavItem[] = [
-  { id: 'home', label: 'Home', to: ROUTES.home, icon: House, end: true },
   { id: 'activity', label: 'Activity', to: ROUTES.activity, icon: History },
   { id: 'schedule', label: 'Schedule', to: ROUTES.schedule, icon: CalendarDays },
   { id: 'diary', label: 'Diary', to: ROUTES.diary, icon: BookOpen },
@@ -79,8 +78,10 @@ export const STORE_NAV: NavItem = {id:'store',label:'Store',to:'/store',icon:Sto
 export const THEMES_NAV: NavItem = {id:'themes',label:'내 테마',to:'/settings/themes',icon:Palette}
 
 /** Phone bar order: these come first when visible; the rest of the bar fills in menu order. */
-export const MOBILE_CORE_IDS = ['home', 'schedule', 'memo', 'reading', 'diary'] as const
+export const MOBILE_CORE_IDS = ['schedule', 'memo', 'reading', 'diary'] as const
+/** Most tabs a user can pin; the default bar holds the four core tabs. */
 export const MOBILE_BAR_SIZE = 5
+const MOBILE_DEFAULT_SIZE = MOBILE_CORE_IDS.length
 
 /** Splits menus into the phone tab bar and the full "more" page. */
 export function mobileTabs<T extends { id: string }>(items: readonly T[], preferredIds?: readonly string[]): { bar: T[]; rest: T[] } {
@@ -90,6 +91,6 @@ export function mobileTabs<T extends { id: string }>(items: readonly T[], prefer
     if (bar.length) return { bar, rest: items.filter(item => !bar.includes(item)) }
   }
   const core = MOBILE_CORE_IDS.flatMap((id) => items.filter((item) => item.id === id))
-  const bar = [...core, ...items.filter((item) => !core.includes(item))].slice(0, MOBILE_BAR_SIZE)
+  const bar = [...core, ...items.filter((item) => !core.includes(item))].slice(0, MOBILE_DEFAULT_SIZE)
   return { bar, rest: items.filter((item) => !bar.includes(item)) }
 }

@@ -26,13 +26,14 @@ import type { ScheduleAnalysis } from '@blanky/types'
 import { taskNavKey } from '../../state/storage.ts'
 import { useSaveAndClose } from '../../hooks/useSaveAndClose.ts'
 import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
-import { MobileSchedulePager } from './MobileSchedulePager.tsx'
+import { MobileCalendarHome } from './mobile/MobileCalendarHome.tsx'
+import { MobileDraftPage } from './mobile/MobileDraftPage.tsx'
+import { QuickAddSheet } from './QuickAddSheet.tsx'
+import { useOpenQuickAdd } from './quickAdd.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
-import { isSupabaseConfigured } from '../../services/supabase/client.ts'
 import { useCalendars } from '../../state/useCalendars.ts'
 import { CalendarField, CalendarInfo } from '../../components/calendars/CalendarField.tsx'
-import { MobileCalendarBar } from '../../components/calendars/MobileCalendarBar.tsx'
 import { useSession } from '../../state/useSession.ts'
 import type { TimelineDensity } from '../../types/records.ts'
 import type { WorkItem, WorkspaceCategory } from '../../types/work.ts'
@@ -207,6 +208,14 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
   const toggleDone = () => setNav((current) => ({ ...current, showDone: !current.showDone }))
 
   const open = (item: WorkItem) => startDraft(occurrenceDraft(draftFromItem(item), item, selected))
+  /** An empty draft on the selected day; `hour` makes it a one-hour event starting then. */
+  const newDraft = (hour?: number) => {
+    const next = draftFromParsed({ type: 'event', source: 'rule', confidence: 1, draft: { title: '', date: selected, startTime: null, endTime: null, dueDate: null, endDate: null, categoryId: null } }, '', selected, library.categories)
+    if (hour === undefined) return next
+    const clock = (value: number) => `${String(value).padStart(2, '0')}:00`
+    return { ...next, startTime: clock(hour), endTime: hour < 23 ? clock(hour + 1) : '23:59' }
+  }
+  const openQuickAdd = useOpenQuickAdd()
 
   // The editor closes only after the server confirms the save; a failure keeps the draft open.
   const saveReview = () => {
@@ -231,7 +240,11 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
         void review.run(() => commitDraft(library.items, library.commitWork, before, null, draft), finishDraft)
       }
     : undefined
-  const sheet = draft ? (
+  const sheet = draft ? phone ? (
+    <MobileDraftPage draft={draft} categories={library.categories} busy={review.busy} error={review.error}
+      seriesHref={draft.id && draft.repeat && draft.repeat !== 'none' ? `${ROUTES.recurring}?id=${encodeURIComponent(draft.id)}&date=${draft.occurrence ?? selected}` : undefined}
+      onChange={update => setDraft(current => current && update(current))} onSave={saveReview} onDelete={deleteDraft} onClose={() => void leaveDraft()} />
+  ) : (
     <DraftSheet phone={phone} draft={draft} categories={library.categories} busy={review.busy} error={review.error}
       seriesHref={draft.id && draft.repeat && draft.repeat !== 'none' ? `${ROUTES.recurring}?id=${encodeURIComponent(draft.id)}&date=${draft.occurrence ?? selected}` : undefined}
       onChange={update => setDraft(current => current && update(current))} onSave={saveReview} onDelete={deleteDraft} onClose={phone ? () => void leaveDraft() : closeDraft} />
@@ -448,29 +461,30 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
     return null
   }
 
-  // The calendar stays visible on phones while the panes underneath swipe.
+  // Phones: a calendar-app home (month grid, day sheet, add dial); layout blocks follow the day list.
   if (phone && !editing) {
     const shown = blocks.filter((block) => !block.hidden)
-    const of = (types: PageBlock['type'][]) => shown.filter((block) => types.includes(block.type))
-    const pane = (list: PageBlock[]) => list.map((block) => isLayoutBlock(block.type)
-      ? <div key={block.id} className="min-w-0"><LayoutBlock block={block} /></div>
-      : <div key={block.id} className="panel min-w-0">{renderBlock(block)}</div>)
-    const header = of(['date-header', 'quick-input'])
-    const openTasks = items.filter((item) => item.kind === 'task' && item.status !== 'done').length
+    const below = shown.filter((block) => isLayoutBlock(block.type) || block.type === 'category-summary')
+    const extra = (
+      <>
+        {!library.items.length ? (
+          <div className="example-list">
+            {SCHEDULE_EXAMPLES.map((example) => (
+              <ExampleCard key={example.input} title={example.title} meta={example.meta} body={`“${example.input}”`} action="이렇게 입력해 보기" onStart={() => openQuickAdd(example.input)} />
+            ))}
+          </div>
+        ) : null}
+        {below.map((block) => isLayoutBlock(block.type)
+          ? <div key={block.id} className="min-w-0"><LayoutBlock block={block} /></div>
+          : <div key={block.id} className="panel mt-3 min-w-0">{renderBlock(block)}</div>)}
+      </>
+    )
     return (
-      <div className="schedule-mobile" data-schedule-mobile>
-        <div className="schedule-mobile-head">
-          {isSupabaseConfigured ? <MobileCalendarBar /> : null}
-          {header.map((block) => <div key={block.id} className="min-w-0">{renderBlock(block)}</div>)}
-        </div>
-        <div className="schedule-mobile-calendar">{pane(of(['calendar']))}</div>
-        <MobileSchedulePager panes={[
-          { id: 'timeline', label: '일정', badge: onDay.filter((item) => item.kind === 'event').length, content: pane(of(['timeline', 'category-summary'])) },
-          { id: 'tasks', label: '할 일', badge: openTasks, content: pane(of(['task-list', 'unscheduled', 'completed'])) },
-        ]} />
-        {pane(shown.filter((block) => isLayoutBlock(block.type)))}
+      <>
+        <MobileCalendarHome items={items} categories={library.categories} selected={selected} today={today} weekStartsOn={library.settings.weekStartsOn}
+          extra={extra} onSelect={setSelected} onOpen={open} onNew={(hour) => startDraft(newDraft(hour ?? 9))} />
         {sheet}
-      </div>
+      </>
     )
   }
 
@@ -496,7 +510,7 @@ function isLayoutBlock(type: PageBlock['type']): boolean {
 export function SchedulePage() {
   const { t } = useI18n()
   const library=useLibrary(),{conflicts,error}=usePlannerConflicts(library.items)
-  return <div className="flex min-h-0 flex-none flex-col md:flex-1">{(conflicts.length>0||error)&&<div role="status" className="mx-6 mt-4 rounded-md border border-line bg-surface p-3 text-sm text-blue-600">{error||t('schedule.conflicts', { count: conflicts.length })}<Link className="ml-2 underline" to="/">{t('schedule.replanHome')}</Link></div>}<DailyBoard /></div>
+  return <div className="flex min-h-0 flex-1 flex-col">{(conflicts.length>0||error)&&<div role="status" className="mx-6 mt-4 rounded-md border border-line bg-surface p-3 text-sm text-blue-600">{error||t('schedule.conflicts', { count: conflicts.length })}<Link className="ml-2 underline" to={ROUTES.quickAdd} replace>{t('schedule.replanHome')}</Link></div>}<DailyBoard /><QuickAddSheet /></div>
 }
 
 const SCOPES: { value: SeriesScope; label: string }[] = [

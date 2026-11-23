@@ -128,6 +128,6 @@ export function WidgetBlock({ type }: { type: WidgetType }) {
   } catch {
     summary = ''
   }
-  if (!summary) return <Empty to={ROUTES.home} label={t('builder.emptyPlanner')} />
+  if (!summary) return <Empty to={ROUTES.quickAdd} label={t('builder.emptyPlanner')} />
   return <p className="whitespace-pre-wrap text-sm text-neutral-700">{summary}</p>
 }

@@ -1,0 +1,244 @@
+/* Phone schedule home: month grid, day sheet, add dial and full pages. Colors come from the theme tokens only. */
+.mcal { --mcal-head: 56px; --mcal-week: 28px; --mcal-ease: cubic-bezier(.2, .8, .2, 1); position: relative; display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow: hidden; background: var(--surface); color: var(--fg); }
+.mcal-noscroll { scrollbar-width: none; }
+.mcal-noscroll::-webkit-scrollbar { display: none; }
+.mcal button { -webkit-tap-highlight-color: transparent; }
+
+/* Header: menu | year.month ▾ | tasks | search */
+.mcal-head { position: relative; z-index: 27; display: flex; flex: none; align-items: center; gap: 2px; height: var(--mcal-head); padding: 0 6px 0 4px; background: var(--surface); }
+.mcal-ib { position: relative; display: grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--muted); touch-action: manipulation; }
+.mcal-ib:active { background: var(--press); }
+.mcal-ib:focus-visible, .mcal-ym:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+.mcal-ym { display: flex; align-items: center; gap: 4px; height: 44px; margin-right: auto; padding: 0 6px; border-radius: 12px; font-size: 21px; font-weight: 700; letter-spacing: -.2px; font-variant-numeric: tabular-nums; }
+.mcal-ym svg { color: var(--muted); transition: transform .25s; }
+.mcal-ym[aria-expanded='true'] svg { transform: rotate(180deg); }
+.mcal-badge { position: absolute; top: 5px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: var(--accent-on); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+.mcal-head .notification-bell, .mcal-head [data-notification-bell] { flex: none; }
+
+/* Weekday labels and month grid */
+.mcal-week { display: grid; flex: none; grid-template-columns: repeat(7, 1fr); align-items: center; height: var(--mcal-week); color: var(--muted); font-size: 12px; text-align: center; }
+.mcal-sat { color: var(--cal-saturday); }
+.mcal-grid { display: flex; flex: 1; min-height: 0; flex-direction: column; margin-bottom: var(--mcal-sheet, 0px); touch-action: pan-y; transition: margin-bottom .34s var(--mcal-ease); }
+.mcal-row { display: grid; flex: 1 1 0; grid-template-columns: repeat(7, 1fr); min-height: 0; overflow: hidden; border-top: 1px solid var(--line); transition: flex-basis .32s ease, flex-grow .32s ease, opacity .2s; }
+.mcal-cell { position: relative; min-width: 0; padding: 4px 0 2px; overflow: hidden; cursor: pointer; outline: none; }
+.mcal-cell:focus-visible { box-shadow: inset 0 0 0 2px var(--accent-color); }
+.mcal-cell[aria-pressed='true'] { background: color-mix(in srgb, var(--accent-color) 9%, transparent); }
+.mcal-num { display: grid; place-items: center; width: 24px; height: 24px; margin: 0 auto 2px; border-radius: 50%; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.mcal-cell[data-other] > * { opacity: .55; }
+.mcal-cell[aria-current='date'] .mcal-num { background: var(--accent-color); color: var(--accent-on); }
+.mcal-items { display: flex; flex-direction: column; gap: 2px; }
+.mcal-it { height: 16px; margin: 0 2px; padding: 0 3px; overflow: hidden; border-radius: 3px; font-size: 10.5px; line-height: 16px; white-space: nowrap; }
+.mcal-ev { border-left: 2px solid var(--cal-color); background: color-mix(in srgb, var(--cal-color) 16%, transparent); color: var(--fg); }
+.mcal-ev[data-span] { margin: 0 -1px; padding-left: 4px; border-left: 0; border-radius: 0; background: var(--cal-color); color: var(--cal-ink, var(--accent-on)); }
+.mcal-ev[data-span~='start'] { margin-left: 2px; border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
+.mcal-ev[data-span~='end'] { margin-right: 2px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
+.mcal-lane { height: 16px; }
+.mcal-td { color: var(--muted); }
+.mcal-td::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 3px; border: 1.3px solid currentColor; border-radius: 2px; }
+.mcal-td[data-done] { opacity: .6; text-decoration: line-through; }
+.mcal-td[data-done]::before { background: currentColor; }
+.mcal-more { height: 14px; padding-left: 5px; color: var(--muted); font-size: 10px; line-height: 14px; }
+.mcal-dots { display: none; justify-content: center; gap: 3px; height: 6px; }
+.mcal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cal-color); }
+.mcal-dot[data-todo] { background: none; box-shadow: inset 0 0 0 1.2px var(--muted); }
+.mcal[data-snap='half'] .mcal-items, .mcal[data-snap='full'] .mcal-items { display: none; }
+.mcal[data-snap='half'] .mcal-dots, .mcal[data-snap='full'] .mcal-dots { display: flex; }
+.mcal[data-snap='full'] .mcal-row:not([data-selected-week]) { flex: 0 0 0; border-top-width: 0; opacity: 0; }
+.mcal[data-snap='full'] .mcal-row[data-selected-week] { flex: 1 1 auto; }
+.mcal[data-snap='full'] .mcal-cell { padding-top: 3px; }
+.mcal[data-snap='full'] .mcal-num { width: 22px; height: 22px; margin-bottom: 1px; font-size: 12px; }
+@keyframes mcal-in-left { from { opacity: 0; transform: translateX(30%); } }
+@keyframes mcal-in-right { from { opacity: 0; transform: translateX(-30%); } }
+.mcal-grid[data-slide='left'] { animation: mcal-in-left .25s ease; }
+.mcal-grid[data-slide='right'] { animation: mcal-in-right .25s ease; }
+
+/* Day sheet: closed / half / full */
+.mcal-sheet { position: absolute; inset-inline: 0; bottom: 0; z-index: 20; display: flex; height: var(--mcal-sheet, 0px); flex-direction: column; overflow: hidden; border-radius: 18px 18px 0 0; background: var(--surface); box-shadow: 0 -10px 30px rgb(0 0 0 / 12%); transition: height .34s var(--mcal-ease), box-shadow .2s; }
+html.dark .mcal-sheet { box-shadow: 0 -10px 30px rgb(0 0 0 / 55%); }
+.mcal[data-snap='closed'] .mcal-sheet { box-shadow: none; }
+.mcal[data-dragging] :is(.mcal-sheet, .mcal-grid) { transition: none; }
+.mcal-handle { display: grid; flex: none; place-items: center; height: 26px; }
+.mcal-handle::before { content: ''; width: 40px; height: 4px; border-radius: 2px; background: var(--line); }
+html.dark .mcal-handle::before { background: var(--muted); }
+.mcal-sheet :is(.mcal-handle, .mcal-sheet-head) { cursor: grab; touch-action: none; user-select: none; }
+.mcal-sheet-head { display: flex; flex: none; align-items: center; gap: 6px; padding: 0 8px 4px 20px; }
+.mcal-sheet-head h2 { min-width: 0; margin: 0 auto 0 0; overflow: hidden; font-size: 17px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.mcal-tag { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent-color) 14%, transparent); color: var(--accent-text); font-size: 11px; font-weight: 600; vertical-align: 2px; }
+.mcal-seg { display: flex; flex: none; padding: 2px; border-radius: 9px; background: var(--hover); }
+.mcal-seg button { position: relative; height: 28px; padding: 0 10px; border-radius: 7px; color: var(--muted); font-size: 12px; }
+.mcal-seg button::before { content: ''; position: absolute; inset: -8px 0; }
+.mcal-seg button[aria-pressed='true'] { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 12%); }
+.mcal-sheet-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 0 20px 96px; }
+.mcal-sec { margin: 12px 0 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.mcal-erow { display: flex; align-items: flex-start; gap: 12px; width: 100%; min-height: 48px; padding: 6px 0; text-align: left; }
+.mcal-etime { flex: none; width: 46px; padding-top: 1px; font-size: 13px; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.mcal-etime small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+.mcal-ebar { flex: none; align-self: stretch; width: 4px; border-radius: 2px; background: var(--cal-color); }
+.mcal-etitle { min-width: 0; font-size: 15px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.mcal-trow { display: flex; align-items: center; gap: 12px; min-height: 46px; font-size: 15px; }
+.mcal-trow .mcal-check { display: grid; flex: none; place-items: center; width: 44px; height: 44px; margin: 0 -11px; }
+.mcal-trow-title { flex: 1; min-width: 0; padding: 10px 0; text-align: left; overflow-wrap: anywhere; }
+.mcal-trow-title[data-done] { color: var(--muted); text-decoration: line-through; }
+.mcal-trow small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.mcal-empty { padding: 28px 0; color: var(--muted); font-size: 14px; text-align: center; }
+.mcal-empty-sm { padding: 6px 0; color: var(--muted); font-size: 13px; }
+.mcal-ud { margin-top: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; }
+.mcal-ud-head { display: flex; align-items: center; gap: 8px; width: 100%; height: 46px; padding: 0 14px; color: var(--muted); font-size: 14px; }
+.mcal-ud-head b { color: var(--fg); }
+.mcal-ud-head svg:last-child { margin-left: auto; transition: transform .2s; }
+.mcal-ud-head[aria-expanded='true'] svg:last-child { transform: rotate(180deg); }
+.mcal-ud-list { border-top: 1px solid var(--line); }
+.mcal-ud-row { display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 0 10px 0 14px; font-size: 14px; }
+.mcal-ud-row span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.mcal-pill { position: relative; flex: none; height: 30px; padding: 0 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent-color) 10%, transparent); color: var(--accent-text); font-size: 12px; font-weight: 600; }
+.mcal-pill::before { content: ''; position: absolute; inset: -7px 0; }
+.mcal-extra { margin-top: 20px; }
+
+/* Day sheet timeline */
+.mcal-tl-top { position: sticky; top: 0; z-index: 3; margin: 0 -20px; padding: 2px 0 8px 20px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.mcal-tl-line { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.mcal-tl-k { flex: none; width: 44px; color: var(--muted); font-size: 11px; font-weight: 600; line-height: 1.2; }
+.mcal-tl-k em { display: block; font-style: normal; font-weight: 400; font-variant-numeric: tabular-nums; }
+.mcal-tl-chips { display: flex; gap: 6px; padding-right: 20px; overflow-x: auto; }
+.mcal-tl-all, .mcal-tl-chip { display: flex; flex: none; align-items: center; gap: 5px; height: 32px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.mcal-tl-all { background: color-mix(in srgb, var(--cal-color) 16%, transparent); color: var(--fg); }
+.mcal-tl-chip { padding-left: 2px; border: 1px dashed var(--faint); }
+.mcal-tl-chip .mcal-check { display: grid; place-items: center; width: 28px; height: 28px; }
+.mcal-tl-chip[data-done] > button:last-child { color: var(--muted); text-decoration: line-through; }
+.mcal-tl-grid { position: relative; margin: 4px -4px 0 0; }
+.mcal-tl-h { position: absolute; inset-inline: 0; height: 48px; border-top: 1px solid var(--line); text-align: left; cursor: copy; }
+.mcal-tl-h:active { background: color-mix(in srgb, var(--accent-color) 6%, transparent); }
+.mcal-tl-h span { position: absolute; top: -8px; left: 0; padding-right: 4px; background: var(--surface); color: var(--muted); font-size: 10.5px; }
+.mcal-tl-ev { position: absolute; display: flex; align-items: flex-start; gap: 6px; padding: 4px 8px; overflow: hidden; border-left: 3px solid var(--cal-color); border-radius: 7px; background: color-mix(in srgb, var(--cal-color) 16%, var(--surface)); text-align: left; }
+.mcal-tl-ev b { flex: 1; min-width: 0; overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.mcal-tl-ev small { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.mcal-tl-ev[data-kind='task'] { border: 1px dashed var(--faint); border-left: 3px solid var(--faint); background: var(--surface); padding-left: 2px; }
+.mcal-tl-ev[data-kind='task'] .mcal-check { display: grid; flex: none; place-items: center; width: 22px; height: 22px; }
+.mcal-tl-ev[data-done] b { color: var(--muted); text-decoration: line-through; }
+.mcal-tl-open { display: flex; flex: 1; min-width: 0; align-items: flex-start; gap: 6px; text-align: left; }
+.mcal-tl-now { position: absolute; left: 44px; right: 0; height: 2px; background: var(--danger); pointer-events: none; }
+.mcal-tl-now::before { content: ''; position: absolute; top: -3px; left: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+
+/* Add button and its dial */
+.mcal-fab { position: absolute; right: 16px; bottom: 16px; z-index: 32; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent-color); color: var(--accent-on); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent-color) 45%, transparent); }
+.mcal-fab svg { transition: transform .25s; }
+.mcal-fab[aria-expanded='true'] svg { transform: rotate(45deg); }
+.mcal-dim { position: absolute; inset: 0; background: rgb(0 0 0 / 35%); opacity: 0; pointer-events: none; transition: opacity .25s; }
+.mcal-dim[data-open] { opacity: 1; pointer-events: auto; }
+.mcal-dial-dim { z-index: 30; }
+.mcal-dial { position: absolute; right: 16px; bottom: 84px; z-index: 31; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; pointer-events: none; }
+.mcal-dial button { display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(12px); transition: .22s; }
+.mcal-dial button span { padding: 8px 14px; border-radius: 999px; background: var(--surface); color: var(--fg); font-size: 14px; font-weight: 600; box-shadow: 0 4px 14px rgb(0 0 0 / 15%); }
+.mcal-dial button i { display: grid; place-items: center; width: 48px; height: 48px; margin-right: 4px; border-radius: 50%; background: var(--surface); color: var(--accent-color); box-shadow: 0 4px 14px rgb(0 0 0 / 15%); }
+.mcal-dial[data-open] { pointer-events: auto; }
+.mcal-dial[data-open] button { opacity: 1; transform: none; }
+.mcal-dial[data-open] button:nth-child(2) { transition-delay: .04s; }
+
+/* Year · month · day dropdown */
+.mcal-pick-dim { top: var(--mcal-head); z-index: 26; }
+.mcal-picker { position: absolute; inset-inline: 0; top: var(--mcal-head); z-index: 27; padding: 4px 16px 14px; border-radius: 0 0 18px 18px; background: var(--surface); box-shadow: 0 12px 30px rgb(0 0 0 / 15%); opacity: 0; pointer-events: none; transform: translateY(-12px); transition: .22s; }
+.mcal-picker[data-open] { opacity: 1; pointer-events: auto; transform: none; }
+.mcal-pick-act { display: flex; gap: 8px; margin-top: 10px; }
+.mcal-pick-act > button { flex: 1; height: 44px; border-radius: 12px; font-size: 15px; font-weight: 600; }
+.mcal-ghost { border: 1px solid var(--line); }
+.mcal-primary { background: var(--accent-color); color: var(--accent-on); }
+.mcal-pick-cal { display: flex; justify-content: flex-end; margin-top: 6px; }
+
+/* Wheels: scroll-snap columns with a highlighted middle row */
+.mcal-wheels { position: relative; display: grid; height: 200px; }
+.mcal-wheels::before { content: ''; position: absolute; inset-inline: 0; top: 80px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--accent-color) 10%, transparent); pointer-events: none; }
+.mcal-wheels::after { content: ''; position: absolute; inset: 0; background: linear-gradient(var(--surface), transparent 35%, transparent 65%, var(--surface)); pointer-events: none; }
+.mcal-wcol { position: relative; overflow-y: auto; scroll-snap-type: y mandatory; text-align: center; outline: none; }
+.mcal-wcol:focus-visible { box-shadow: inset 0 0 0 2px var(--focus-outline); border-radius: 10px; }
+.mcal-wpad { height: 80px; }
+.mcal-wi { height: 40px; color: var(--muted); font-size: 16px; line-height: 40px; white-space: nowrap; cursor: pointer; scroll-snap-align: center; }
+.mcal-wi[aria-selected='true'] { color: var(--fg); font-weight: 700; }
+.mcal-wi em { margin-left: 2px; font-size: .85em; font-style: normal; }
+
+/* Shared bottom sheets (quick add, task actions, editor sub sheets) */
+.mcal-sub-dim { position: fixed; inset: 0; z-index: 54; background: rgb(0 0 0 / 35%); }
+.mcal-sub { position: fixed; inset-inline: 0; bottom: 0; z-index: 55; display: flex; max-height: 82%; flex-direction: column; padding-bottom: max(18px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--surface); color: var(--fg); box-shadow: 0 -10px 30px rgb(0 0 0 / 12%); animation: mcal-up .3s var(--mcal-ease, ease); }
+@keyframes mcal-up { from { transform: translateY(100%); } }
+.mcal-sub-head { display: flex; align-items: center; padding: 0 8px 4px 20px; }
+.mcal-sub-head h3 { flex: 1; margin: 0; font-size: 17px; font-weight: 700; }
+.mcal-sub-ok { color: var(--accent-text); }
+.mcal-sub-body { min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.mcal-sub-wheel { margin: 0 16px; }
+.mcal-quick { display: flex; align-items: center; gap: 6px; padding: 12px 16px 0; }
+.mcal-quick > span { margin-right: 4px; color: var(--muted); font-size: 13px; }
+.mcal-quick button { flex: 1; height: 40px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+.mcal-quick button[aria-pressed='true'] { border-color: var(--accent-color); color: var(--accent-text); font-weight: 600; }
+
+/* Full pages over the calendar: search, tasks */
+.mcal-page { position: absolute; inset: 0; z-index: 45; display: flex; flex-direction: column; background: var(--surface); animation: mcal-slide .3s var(--mcal-ease); }
+@keyframes mcal-slide { from { transform: translateX(100%); } }
+.mcal-page-head { display: flex; flex: none; align-items: center; gap: 4px; height: 56px; padding: 0 8px 0 4px; border-bottom: 1px solid var(--line); }
+.mcal-page-head h2 { margin: 0; font-size: 18px; font-weight: 700; }
+.mcal-page-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.mcal-sbox { display: flex; flex: 1; align-items: center; gap: 6px; height: 40px; padding: 0 10px; border-radius: 12px; background: var(--hover); color: var(--muted); }
+.mcal-sbox input { flex: 1; min-width: 0; border: 0; outline: none; background: none; color: var(--fg); font-size: 16px; }
+.mcal-sres { padding: 4px 16px 30px; }
+.mcal-sdate { margin: 16px 0 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.mcal-srow { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; border-bottom: 1px solid var(--line); text-align: left; }
+.mcal-srow .mcal-ebar { align-self: auto; height: 28px; }
+.mcal-srow .mcal-box { flex: none; width: 16px; height: 16px; margin: 0 -6px; border: 1.6px solid var(--faint); border-radius: 4px; }
+.mcal-srow b { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.mcal-srow small { color: var(--muted); font-size: 12px; }
+.mcal-srow mark { border-radius: 2px; background: color-mix(in srgb, var(--accent-color) 25%, transparent); color: inherit; }
+.mcal-hint { padding: 40px 24px; color: var(--muted); font-size: 14px; line-height: 1.7; text-align: center; }
+
+.mcal-tk-bar { flex: none; padding: 10px 16px 6px; border-bottom: 1px solid var(--line); }
+.mcal-tk-tabs { display: flex; gap: 6px; overflow-x: auto; }
+.mcal-tk-tabs button { flex: none; height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.mcal-tk-tabs button[aria-pressed='true'] { border-color: var(--fg); background: var(--fg); color: var(--surface); font-weight: 600; }
+.mcal-tk-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.mcal-tk-tools select { height: 32px; max-width: 9.5rem; padding: 0 6px; border: 0; border-radius: 8px; background: var(--hover); color: var(--fg); font-size: 12px; outline: none; }
+.mcal-tk-sort { height: 32px; padding: 0 10px; border-radius: 8px; background: var(--hover); color: var(--muted); font-size: 12px; }
+.mcal-tk-sort[aria-pressed='true'] { background: color-mix(in srgb, var(--accent-color) 12%, transparent); color: var(--accent-text); font-weight: 600; }
+.mcal-tk-tip { margin-left: auto; color: var(--muted); font-size: 11px; }
+.mcal-tk-group { display: flex; align-items: center; gap: 6px; padding: 16px 16px 6px; font-size: 13px; font-weight: 700; }
+.mcal-tk-group span { color: var(--muted); font-size: 12px; font-weight: 500; }
+.mcal-tk-group[data-late] { color: var(--danger); }
+.mcal-tk-row { position: relative; overflow: hidden; }
+.mcal-tk-acts { position: absolute; inset-block: 0; right: 0; display: flex; }
+.mcal-tk-acts > * { display: grid; place-items: center; width: 72px; }
+.mcal-tk-acts button { width: 72px; height: 100%; color: var(--accent-on); font-size: 12px; font-weight: 600; white-space: normal; }
+.mcal-tk-acts > :nth-child(1) { background: var(--accent-color); }
+.mcal-tk-acts > :nth-child(2) { background: var(--muted); }
+.mcal-tk-acts > :nth-child(3) { background: color-mix(in srgb, var(--accent-color) 60%, var(--fg)); }
+.mcal-tk-acts > :nth-child(3) button { color: var(--accent-on); border-radius: 0; }
+.mcal-tk-main { position: relative; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--surface); touch-action: pan-y; user-select: none; transition: transform .25s ease; }
+.mcal-tk-main[data-dragging] { transition: none; }
+.mcal-tk-main .mcal-check { display: grid; flex: none; place-items: center; width: 44px; height: 44px; margin: 0 -12px 0 -11px; }
+.mcal-tk-info { flex: 1; min-width: 0; text-align: left; }
+.mcal-tk-info b { display: block; overflow: hidden; font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.mcal-tk-info b[data-done] { color: var(--muted); text-decoration: line-through; }
+.mcal-tk-info small { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.mcal-tk-info small [data-late] { color: var(--danger); font-weight: 600; }
+.mcal-tk-chip { position: relative; flex: none; height: 30px; padding: 0 10px; border: 1px solid color-mix(in srgb, var(--accent-color) 35%, transparent); border-radius: 999px; color: var(--accent-text); font-size: 12px; font-weight: 600; }
+.mcal-tk-chip::before { content: ''; position: absolute; inset: -7px 0; }
+
+/* Quick add sheet (former home composer) */
+.quick-add-dim { position: fixed; inset: 0; z-index: 44; background: rgb(0 0 0 / 35%); opacity: 0; pointer-events: none; transition: opacity .25s; }
+.quick-add-dim[data-open] { opacity: 1; pointer-events: auto; }
+.quick-add-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 45; display: flex; max-height: min(88dvh, calc(var(--mobile-viewport-height, 100dvh) - env(safe-area-inset-top) - 8px)); flex-direction: column; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--surface); color: var(--fg); box-shadow: 0 -10px 30px rgb(0 0 0 / 12%); transform: translateY(105%); transition: transform .32s cubic-bezier(.2, .8, .2, 1), visibility 0s .32s; visibility: hidden; }
+.quick-add-sheet[data-open] { transform: none; visibility: visible; transition: transform .32s cubic-bezier(.2, .8, .2, 1); }
+.quick-add-head { display: flex; flex: none; align-items: center; gap: 8px; padding: 0 8px 0 16px; }
+.quick-add-head h2 { flex: 1; margin: 0; font-size: 17px; font-weight: 700; }
+.quick-add-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.quick-add-body .home-page { flex: none; }
+.quick-add-body .home-scroll { overflow: visible; }
+.quick-add-body .home-content { max-width: none; margin: 0; padding: 0 16px 12px; }
+.quick-add-body .home-content .composer { padding: 12px; border-radius: 14px; }
+.quick-add-body [data-tour='entry-types'], .theme-app-layout .quick-add-body .home-content [data-tour='entry-types'] { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-block: 6px; }
+.quick-add-body [data-tour='entry-types']::-webkit-scrollbar { display: none; }
+.quick-add-body [data-tour='entry-types'] .chip { flex: none; }
+.quick-add-hint { display: block; margin-top: 8px; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 768px) {
+  /* No transform while open: fixed panels inside (history drawer) stay relative to the viewport. */
+  .quick-add-sheet { inset-inline: auto; left: max(1rem, calc(50% - 28rem)); width: min(56rem, calc(100vw - 2rem)); bottom: 16px; border-radius: 20px; transform: translateY(calc(100% + 24px)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcal *, .mcal-sub, .quick-add-sheet { animation: none !important; transition-duration: 1ms !important; }
+}

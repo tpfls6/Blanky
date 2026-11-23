@@ -187,38 +187,53 @@ try {
     await wait(gone, 'closed ' + width)
   }
 
-  // ---- Phone: full-screen page ----
+  // ---- Phone: full-screen page (the phone editor: ✕ | 일정/할 일 | ✓ with compact rows) ----
   await viewport(390, 844)
   await navigate(base + '/schedule')
   await wait('!!document.querySelector("[data-schedule-mobile]")', 'mobile schedule')
-  await openAdd()
+  const openPhoneAdd = async () => {
+    await click('.mcal-fab')
+    await wait('!!document.querySelector(".mcal-dial[data-open]")', 'add dial')
+    await click('[data-add=manual]')
+    await wait(shown, 'sheet open')
+    // The editor's history entry lands with the router's transition; let it commit before Back is pressed.
+    await pause(500)
+  }
+  const phoneTitle = `document.querySelector(${q(sheet + ' input[aria-label="제목"]')})`
+  const setPhoneTitle = value => evaluate(`(()=>{const el=${phoneTitle};Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,${q(value)});el.dispatchEvent(new Event('input',{bubbles:true}))})()`)
+  const phoneRow = text => evaluate(`[...document.querySelectorAll(${q(sheet + ' .mdraft-row')})].find(b => b.textContent.includes(${q(text)})).click()`)
+  const subOption = async text => {
+    await wait(`[...document.querySelectorAll('[data-mobile-sheet] button')].some(b => b.textContent.trim() === ${q(text)})`, 'sheet option ' + text)
+    await evaluate(`[...document.querySelectorAll('[data-mobile-sheet] button')].find(b => b.textContent.trim() === ${q(text)}).click()`)
+  }
+  await openPhoneAdd()
   assert.equal(await evaluate(`document.querySelector(${q(sheet)}).dataset.scheduleDraft`), 'page')
   const page = await rect(sheet)
   assert.deepEqual([page.left, page.top, page.width, page.height], [0, 0, 390, 844], 'full screen')
   await wait('history.state?.usr?.scheduleDraft === true', 'page pushed a history entry')
-  for (const label of ['뒤로', '저장']) assert.equal(await evaluate(inSheet(label) + ' !== undefined'), true, label + ' in header')
-  const head = await rect(sheet + ' .schedule-draft-head')
+  for (const label of ['닫기', '저장']) assert.equal(await evaluate(inSheet(label) + ' !== undefined'), true, label + ' in header')
+  const head = await rect(sheet + ' .mdraft-head')
   assert.ok(head.top === 0 && head.height >= 44, 'header on top')
-  assert.equal(await noSideways(sheet + ' .schedule-draft-body'), true, 'no sideways scroll 390')
-  assert.ok(await evaluate(`[...document.querySelectorAll(${q(sheet + ' .field')})].every(e => e.getBoundingClientRect().height >= 44)`), 'touch-sized fields')
+  assert.equal(await noSideways(sheet + ' .mdraft-body'), true, 'no sideways scroll 390')
+  assert.ok(await evaluate(`[...document.querySelectorAll(${q(sheet + ' .mdraft-row')})].every(e => e.getBoundingClientRect().height >= 44)`), 'touch-sized rows')
   await shot('03-mobile-page.png')
 
-  // Back without edits leaves at once and consumes the history entry.
-  await press('뒤로')
-  await wait(gone, 'clean back closes')
+  // Close without edits leaves at once and consumes the history entry.
+  await press('닫기')
+  await wait(gone, 'clean close')
   await wait('history.state?.usr?.scheduleDraft !== true', 'history entry popped')
   assert.equal(await evaluate('!!document.querySelector(".app-confirm-dialog[open]")'), false, 'no confirm when clean')
 
-  // Back with edits asks first; keeping returns to the page.
-  await openAdd()
-  await setTitle('작성 중')
-  await press('뒤로')
+  // Close with edits asks first; keeping returns to the page.
+  await openPhoneAdd()
+  await setPhoneTitle('작성 중')
+  await press('닫기')
   await wait('!!document.querySelector(".app-confirm-dialog[open]")', 'discard confirm')
   await shot('04-mobile-discard.png')
   await evaluate('[...document.querySelectorAll(".app-confirm-dialog[open] button")].find(b => b.textContent.trim() === "취소").click()')
   await wait('!document.querySelector(".app-confirm-dialog[open]")', 'confirm dismissed')
   assert.equal(await isOpen(), true, 'kept editing')
-  assert.equal(await evaluate(`${titleInput}.value`), '작성 중')
+  assert.equal(await evaluate(`${phoneTitle}.value`), '작성 중')
 
   // The system back gesture goes through the same question.
   await evaluate('history.back()')
@@ -231,7 +246,7 @@ try {
   assert.equal(await evaluate('location.pathname'), '/schedule')
 
   // A clean system back closes without asking and stays on the schedule.
-  await openAdd()
+  await openPhoneAdd()
   await wait('history.state?.usr?.scheduleDraft === true', 'entry pushed')
   await evaluate('history.back()')
   await wait(gone, 'system back closes clean page')
@@ -239,20 +254,24 @@ try {
   assert.equal(await evaluate('location.pathname'), '/schedule', 'stays on schedule')
 
   // The keyboard shrinks the visible viewport; the page and its save button follow it.
-  await openAdd()
+  await openPhoneAdd()
   await evaluate(`document.querySelector('.theme-app-layout').style.setProperty('--mobile-viewport-height','420px')`)
   await pause(50)
   const shrunk = await rect(sheet)
   const save = await evaluate(`(()=>{const r=${inSheet('저장')}.getBoundingClientRect();return {top:r.top,bottom:r.bottom}})()`)
   assert.ok(shrunk.height === 420 && save.top >= 0 && save.bottom <= 420, 'save visible above keyboard ' + JSON.stringify({ shrunk, save }))
-  assert.equal(await evaluate(`(e=>e.scrollHeight>e.clientHeight)(document.querySelector(${q(sheet + ' .schedule-draft-body')}))`), true, 'body scrolls under header')
+  assert.equal(await evaluate(`(e=>e.scrollHeight>e.clientHeight)(document.querySelector(${q(sheet + ' .mdraft-body')}))`), true, 'body scrolls under header')
   await evaluate(`document.querySelector('.theme-app-layout').style.removeProperty('--mobile-viewport-height')`)
 
-  // Header save: a daily task with a category, back on the schedule with it shown.
+  // Header save: a daily task with a category (rows open small sheets), back on the schedule with it shown.
   await press('할 일')
-  await setTitle('매일 스트레칭')
-  await pickCategory('운동')
-  await choose(sheet + ' select[aria-label="반복"]', 'daily')
+  await setPhoneTitle('매일 스트레칭')
+  await phoneRow('카테고리')
+  await subOption('운동')
+  await phoneRow('반복')
+  await subOption('매일')
+  await click('[data-mobile-sheet] .mcal-sub-ok')
+  await wait(`document.querySelector(${q(sheet)}).textContent.includes('매일')`, 'repeat shown on the row')
   await press('저장')
   await wait(gone, 'mobile save closes')
   await wait('history.state?.usr?.scheduleDraft !== true', 'returned to schedule')
@@ -260,30 +279,32 @@ try {
   await wait(`document.querySelector('[data-schedule-mobile]').textContent.includes('매일 스트레칭')`, 'shown after save')
 
   // Header save with an empty title keeps the page and reports it.
-  await openAdd()
+  await openPhoneAdd()
   await press('저장')
   await wait(`document.querySelector(${q(sheet)})?.textContent.includes('제목을 입력해 주세요.')`, 'mobile title required')
-  await press('뒤로')
-  await wait(gone, 'clean back after failed save')
+  await press('닫기')
+  await wait(gone, 'clean close after failed save')
 
-  // Editing uses the same page.
-  await click('[data-timeline-id=e2] .schedule-card-open')
+  // Editing uses the same page: open the day sheet, then the event row.
+  await click('[data-calendar-cell="2026-11-05"]')
+  await wait('document.querySelector("[data-schedule-mobile]").dataset.snap === "half"', 'day sheet open')
+  await click('[data-day-event=e2]')
   await wait(shown, 'mobile edit page')
   assert.equal(await evaluate(`document.querySelector(${q(sheet)}).dataset.scheduleDraft`), 'page')
   assert.equal(await heading(), '일정 수정')
-  await setTitle('저녁 약속 (수정)')
+  await setPhoneTitle('저녁 약속 (수정)')
   await press('저장')
   await wait(gone, 'mobile edit closes')
   await saved(`i.id === 'e2' && i.title === '저녁 약속 (수정)'`, 'mobile edit saved')
-  await wait(`document.querySelector('[data-timeline-id=e2]')?.textContent.includes('(수정)')`, 'mobile edit shown')
+  await wait(`document.querySelector('[data-day-event=e2]')?.textContent.includes('(수정)')`, 'mobile edit shown')
 
   // Narrow phone.
   await viewport(320, 640)
-  await openAdd()
-  assert.equal(await noSideways(sheet + ' .schedule-draft-body'), true, 'no sideways scroll 320')
+  await openPhoneAdd()
+  assert.equal(await noSideways(sheet + ' .mdraft-body'), true, 'no sideways scroll 320')
   assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), true, 'no page overflow 320')
   await shot('05-mobile-320.png')
-  await press('뒤로')
+  await press('닫기')
   await wait(gone, 'closed 320')
 
   // Reload keeps everything and leaves no editor entry behind.
@@ -291,7 +312,7 @@ try {
   await wait(`document.querySelector('[data-schedule-mobile]')?.textContent.includes('매일 스트레칭')`, 'reload')
   assert.equal(await draftFlag(), false)
   assert.equal(errors.length, 0, errors.join('\n'))
-  console.log('PASS: desktop modal open/Escape/close/validation/save/edit/weekly repeat/category/short windows; phone page full-screen, back with/without edits, system back, keyboard viewport, header save, edit, 320px, reload.')
+  console.log('PASS: desktop modal open/Escape/close/validation/save/edit/weekly repeat/category/short windows; phone page full-screen, close with/without edits, system back, keyboard viewport, header save, edit, 320px, reload.')
 } finally {
   ws.close(); server.kill()
   const stopped = new Promise(resolve => browser.once('exit', resolve)); browser.kill(); await stopped

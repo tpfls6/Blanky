@@ -141,7 +141,7 @@ try {
   }
   const fill = (selector,value) => evaluate(`(() => {const e=document.querySelector(${q(selector)});Object.getOwnPropertyDescriptor(e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,'value').set.call(e,${q(value)});e.dispatchEvent(new Event('input',{bubbles:true}));})()`)
   const storedCategory = `JSON.parse(localStorage.getItem(${q(library)})).items.find(i=>i.id==='category-task').categoryId`
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")','home')
   await click('[aria-controls="home-chat-panel"]')
   await wait('document.querySelector("[data-work-chip]")','saved chip')
@@ -172,7 +172,7 @@ try {
   await click('[role=option]:last-child')
   await evaluate('document.querySelector("form [aria-haspopup=listbox]").closest("form").requestSubmit()')
   await wait(storedCategory + ' === "backend"','saved schedule category')
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")','mobile home')
   await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true})
   await click('[aria-controls="home-chat-panel"]')

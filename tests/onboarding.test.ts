@@ -35,7 +35,7 @@ test('the home guide keeps the legacy flag', () => {
 })
 
 test('replay links open the guide on its page', () => {
-  assert.equal(replayHref('home'), '/?tour=1')
+  assert.equal(replayHref('home'), '/schedule?add=quick&tour=1')
   assert.equal(replayHref('settings'), '/settings/general?tour=1')
   assert.equal(replayHref('reading'), '/reading?tour=1')
 })

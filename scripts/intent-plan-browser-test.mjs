@@ -120,7 +120,7 @@ try {
     localStorage.setItem('blanky.library.' + id, JSON.stringify({ categories: [], items: [seed], settings: { onboardingDone: true } }))
     localStorage.setItem('intent-seeded', '1')
   }).toString() + ')(' + JSON.stringify(work) + ')' })
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home loaded')
   // This week's Friday and next week's Friday in the browser's own calendar.
   const [friday, nextFriday] = await evaluate('(()=>{const d=new Date();const monday=new Date(d.getFullYear(),d.getMonth(),d.getDate()-((d.getDay()+6)%7));const f=n=>{const x=new Date(monday);x.setDate(x.getDate()+n);return [x.getFullYear(),String(x.getMonth()+1).padStart(2,"0"),String(x.getDate()).padStart(2,"0")].join("-")};return [f(4),f(11)]})()')

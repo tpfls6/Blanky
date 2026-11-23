@@ -88,7 +88,7 @@ export function normalizePreferences(value: unknown): UserPreferences {
     accent: normalizeAccent(typeof (raw.accent ?? raw.accentColor) === 'string' ? String(raw.accent ?? raw.accentColor) : undefined),
     savedAccents: normalizeSaved(raw.savedAccents),
     nav: readNav(raw),
-    mobileBarIds: Array.isArray(raw.mobileBarIds) ? [...new Set(raw.mobileBarIds.filter((id): id is string => typeof id === 'string' && Boolean(id)))].slice(0, MOBILE_BAR_SIZE) : undefined,
+    mobileBarIds: Array.isArray(raw.mobileBarIds) ? [...new Set(raw.mobileBarIds.filter((id): id is string => typeof id === 'string' && Boolean(id) && id !== 'home'))].slice(0, MOBILE_BAR_SIZE) : undefined,
     weekStartsOn: week,
     defaultScheduleTab: oneOf(raw.defaultScheduleTab ?? raw.scheduleDefaultView, TABS, 'all'),
     dayStartTime: clock(raw.dayStartTime, DEFAULT_SETTINGS.dayStartTime),
@@ -218,7 +218,8 @@ function selfCheckPreferences(): void {
   if (legacy.taskDefaultDuration !== 60) throw new Error('preference duration')
   const nav = syncNav(legacy.nav, ['workout'])
   if (nav[0]?.id !== 'memo' || nav[0].visible) throw new Error('nav order')
-  if (!nav.some((item) => item.id === 'home' && item.visible)) throw new Error('nav builtin')
+  if (nav.some((item) => item.id === 'home')) throw new Error('nav home removed')
+  if (!nav.some((item) => item.id === 'schedule' && item.visible)) throw new Error('nav builtin')
   if (!nav.some((item) => item.id === 'workout' && item.visible)) throw new Error('nav record')
   if (nav.some((item) => item.id === 'nope')) throw new Error('nav junk')
   if (defaultPreferences().autoSaveAfterClassify) throw new Error('autosave default')

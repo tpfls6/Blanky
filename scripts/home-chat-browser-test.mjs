@@ -124,7 +124,7 @@ try {
     for (const id of accounts) localStorage.setItem('blanky.library.' + id, JSON.stringify({ categories: [], items: [], settings: { onboardingDone: true, onboardingPages: ['memo', 'diary', 'reading'] } }))
     localStorage.setItem('home-chat-seeded', '1')
   }).toString() + ')()' })
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home loaded')
   assert.equal(await evaluate(panelOpen), false, 'panel starts closed')
   const tomorrow = await evaluate('(()=>{const d=new Date();d.setDate(d.getDate()+1);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),String(d.getDate()).padStart(2,"0")].join("-")})()')
@@ -261,7 +261,7 @@ try {
   await wait('location.pathname === "/memo"', '보기 opens the memo page')
   await wait('document.querySelector("input.memo-title")?.value.includes("홈 화면 문구")', 'the saved memo is selected')
   assert.ok(await evaluate(library + '.memos.some(m=>m.id===' + q(memoTwo) + ')'))
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'back home')
   await say('오늘 날씨가 좋아서 기분이 좋았다')
   await wait(lastAssistant + '?.querySelector("[data-saved-row]")', 'diary row')
@@ -269,7 +269,7 @@ try {
   await evaluate(lastAssistant + '.querySelector(".home-saved-view").click()')
   await wait('location.pathname === "/diary" && document.querySelector(".diary-editor-open")', '보기 opens the diary editor')
   assert.ok(await evaluate(library + '.diaries.some(d=>d.id===' + q(diaryId) + ')'))
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'back home after diary')
   steps.push('records')
 
@@ -295,7 +295,7 @@ try {
   await wait('document.querySelector("dialog[open][data-work-edit]")', 'change row 보기 opens the editor')
   await key('Escape')
   await wait('!document.querySelector("dialog[open]")', 'editor closed')
-  await navigate()
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'reload after changes')
   await evaluate(history + '.click()')
   await wait(panelOpen, 'panel after reload')
@@ -319,7 +319,7 @@ try {
   await wait(lastAssistant + '?.querySelector("[data-saved-row]")', 'demian row')
   await evaluate(lastAssistant + '.querySelector(".home-saved-view").click()')
   await wait('/^\\/reading\\/[^/]+$/.test(location.pathname) && document.querySelector(".reading-detail h2")?.textContent.includes("데미안")', '보기 opens the book detail')
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'back home after reading')
   const demian = library + '.books.find(b=>b.title.includes("데미안"))'
   await say('데미안 120페이지까지 읽음')
@@ -382,13 +382,13 @@ try {
   await wait('/^\\/reading\\/[^/]+$/.test(location.pathname) && document.querySelector(".reading-detail h2")?.textContent.includes("연금술사")', '다시 시도 opens the book detail')
   assert.equal(await evaluate('Boolean(document.querySelector(".reading-error"))'), false, 'the alert is gone')
   await evaluate('(()=>{const key="blanky.reading.v1.' + owner + '",store=JSON.parse(localStorage.getItem(key));store.books=store.books.filter(b=>b.book.title!=="연금술사");localStorage.setItem(key,JSON.stringify(store))})()')
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home after alchemist')
   await evaluate(history + '.click()')
   await wait(panelOpen, 'panel for alchemist')
   await evaluate('[...document.querySelectorAll("#home-chat-panel [data-saved-row]")].filter(li=>li.textContent.includes("연금술사")).at(-1).querySelector(".home-saved-view").click()')
   await wait('location.pathname === "/reading" && document.querySelector(".reading-content [role=status]")?.textContent.includes("목록을 열었어요")', 'missing book opens the list with a note')
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home after missing book')
   steps.push('reading-view-fallback')
 
@@ -419,7 +419,7 @@ try {
   assert.equal(await evaluate(library + '.trash.some(t=>t.title==="어린왕자")'), false, 'nothing went to the trash')
   await navigate(base + '/reading')
   await wait('[...document.querySelectorAll(".reading-book-card h3")].some(h=>h.textContent==="어린왕자")', 'prince still on /reading')
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home after prince')
   await evaluate(history + '.click()')
   await wait(panelOpen, 'panel after prince')
@@ -428,7 +428,7 @@ try {
   await wait(bookOf('코스모스') + '?.status === "done"', 'cosmos finished')
   // A book finished before the source was kept: drop finishedBy and reload so the app reads it that way.
   await evaluate('(()=>{const key="blanky.library.' + owner + '",lib=JSON.parse(localStorage.getItem(key));lib.books=lib.books.map(b=>b.title==="코스모스"?{...b,finishedBy:undefined}:b);localStorage.setItem(key,JSON.stringify(lib))})()')
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home after cosmos')
   await evaluate(history + '.click()')
   await wait(panelOpen, 'panel for cosmos')
@@ -445,7 +445,7 @@ try {
   await wait(lastAssistant + '?.querySelector("[data-saved-row]")', 'siddhartha row')
   const savedImports = await evaluate('localStorage.getItem(' + importedKey + ')')
   await setLocale('en')
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'english home')
   await evaluate(history + '.click()')
   await wait(panelOpen, 'english panel')
@@ -499,7 +499,7 @@ try {
   await navigate(base + '/reading')
   await wait('document.querySelector(".reading-book-grid")', 'english list again')
   await setLocale('ko')
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home back in Korean')
   steps.push('reading-failure-english')
 
@@ -510,7 +510,7 @@ try {
   const inject = row => evaluate('(()=>{const key="blanky.homeChat.' + owner + '";const rows=JSON.parse(localStorage.getItem(key));rows.push(' + JSON.stringify(row) + ');localStorage.setItem(key,JSON.stringify(rows))})()')
   for (const row of [interrupted, { ...interrupted, id: 'interrupted-2' }]) {
     await inject(row)
-    await navigate()
+    await navigate(base + '/schedule?add=quick')
     await wait('document.querySelector("#home-entry")', 'reloaded')
     assert.equal(await evaluate(panelOpen), false)
     await evaluate(history + '.click()')
@@ -525,13 +525,13 @@ try {
   const ownMessages = await evaluate('document.querySelectorAll("#home-chat-panel [data-chat-message]").length')
   assert.ok(ownMessages >= 12, 'own history ' + ownMessages)
   await evaluate('localStorage.setItem("blanky.session.v1",' + q(other) + ')')
-  await navigate()
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'other account')
   await evaluate(history + '.click()')
   await wait(panelOpen, 'other panel')
   assert.equal(await evaluate('document.querySelectorAll("#home-chat-panel [data-chat-message]").length'), 0, 'other account history empty')
   await evaluate('localStorage.setItem("blanky.session.v1",' + q(owner) + ')')
-  await navigate()
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'owner again')
   await evaluate(history + '.click()')
   await wait(panelOpen, 'owner panel')
@@ -540,7 +540,7 @@ try {
 
   // 11. Mobile: sending keeps the sheet closed and reports through a toast; 기록 보기 opens a modal bottom sheet.
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true })
-  await navigate()
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'mobile home')
   await say('모레 오후 2시 병원')
   await wait(lastStatus + ' === "review" || ' + lastStatus + ' === "saved"', 'mobile result')
@@ -570,7 +570,7 @@ try {
   await wait('history.state?.blankyChatSheet === true', 'sheet pushed a history entry')
   await evaluate('history.back()')
   await wait('!(' + panelOpen + ')', 'Back closes the sheet')
-  assert.equal(await evaluate('location.pathname'), '/', 'Back stays on home')
+  assert.equal(await evaluate('location.pathname'), '/schedule', 'Back stays on the schedule screen')
   steps.push('mobile')
 
   // 12. Toasts close with X (44px target) or ESC.
@@ -586,7 +586,7 @@ try {
   await wait('!document.querySelector("[data-status-toast]")', 'ESC closes the toast')
   steps.push('toast-close')
 
-  // 13. 보기 from the phone sheet leaves home; Back returns to home, not to the closed sheet.
+  // 13. 보기 from the phone sheet leaves the schedule; Back returns there with both sheets closed.
   await tap(history)
   await wait(panelOpen + ' && document.querySelector("#home-chat-panel").dataset.state === "open"', 'sheet for 보기')
   await pause(400) // let the 280ms slide-in settle before tapping by coordinates
@@ -594,8 +594,11 @@ try {
   await wait('location.pathname === "/memo" && document.querySelector(".memo-layout")', '보기 from the sheet')
   assert.equal(await evaluate('Boolean(document.querySelector("[inert]"))'), false, 'nothing stays inert: ' + await evaluate('[...document.querySelectorAll("[inert]")].map(e=>e.tagName+"."+e.className).join(";")'))
   await evaluate('history.back()')
-  await wait('location.pathname === "/" && document.querySelector("#home-entry")', 'Back returns home')
+  await wait('location.pathname === "/schedule" && document.querySelector("#home-entry")', 'Back returns to the schedule screen')
   assert.equal(await evaluate(panelOpen), false, 'the sheet stays closed')
+  assert.equal(await evaluate('Boolean(document.querySelector(".quick-add-sheet[data-open]"))'), false, 'the quick-add sheet does not open again')
+  await navigate(base + '/schedule?add=quick')
+  await wait('document.querySelector(".quick-add-sheet[data-open]")', 'quick add again')
   steps.push('sheet-view')
 
   // 14. A phone that has not seen the memo tour: 보기 still shows that memo; the tour waits for the list.
@@ -603,7 +606,7 @@ try {
     await evaluate('(()=>{const key=' + q(storeKey) + ',v=JSON.parse(localStorage.getItem(key));if(!v)return;const s=v.settings??v;s.onboardingPages=(s.onboardingPages??[]).filter(p=>p!=="memo");localStorage.setItem(key,JSON.stringify(v))})()')
   }
   await evaluate('localStorage.removeItem(' + q('blanky.onboarding.' + owner + '.memo') + ')')
-  await navigate()
+  await navigate(base + '/schedule?add=quick')
   await wait('document.querySelector("#home-entry")', 'home without the memo tour')
   await tap(history)
   await wait(panelOpen + ' && document.querySelector("#home-chat-panel").dataset.state === "open"', 'sheet for memo 보기')

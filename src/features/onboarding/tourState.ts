@@ -7,7 +7,8 @@ export const TOUR_PARAM = 'tour'
 
 /** Where each page's guide opens again; `?tour=1` on that page replays it. */
 export const TOUR_ROUTES: Record<PageTourId, string> = {
-  home: ROUTES.home,
+  // The home guide now runs on the quick-add sheet of the schedule screen.
+  home: ROUTES.quickAdd,
   diary: ROUTES.diary,
   reading: ROUTES.reading,
   memo: ROUTES.memo,
@@ -17,7 +18,8 @@ export const TOUR_ROUTES: Record<PageTourId, string> = {
 }
 
 export function replayHref(page: PageTourId): string {
-  return `${TOUR_ROUTES[page]}?${TOUR_PARAM}=1`
+  const route = TOUR_ROUTES[page]
+  return `${route}${route.includes('?') ? '&' : '?'}${TOUR_PARAM}=1`
 }
 
 type TourSettings = { onboardingDone: boolean; onboardingPages: string[] }

@@ -95,7 +95,7 @@ try {
     class Pinned extends Real { constructor(...args) { if (args.length) super(...args); else super(Real.now() + offset) } static now() { return Real.now() + offset } }
     globalThis.Date = Pinned
   }).toString() + ')()' })
-  await navigate(base + '/')
+  await navigate(base + '/schedule?add=quick')
 
   // 1–3. Three previews, per-weekday times, weekly repeat, and first dates never before the reference day.
   for (const [now, today, expected] of [

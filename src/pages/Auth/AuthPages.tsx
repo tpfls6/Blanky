@@ -41,7 +41,7 @@ export function LoginPage() {
       setError(message)
       return
     }
-    navigate(ROUTES.home)
+    navigate(ROUTES.start)
   }
 
   return (
@@ -105,14 +105,14 @@ export function SignupPage() {
     }
     setFormError('')
     if (outcome.next === 'verify' && verifySignup) { setPending({ email: outcome.email, sentAt: Date.now() }); return }
-    if (isSupabaseConfigured) navigate(ROUTES.home)
+    if (isSupabaseConfigured) navigate(ROUTES.start)
     else navigate(ROUTES.login, { state: { notice: '가입되었습니다. 로그인해 주세요.' } })
   }
 
   if (pending && verifySignup && resendSignup) {
     return <SignupCode email={pending.email} sentAt={pending.sentAt} verify={verifySignup} resend={resendSignup}
       onSent={() => setPending({ ...pending, sentAt: Date.now() })}
-      onVerified={() => navigate(ROUTES.home)}
+      onVerified={() => navigate(ROUTES.start)}
       onBack={() => { setPending(null); setFormError('') }} />
   }
 
