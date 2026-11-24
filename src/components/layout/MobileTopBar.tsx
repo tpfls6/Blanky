@@ -28,7 +28,10 @@ export function MobileTopBar() {
   const { pathname, search } = useLocation()
   // These lists draw their own one-line header with the menu and bell; a book's detail draws its ← · title · ⋮ bar
   // (also on a custom reading page, where the book opens as ?book=).
-  if (pathname === ROUTES.schedule || pathname === ROUTES.memo || pathname === ROUTES.diary || matchPath(ROUTES.reading, pathname) || matchPath(`${ROUTES.reading}/:bookId`, pathname)
+  const { customPages } = useLibrary()
+  const pageId = matchPath('/pages/:pageId', pathname)?.params.pageId
+  const customDiary = customPages.some(page => page.id === pageId && page.template === 'diary')
+  if (customDiary || pathname === ROUTES.schedule || pathname === ROUTES.memo || pathname === ROUTES.diary || matchPath(ROUTES.reading, pathname) || matchPath(`${ROUTES.reading}/:bookId`, pathname)
     || (matchPath('/pages/:pageId', pathname) && new URLSearchParams(search).has('book'))) return null
 
   return <MobileHeader />

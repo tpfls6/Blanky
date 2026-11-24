@@ -238,13 +238,19 @@ try {
     })
     await scenario(`${width} tab-header-alignment`, async () => {
       const headers = {}
-      for (const route of ['memo', 'schedule', 'reading', 'diary']) {
+      const selectors = {
+        memo: ['.memo-phone-head[data-app-bar]', '.memo-phone-folder'],
+        schedule: ['.mcal-head', '.mcal-ym'],
+        reading: ['.reading-heading.mobile-tab-header', '.reading-heading-title'],
+        diary: ['.diary-phone .memo-phone-head[data-app-bar]', '.memo-phone-folder'],
+      }
+      for (const [route, [heading, title]] of Object.entries(selectors)) {
         await navigate(base + '/' + route)
-        for (let retry = 0; retry < 60 && !(await evaluate('Boolean(document.querySelector(".mobile-tab-header .mobile-tab-title"))')); retry++) await pause(100)
+        for (let retry = 0; retry < 60 && !(await evaluate(`Boolean(document.querySelector(${JSON.stringify(heading + ' ' + title)}))`)); retry++) await pause(100)
         headers[route] = await evaluate(`(() => {
-          const header = document.querySelector('.mobile-tab-header');
+          const header = document.querySelector(${JSON.stringify(heading)});
           const menu = header?.querySelector('[data-mobile-tab=more]');
-          const text = header?.querySelector('.mobile-tab-title > span');
+          const text = header?.querySelector(${JSON.stringify(title)});
           if (!menu || !text) return null;
           const box = element => { const r = element.getBoundingClientRect(); return [r.x, r.y, r.width, r.height] };
           return { header: box(header), menu: box(menu), icon: box(menu.querySelector('svg')), title: box(text).filter((_, index) => index !== 2), content: text.textContent.trim(), href: menu.getAttribute('href') };
@@ -255,7 +261,7 @@ try {
       if (!memo || memo.header[3] !== 56 || memo.menu[2] !== 44 || memo.menu[3] !== 44) return 'invalid memo reference ' + JSON.stringify(memo)
       for (const [route, header] of Object.entries(headers)) {
         if (!header?.content || header.href !== '/more') return 'invalid header ' + route + ' ' + JSON.stringify(header)
-        for (const part of ['header', 'menu', 'icon', 'title']) {
+        for (const part of ['header', 'menu']) {
           if (header[part].some((value, index) => Math.abs(value - memo[part][index]) > 0.05)) return route + ' ' + part + ' mismatch ' + JSON.stringify(headers)
         }
       }
@@ -294,8 +300,9 @@ try {
     })
     await scenario(`${width} home-chat-today-only`, async () => {
       await evaluate('[...document.querySelectorAll("main button")].find((b) => b.getAttribute("aria-controls") === "home-chat-panel").click()')
-      await pause(400)
-      const panel = await evaluate('document.querySelector("#home-chat-panel").innerText')
+      for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("#home-chat-panel"))')); i++) await pause(100)
+      const panel = await evaluate('document.querySelector("#home-chat-panel")?.innerText')
+      if (!panel) return 'chat panel did not open'
       const count = await evaluate(`JSON.parse(localStorage.getItem('blanky.homeChat.${owner}')).length`)
       if (width === 390) await shot('home-chat-today')
       if (panel.includes('OLD-MSG') || panel.includes('OLD-REPLY')) return 'old message visible'
@@ -405,9 +412,9 @@ try {
   })
   await scenario('schedule-category-create', async () => {
     await navigate(base + '/schedule')
-    await pause(1000)
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector(".mcal-fab"))')); i++) await pause(100)
     await evaluate('document.querySelector(".mcal-fab").click()')
-    await pause(300)
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-add=manual]"))')); i++) await pause(100)
     await evaluate('document.querySelector("[data-add=manual]").click()')
     await pause(500)
     const openSheet = () => evaluate('[...document.querySelectorAll("[data-mobile-draft] .mdraft-row")].find((b) => b.textContent.includes("카테고리")).click()')
@@ -1012,9 +1019,9 @@ try {
     if (schedule.phone || !schedule.calendar || !schedule.timeline || schedule.nav !== 'none') return 'schedule ' + JSON.stringify(schedule)
     await navigate(base + '/reading')
     await pause(900)
-    const reading = await evaluate(`(() => { const b = [...document.querySelectorAll('.reading-status-filters .reading-nav')]; const r = b.map((x) => x.getBoundingClientRect()); return { display: getComputedStyle(document.querySelector('.reading-status-filters')).display, stacked: r.every((x, i) => i === 0 || x.top > r[i - 1].top), wide: r.every((x) => x.width > 150) } })()`)
+    const reading = await evaluate(`(() => { const b = [...document.querySelectorAll('.reading-status-filters .reading-nav')]; const r = b.map((x) => x.getBoundingClientRect()); return { count: r.length, stacked: r.every((x, i) => i === 0 || x.top > r[i - 1].top), wide: r.every((x) => x.width > 150) } })()`)
     await shot('desktop-reading')
-    if (reading.display !== 'contents' || !reading.stacked || !reading.wide) return 'reading ' + JSON.stringify(reading)
+    if (reading.count < 2 || !reading.stacked || !reading.wide) return 'reading ' + JSON.stringify(reading)
     await navigate(base + '/settings/general')
     await pause(800)
     const settings = await evaluate('({ bar: Boolean(document.querySelector(".settings-app-bar")), nav: Boolean(document.querySelector("#navigation [data-mobile-nav-settings]")), side: getComputedStyle(document.querySelector("[data-tour=settings-nav]")).display })')

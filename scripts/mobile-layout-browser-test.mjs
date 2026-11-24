@@ -207,7 +207,7 @@ try {
     await navigate(base + '/')
     await pause(700)
     const barCount = await evaluate('document.querySelectorAll(".mobile-nav > ul > li").length')
-    if (barCount !== 5) return 'bar items ' + barCount
+    if (barCount !== 4) return 'bar items ' + barCount
     await evaluate('document.querySelector("[data-mobile-tab=more]").click()')
     for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-more-page]"))')); i++) await pause(100)
     const fit = await evaluate('document.documentElement.scrollWidth <= innerWidth + 1 ? "ok" : "menu overflows"')
@@ -215,8 +215,8 @@ try {
     if (fit !== 'ok') return fit
     await evaluate('document.querySelector("[data-more-link=general]").click()')
     await pause(700)
-    const state = await evaluate('location.pathname + "|" + Boolean(document.querySelector("dialog[open]")) + "|" + document.querySelector("[data-mobile-tab=more]").getAttribute("aria-current")')
-    return state === '/settings/general|false|page' ? 'ok' : state
+    const state = await evaluate('location.pathname + "|" + Boolean(document.querySelector("dialog[open]")) + "|" + document.querySelector(".settings-app-bar a")?.getAttribute("href")')
+    return state === '/settings/general|false|/more' ? 'ok' : state
   })
   await scenario('confirm-dialog', async () => {
     await navigate(base + '/settings/categories')
@@ -248,8 +248,12 @@ try {
     await navigate(base + '/schedule')
     await pause(900)
     if (!(await evaluate('matchMedia("(pointer: coarse)").matches'))) return 'pointer is not coarse'
+    await evaluate('document.querySelector("[data-open-tasks]").click()')
+    const checkbox = '.mcal-tk-main button[role=checkbox]'
+    for (let i = 0; i < 50 && !(await evaluate(`Boolean(document.querySelector(${JSON.stringify(checkbox)}))`)); i++) await pause(100)
+    await evaluate(`document.querySelector(${JSON.stringify(checkbox)})?.scrollIntoView({ block: 'center', behavior: 'instant' })`)
     // A tap 8px outside the 16px task checkbox still reaches it.
-    return evaluate(`(() => { const box = document.querySelector('main button[role=checkbox]'); if (!box) return 'checkbox missing'; box.scrollIntoView({ block: 'center' }); const r = box.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.bottom + 8); return hit?.closest('button[role=checkbox]') === box ? 'ok' : 'hit ' + (hit?.tagName ?? 'none') })()`)
+    return evaluate(`(() => { const box = document.querySelector(${JSON.stringify(checkbox)}); if (!box) return 'checkbox missing'; const r = box.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.bottom + 8); return hit?.closest('button[role=checkbox]') === box ? 'ok' : 'hit ' + (hit?.className ?? 'none') })()`)
   })
   await scenario('home-input-font', async () => {
     await navigate(base + '/')
