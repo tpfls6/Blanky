@@ -252,7 +252,7 @@ export function ReadingWorkspace({ userId, legacyBooks = noLegacyBooks, legacyLo
  </div> : null}
  {error ? <div role="alert" className="reading-error">{legacyTarget ? t('reading.openFailed') : error}<button className="btn btn-ghost" disabled={busy} onClick={retry}>{t('reading.retry')}</button></div> : null}
  {loading ? <div className="reading-loading" role="status"><LoaderCircle size={24} aria-hidden="true" className="motion-safe:animate-spin"/><span className="sr-only">{text.say('loading')}</span></div> : <section className="reading-content" data-book-detail={Boolean(bookId) || undefined}>
- {bookId ? (current ? <BookDetail key={current.id} book={current} basePath={basePath} labels={labels} text={text} appBar={phone && !repository} createShelf={createShelf} shelves={data.shelves} shelfIds={data.memberships.filter(m => m.user_book_id === current.id).map(m => m.shelf_id)} saveRecord={async patch => { await repo.updateBook(current.id, patch); await refresh(); }} saveMetadata={repo.updateBookMetadata ? metadata => act(() => repo.updateBookMetadata!(current.id, metadata)) : undefined} repo={repo} busy={busy} act={act} remove={() => { setConfirmBody(trashBook ? 'confirmTrashItemBody' : 'confirmDeleteBody'); setConfirm(() => async () => { await (trashBook ? trashBook(current.id) : repo.removeBook(current.id)); navigate(basePath); }); }}/> : <p>{text.say('itemMissing')} <Link to={basePath}>{text.say('backToLibrary')}</Link></p>) : <>
+ {bookId ? (current ? <BookDetail key={current.id} book={current} basePath={basePath} labels={labels} text={text} appBar={phone} createShelf={createShelf} shelves={data.shelves} shelfIds={data.memberships.filter(m => m.user_book_id === current.id).map(m => m.shelf_id)} saveRecord={async patch => { await repo.updateBook(current.id, patch); await refresh(); }} saveMetadata={repo.updateBookMetadata ? metadata => act(() => repo.updateBookMetadata!(current.id, metadata)) : undefined} repo={repo} busy={busy} act={act} remove={() => { setConfirmBody(trashBook ? 'confirmTrashItemBody' : 'confirmDeleteBody'); setConfirm(() => async () => { await (trashBook ? trashBook(current.id) : repo.removeBook(current.id)); navigate(basePath); }); }}/> : <p>{text.say('itemMissing')} <Link to={basePath}>{text.say('backToLibrary')}</Link></p>) : <>
  {repository ? <div className="reading-list-heading">
  <h2>{searchingLibrary ? text.say('searchResults') : text.say(labels?.library?.trim() ? 'myLibrary' : 'myReadingLibrary')}</h2>
  <span role={searchingLibrary ? 'status' : undefined} className="reading-muted">{text.count(filtered.length)}</span>
@@ -519,7 +519,7 @@ function BookDetail({ book, repo, busy, act, remove, basePath = '/reading', labe
     shelfIds: string[];
     /** Creates a shelf (and puts the book on it); resolves to its id, or null when it failed. */
     createShelf: (name: string, bookId?: string) => Promise<string | null>;
-    /** Phone /reading route: no MobileTopBar above, so the ← · title · ⋮ bar and the tabs stick to the top. */
+    /** Phone: MobileTopBar is hidden on a book (/reading/:id and a custom page's ?book=), so the ← · title · ⋮ bar and the tabs stick to the top. */
     appBar?: boolean;
     basePath?: string;
     labels?: Record<string, string>;

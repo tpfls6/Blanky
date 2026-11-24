@@ -25,9 +25,11 @@ export function MobileMoreLink({ className = 'mcal-ib', iconClassName = 'size-5.
 
 /** Phones: "more" sits top-left so all five bottom tabs stay free; the bell sits top-right on every page. */
 export function MobileTopBar() {
-  const { pathname } = useLocation()
-  // These lists draw their own one-line header with the menu and bell; a book's detail draws its ← · title · ⋮ bar.
-  if (pathname === ROUTES.schedule || pathname === ROUTES.memo || matchPath(ROUTES.reading, pathname) || matchPath(`${ROUTES.reading}/:bookId`, pathname)) return null
+  const { pathname, search } = useLocation()
+  // These lists draw their own one-line header with the menu and bell; a book's detail draws its ← · title · ⋮ bar
+  // (also on a custom reading page, where the book opens as ?book=).
+  if (pathname === ROUTES.schedule || pathname === ROUTES.memo || matchPath(ROUTES.reading, pathname) || matchPath(`${ROUTES.reading}/:bookId`, pathname)
+    || (matchPath('/pages/:pageId', pathname) && new URLSearchParams(search).has('book'))) return null
 
   return <MobileHeader />
 }

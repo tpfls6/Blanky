@@ -620,6 +620,8 @@ try {
   await scenario('reading-folders-and-add', async () => {
     await navigate(base + '/reading')
     await pause(1000)
+    // A cold Vite compile of the reading chunk can take longer than the pause.
+    for (let i = 0; i < 100 && !(await evaluate('Boolean(document.querySelector(".reading-folders-disclosure") && document.querySelector(".reading-book-card"))')); i++) await pause(100)
     const collapsed = await evaluate('document.querySelector(".reading-folders-disclosure").inert && !document.querySelector(".reading-filter-button, .reading-library-filters, .reading-list-heading")')
     const listTop = () => evaluate('document.querySelector(".reading-book-card").getBoundingClientRect().top')
     const foldedTop = await listTop()
@@ -827,6 +829,54 @@ try {
     return await until('location.pathname === "/reading" && Boolean(document.querySelector(".reading-book-card"))') ? 'ok' : 'back did not return to the library'
   })
 
+  await scenario('reading-book-detail-fit', async () => {
+    const libKey = `blanky.library.${owner}`, readKey = `blanky.reading.v1.${owner}`, localeKey = `blanky.locale.${owner}`, prefKey = `blanky.preferences.${owner}`
+    const until = async (expression) => { for (let i = 0; i < 60 && !(await evaluate(expression)); i++) await pause(100); return evaluate(expression) }
+    // Storage is edited on a static file of the same origin, so the running app cannot write its own state back over it.
+    const offApp = () => navigate(base + '/favicon.svg')
+    const saved = await evaluate(`[localStorage.getItem('${libKey}'), localStorage.getItem('${readKey}'), localStorage.getItem('${localeKey}'), localStorage.getItem('${prefKey}')]`)
+    const now = '2026-09-01T00:00:00.000Z'
+    try {
+      // The star row (stars · score · ×) stays one line at 360 and 390, Korean and English, with a 4.5 rating.
+      await offApp()
+      await evaluate(`(() => { const d = JSON.parse(localStorage.getItem('${readKey}')); d.books.find((b) => b.id === 'ub0').rating = 4.5; localStorage.setItem('${readKey}', JSON.stringify(d)) })()`)
+      const rows = []
+      for (const locale of ['ko', 'en']) {
+        await offApp()
+        await evaluate(`(() => { const d = JSON.parse(localStorage.getItem('${libKey}')); d.settings.locale = '${locale}'; localStorage.setItem('${libKey}', JSON.stringify(d)); localStorage.setItem('${localeKey}', JSON.stringify({ locale: '${locale}', updatedAt: new Date().toISOString() })); const p = JSON.parse(localStorage.getItem('${prefKey}') ?? 'null'); if (p) localStorage.setItem('${prefKey}', JSON.stringify({ ...p, locale: '${locale}' })) })()`)
+        for (const width of [360, 390]) {
+          await setViewport(width, 800, true)
+          await navigate(base + '/reading/ub0')
+          await until('Boolean(document.querySelector(".reading-pd-info .reading-rating .btn"))')
+          const row = await evaluate(`(() => { const rating = document.querySelector('.reading-pd-info .reading-rating').getBoundingClientRect(), clear = document.querySelector('.reading-pd-info .reading-rating .btn').getBoundingClientRect(), info = document.querySelector('.reading-pd-info').getBoundingClientRect()
+            return document.querySelector('.reading-pd-tabs [role=tab]').textContent + '|' + Math.round(rating.height) + '|' + Math.round(clear.width) + '|' + (clear.right <= info.right + 0.5) })()`)
+          rows.push(`${locale}${width}:${row}`)
+          if (width === 360) await shot(`reading-detail-stars-${locale}-360`)
+        }
+      }
+      if (rows.some((row) => !row.endsWith('|44|32|true')) || rows.filter((row) => row.includes(':Log|')).length !== 2) return 'star rows ' + rows.join(' ')
+      // A custom reading page's ?book= detail hides MobileTopBar too, so its app bar takes the top edge.
+      await offApp()
+      await evaluate(`(() => { const d = JSON.parse(localStorage.getItem('${libKey}')); d.settings.locale = 'ko'; localStorage.setItem('${localeKey}', JSON.stringify({ locale: 'ko', updatedAt: new Date().toISOString() })); const p = JSON.parse(localStorage.getItem('${prefKey}') ?? 'null'); if (p) localStorage.setItem('${prefKey}', JSON.stringify({ ...p, locale: 'ko' }))
+        const book = { id: 'pb-1', user_id: '${owner}', book_id: 'pb-1', reading_status: 'reading', rating: null, current_page: 0, total_pages: null, progress: 0, started_at: null, finished_at: null, review: '', tags: [], created_at: '${now}', updated_at: '${now}', book: { id: 'pb-1', external_source: 'blanky-page', external_id: 'pb-1', title: '커스텀 책', author: '작가', cover_url: null, isbn10: null, isbn13: null, publisher: null, published_date: null, description: null, page_count: null, created_at: '${now}' } }
+        d.customPages = [{ id: 'pg-read', name: '내 독서', icon: 'Library', description: '', sort: 0, schemaVersion: 1, blocks: [], template: 'reading', fieldLabels: {}, createdAt: '${now}', updatedAt: '${now}' }]
+        d.records = [{ id: 'pb-1', typeId: 'pg-read', title: '커스텀 책', values: { readingBook: JSON.stringify(book) }, templateVersion: 1, createdAt: '${now}', updatedAt: '${now}' }]
+        localStorage.setItem('${libKey}', JSON.stringify(d)) })()`)
+      await setViewport(390, 800, true)
+      await navigate(base + '/pages/pg-read')
+      const listBar = await until('Boolean(document.querySelector("[data-mobile-topbar]")) && Boolean(document.querySelector(".reading-book-card"))')
+      await navigate(base + '/pages/pg-read?book=pb-1')
+      await until('Boolean(document.querySelector(".reading-pd-top"))')
+      const custom = await evaluate(`(() => { const top = document.querySelector('.reading-pd-top').getBoundingClientRect(); return Math.round(top.top) + ',' + Math.round(top.height) + '|' + Boolean(document.querySelector('[data-mobile-topbar]')) + '|' + getComputedStyle(document.querySelector('.reading-pd-top')).position })()`)
+      await shot('reading-detail-custom-page')
+      if (!listBar || custom !== '0,56|false|sticky') return `custom page list bar=${listBar} detail=${custom}`
+      return 'ok'
+    } finally {
+      await offApp()
+      await evaluate(`(([lib, read, locale, pref]) => { localStorage.setItem('${libKey}', lib); localStorage.setItem('${readKey}', read); if (locale) localStorage.setItem('${localeKey}', locale); else localStorage.removeItem('${localeKey}'); if (pref) localStorage.setItem('${prefKey}', pref); else localStorage.removeItem('${prefKey}') })(${JSON.stringify(saved)})`)
+      await setViewport(390, 800, true)
+    }
+  })
   await scenario('reading-add', async () => {
     const store = (expression) => evaluate(`(() => { const d = JSON.parse(localStorage.getItem('blanky.reading.v1.${owner}')); return ${expression} })()`)
     const until = async (expression) => { for (let i = 0; i < 60 && !(await evaluate(expression)); i++) await pause(100); return evaluate(expression) }
