@@ -205,6 +205,7 @@ try {
   assert.ok(await evaluate(rowOf('예전 책') + '.textContent.includes("기록")'))
   await clickIn(rowOf('예전 책'), '복구')
   await wait('!' + rowOf('예전 책'), 'old row restored')
+  assert.equal(await evaluate('document.querySelector(".more-toast[data-on]")?.textContent'), "'예전 책' 복구했어요.", 'restore toast')
   await navigate(base + '/pages/pg-read')
   await wait('[...document.querySelectorAll(".reading-book-card h3")].some(h=>h.textContent==="예전 책")', 'old book on its page')
   steps.push('legacy-record-restore')
@@ -227,6 +228,14 @@ try {
   const touch = await evaluate('[...' + rowOf('메모 하나') + '.querySelectorAll(".trash-action")].map(b=>{const r=b.getBoundingClientRect(),s=getComputedStyle(b,"::before");return [r.height-parseFloat(s.top)-parseFloat(s.bottom),r.width]})')
   for (const [height, width] of touch) { assert.ok(height >= 44, 'touch height ' + height); assert.ok(width >= 44, 'touch width ' + width) }
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true, 'no sideways scroll at 390')
+  // Phone: own app bar with 비우기, rows grouped by day, and ⋯ opens a sheet with 복구 / 영구 삭제.
+  assert.equal(await evaluate('[...document.querySelectorAll("main .more-bar button")].map(b=>b.textContent).join()'), '비우기')
+  assert.equal(await evaluate('[...document.querySelectorAll("main h2.more-label")].map(h=>h.textContent).join()'), '이전')
+  await evaluate(rowOf('메모 하나') + '.querySelector(".trash-more").click()')
+  await wait('document.querySelector("dialog[open].customization-sheet")', 'row sheet')
+  assert.equal(await evaluate('[...document.querySelectorAll("dialog[open] .more-row")].map(b=>b.textContent).join()'), '복구,영구 삭제')
+  await evaluate('document.querySelector("dialog[open] .customization-sheet-header button").click()')
+  await wait('!document.querySelector("dialog[open].customization-sheet")', 'sheet closed')
   await shot('03-trash-390')
   await send('Emulation.setTouchEmulationEnabled', { enabled: false })
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false })
