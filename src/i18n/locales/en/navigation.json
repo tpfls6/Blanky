@@ -50,7 +50,7 @@
     "hidden": "Hidden",
     "hiddenHint": "Also hidden in the desktop sidebar",
     "hiddenEmpty": "Drag menus here to hide them",
-    "footer": "Change the desktop sidebar order in Settings › General › Navigation on a desktop screen.",
+    "footer": "Reorder the desktop sidebar the same way on a desktop screen.",
     "restore": "Restore defaults",
     "restored": "Restored the default menu layout",
     "grip": "Move {{name}}. Up and down arrows reorder, left and right arrows change section",

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { PageTour } from '../../features/onboarding/Onboarding.tsx'
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CalendarDays, ChevronLeft, Languages, RotateCcw, Sparkles, Tag, User, type LucideIcon } from 'lucide-react'
+import { CalendarDays, ChevronLeft, Languages, Plus, RotateCcw, Sparkles, Tag, User, type LucideIcon } from 'lucide-react'
 import { ROUTES } from '../../constants/routes.ts'
 import { SETTINGS_COMPACT_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
@@ -9,7 +9,7 @@ import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
 import { AccountSection } from './AccountSection.tsx'
 import { CategorySection } from './CategorySection.tsx'
-import { ConfirmDialog, Group, Section, SettingsTabs } from './bits.tsx'
+import { ConfirmDialog, Group, SettingsTabs } from './bits.tsx'
 import { GeneralSection } from './GeneralSection.tsx'
 import { GoogleCalendarSection } from './GoogleCalendarSection.tsx'
 import { InputSection } from './InputSection.tsx'
@@ -44,6 +44,7 @@ export function SettingsPage() {
   const { user } = useSession()
   const { resetPreferences } = useLibrary()
   const [resetOpen, setResetOpen] = useState(false)
+  const [addingCategory, setAddingCategory] = useState(false)
   const resolved = resolveSettingsRoute(params.section, search.get('tab'))
   const compactTab = compact && resolved.tab && resolved.tab !== 'planner' && resolved.tab !== 'schedule' ? resolved.tab : null
   // The compact layout shows every tab as a section, so a tab deep link scrolls to its section instead.
@@ -69,13 +70,12 @@ export function SettingsPage() {
   } else if (menu === 'account') {
     body = <AccountSection />
   } else if (menu === 'ai' && compact) {
+    // Phones list both tabs as sections; each section draws its own labelled cards.
     body = (
-      <Section>
-        <Group title={t('settings.ai.plannerTitle')} description={t('settings.ai.plannerHint')}>
-          <PlanningPreferences />
-        </Group>
+      <>
+        <PlanningPreferences />
         <div id="settings-section-input" className="scroll-mt-16"><InputSection /></div>
-      </Section>
+      </>
     )
   } else if (menu === 'ai') {
     const tab = (resolved.tab as AiTab) ?? 'planner'
@@ -103,12 +103,10 @@ export function SettingsPage() {
     )
   } else if (menu === 'calendar' && compact) {
     body = (
-      <Section>
-        <Group id="settings-section-google" title={t('settings.calendar.googleTitle')} description={t('settings.calendar.googleHint')}>
-          <GoogleCalendarSection />
-        </Group>
+      <>
+        <div id="settings-section-google" className="scroll-mt-16"><GoogleCalendarSection /></div>
         <ScheduleSection />
-      </Section>
+      </>
     )
   } else if (menu === 'calendar') {
     const tab = (resolved.tab as CalendarTab) ?? 'schedule'
@@ -134,6 +132,8 @@ export function SettingsPage() {
         </div>
       </>
     )
+  } else if (compact) {
+    body = <CategorySection adding={addingCategory} onAdding={setAddingCategory} />
   } else {
     body = (
       <Group title={t('settings.categories.listTitle')} description={t('settings.categories.listHint')}>
@@ -148,6 +148,11 @@ export function SettingsPage() {
       <header className="more-bar settings-app-bar" data-tour="settings-nav">
         <Link to={ROUTES.more} className="more-ib" aria-label={t('nav.layout.back')}><ChevronLeft size={22} strokeWidth={1.6} aria-hidden="true" /></Link>
         <h1>{sectionLabel}</h1>
+        {menu === 'categories' ? (
+          <button type="button" className="more-ib" aria-label={t('settings.mobile.addCategory')} data-category-add onClick={() => setAddingCategory(true)}>
+            <Plus size={22} strokeWidth={1.6} aria-hidden="true" />
+          </button>
+        ) : null}
       </header>
     ) : null}
     <div className="settings-page mx-auto flex w-full max-w-5xl items-start gap-8 px-6 py-8 md:px-10 lg:gap-14">
@@ -172,9 +177,9 @@ export function SettingsPage() {
         <div data-tour="settings-body" className="mt-8">{body}</div>
         {!compact || menu === 'general' ? (
           <div className="settings-reset mt-10 border-t border-line pt-6">
-            <button type="button" className="text-sm text-neutral-400" onClick={() => setResetOpen(true)}>
+            <button type="button" className={compact ? undefined : 'text-sm text-neutral-400'} onClick={() => setResetOpen(true)}>
               {compact ? <span className="more-ri"><RotateCcw size={18} strokeWidth={1.6} aria-hidden="true" /></span> : null}
-              {compact ? <span className="more-rt">{t('settings.reset')}<small>{t('settings.resetBody')}</small></span> : t('settings.reset')}
+              {compact ? <span className="more-rt">{t('settings.reset')}<small>{t('settings.mobile.resetHint')}</small></span> : t('settings.reset')}
             </button>
           </div>
         ) : null}

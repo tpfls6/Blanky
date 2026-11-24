@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { PAGE_TOURS, replayHref } from '../../features/onboarding/tourState.ts'
 import { Link, useLocation } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
@@ -10,6 +10,7 @@ import { useLibrary } from '../../state/useLibrary.ts'
 import { ACCENTS, accentHex } from '../../theme/accent.ts'
 import { Choice, Group, Section } from './bits.tsx'
 import { NavSection } from './NavSection.tsx'
+import { MBlock, MCard, MHint, MLabel, MRow, MSeg, MSheet } from './mobileRows.tsx'
 
 function CustomAccent({
   accent,
@@ -89,8 +90,55 @@ export function GeneralSection() {
   const { t, locale, setLocale } = useI18n()
   const { settings, updateSettings } = useLibrary()
   const patch = (next: Partial<typeof settings>) => updateSettings(next)
-  // Below lg, menus and help live on More (Menu layout, Help), so they are not repeated here.
   const compact = useMediaQuery(SETTINGS_COMPACT_QUERY)
+  const [customOpen, setCustomOpen] = useState(false)
+
+  // Below lg: language as a segment row, theme preview cards, one swatch row. Menus and help live on More.
+  if (compact) {
+    const swatch = (id: string, color: string, label: string) => (
+      <button key={id} type="button" role="radio" aria-checked={settings.accent === id} aria-label={label} title={label}
+        className="more-swatch" style={{ ['--c' as string]: color }} onClick={() => patch({ accent: id })} />
+    )
+    return (
+      <div>
+        <MLabel>{t('settings.mobile.language')}</MLabel>
+        <MCard>
+          <MRow label={t('settings.general.language')}>
+            <MSeg label={t('settings.general.language')} value={locale} onPick={(next) => setLocale(next)}
+              options={APP_LOCALES.map((value) => [value, t(value === 'ko' ? 'settings.general.korean' : 'settings.general.english')] as const)} />
+          </MRow>
+        </MCard>
+        <MLabel>{t('settings.mobile.display')}</MLabel>
+        <MCard>
+          <MBlock title={t('settings.appearance.theme')}>
+            <div className="more-themes" role="radiogroup" aria-label={t('settings.appearance.theme')}>
+              {(['light', 'dark', 'system'] as const).map((theme) => (
+                <button key={theme} type="button" role="radio" aria-checked={settings.theme === theme} onClick={() => patch({ theme })}>
+                  <span className="more-theme-prev" data-theme-preview={theme} aria-hidden="true"><i /><i /></span>
+                  {t(`settings.appearance.${theme}`)}
+                </button>
+              ))}
+            </div>
+          </MBlock>
+          <MBlock title={t('settings.appearance.accent')} aside={settings.savedAccents.length ? t('settings.mobile.savedCount', { count: settings.savedAccents.length }) : undefined}>
+            <div className="more-swatches" role="radiogroup" aria-label={t('settings.appearance.accent')}>
+              {ACCENTS.map((accent) => swatch(accent.id, accent.light.color, accent.label))}
+              {settings.savedAccents.map((color) => swatch(color, color, color.toUpperCase()))}
+              <button type="button" className="more-swatch more-swatch-add" aria-label={t('settings.mobile.addColor')} onClick={() => setCustomOpen(true)}>
+                <Plus size={16} strokeWidth={1.6} aria-hidden="true" />
+              </button>
+            </div>
+          </MBlock>
+        </MCard>
+        <MHint>{t('settings.appearance.themeNoteMobile')}</MHint>
+        {customOpen ? (
+          <MSheet title={t('settings.mobile.customColorTitle')} onClose={() => setCustomOpen(false)}>
+            <CustomAccent accent={settings.accent} saved={settings.savedAccents} onPick={(accent) => patch({ accent })} onSave={(savedAccents) => patch({ savedAccents })} />
+          </MSheet>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <Section>
@@ -113,11 +161,9 @@ export function GeneralSection() {
         </div>
       </Group>
       <Group id="appearance" title={t('settings.general.appearanceSection')} description={t('settings.general.appearanceSectionHint')}>
-        {compact ? <p className="text-sm text-neutral-500">{t('settings.appearance.themeNoteMobile')}</p> : (
-          <p className="text-sm text-neutral-500">
-            {t('settings.appearance.themeNote')} <Link className="text-accent-text" to="/settings/themes">{t('settings.appearance.manageThemes')}</Link>{t('settings.appearance.themeNoteAfter')}
-          </p>
-        )}
+        <p className="text-sm text-neutral-500">
+          {t('settings.appearance.themeNote')} <Link className="text-accent-text" to="/settings/themes">{t('settings.appearance.manageThemes')}</Link>{t('settings.appearance.themeNoteAfter')}
+        </p>
         <div>
           <p className="text-sm">{t('settings.appearance.theme')}</p>
           <div className="mt-2 flex flex-wrap gap-1" role="radiogroup" aria-label={t('settings.appearance.theme')}>
@@ -156,10 +202,10 @@ export function GeneralSection() {
           />
         </div>
       </Group>
-      {compact ? null : <Group id="navigation" title={t('settings.general.navigationSection')} description={t('settings.general.navigationSectionHint')}>
+      <Group id="navigation" title={t('settings.general.navigationSection')} description={t('settings.general.navigationSectionHint')}>
         <NavSection />
-      </Group>}
-      {compact ? null : <Group id="help" title={t('settings.general.helpSection')} description={t('settings.general.helpSectionHint')}>
+      </Group>
+      <Group id="help" title={t('settings.general.helpSection')} description={t('settings.general.helpSectionHint')}>
         <div className="flex flex-wrap gap-2">
           <Link to={ROUTES.guide} className="btn btn-line">{t('settings.general.openGuide')}</Link>
           <Link to={replayHref('home')} className="btn btn-ghost">{t('settings.general.replayTour')}</Link>
@@ -168,7 +214,7 @@ export function GeneralSection() {
         <div className="mt-2 flex flex-wrap gap-1">
           {PAGE_TOURS.map((page) => <Link key={page} to={replayHref(page)} className="chip">{t(`nav.${page}`)}</Link>)}
         </div>
-      </Group>}
+      </Group>
     </Section>
   )
 }

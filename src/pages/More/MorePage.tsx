@@ -1,16 +1,18 @@
 import { CalendarDays, ChevronRight, CircleHelp, CirclePlay, Languages, PanelBottom, Palette, Repeat2, SlidersHorizontal, Sparkles, Store, Tag, Trash2, UserRound, type LucideIcon } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { NotificationBell } from '../../components/calendars/NotificationBell.tsx'
 import { chromeNavLabel } from '../../constants/navigation.ts'
 import { ROUTES } from '../../constants/routes.ts'
 import { PAGE_TOURS, replayHref } from '../../features/onboarding/tourState.ts'
+import { listRecurring } from '../../features/schedule/recurringList.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { getCalendarSyncClient } from '../../services/calendarSync/index.ts'
 import { isSupabaseConfigured } from '../../services/supabase/client.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { useSession } from '../../state/useSession.ts'
+import { useTheme } from '../../theme/context.ts'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
+import { todayISO } from '../../utils/date.ts'
 import { settingsPath } from '../Settings/settingsNav.ts'
 import { MANAGE_IDS, menuZones } from './menuZones.ts'
 import './more.css'
@@ -46,7 +48,7 @@ function MoreRow({ to, id, icon, label, hint, value, accent, chevron = true }: {
   chevron?: boolean
 }) {
   return (
-    <Link to={to} className="more-row" data-more-link={id}>
+    <Link to={to} className="more-row more-row-ic" data-more-link={id}>
       <span className="more-ri">{icon}</span>
       <span className="more-rt">{label}{hint ? <small>{hint}</small> : null}</span>
       {value ? <span className={accent ? 'more-rv more-rv-on' : 'more-rv'}>{value}</span> : null}
@@ -59,7 +61,8 @@ const rowIcon = (Icon: LucideIcon) => <Icon size={18} strokeWidth={1.6} aria-hid
 const navIcon = (id: string, Icon: LucideIcon) => <ThemeIcon name={id} fallback={Icon} size={18} strokeWidth={1.6} aria-hidden="true" />
 
 export function MorePage() {
-  const { settings, customPages, categories } = useLibrary()
+  const { settings, customPages, categories, items: work, trash } = useLibrary()
+  const themes = useTheme()
   const { user } = useSession()
   const { t, locale } = useI18n()
   const google = useGoogleState()
@@ -72,16 +75,18 @@ export function MorePage() {
     ? t('nav.menuLayoutSummaryHidden', { bar: zones.bar.length, hidden: zones.hidden.length })
     : t('nav.menuLayoutSummary', { bar: zones.bar.length })
   const topCategories = categories.filter((category) => category.parentId === null).length
+  // Values from state already loaded for the app: active recurring series, trash rows, the applied custom theme.
+  const recurring = useMemo(() => listRecurring(work, todayISO(), 'active').length, [work])
+  const themeName = themes.themes.find((theme) => theme.id === themes.active)?.name
+  const initial = (user?.nickname || user?.name || user?.email || '').trim().charAt(0).toUpperCase()
 
   return (
     <div className="more-page" data-more-page>
-      <header className="more-bar">
-        <h1>{t('nav.more')}</h1>
-        {isSupabaseConfigured ? <NotificationBell align="right" /> : null}
-      </header>
+      {/* The shared phone top bar (☰ · bell) stays on More; the title is for screen readers only. */}
+      <h1 className="sr-only">{t('nav.more')}</h1>
       <div className="more-body">
         <Link to="/settings/account" className="more-profile" data-more-link="account">
-          <span className="more-avatar">{user?.avatar ? <img src={user.avatar} alt="" /> : <UserRound size={23} strokeWidth={1.5} aria-hidden="true" />}</span>
+          <span className="more-avatar">{user?.avatar ? <img src={user.avatar} alt="" /> : initial || <UserRound size={23} strokeWidth={1.5} aria-hidden="true" />}</span>
           <span className="more-profile-text"><strong>{user?.nickname || user?.name || 'Blanky'}</strong><span>{user?.email}</span></span>
           <ChevronRight className="more-chev" size={16} strokeWidth={1.5} aria-hidden="true" />
         </Link>
@@ -111,8 +116,8 @@ export function MorePage() {
         <section aria-labelledby="more-data">
           <h2 className="more-label" id="more-data">{t('nav.moreData')}</h2>
           <div className="more-card">
-            <MoreRow to={ROUTES.recurring} id="recurring" icon={rowIcon(Repeat2)} label={t('nav.recurring')} />
-            <MoreRow to={ROUTES.trash} id="trash" icon={navIcon('trash', Trash2)} label={t('nav.trash')} />
+            <MoreRow to={ROUTES.recurring} id="recurring" icon={rowIcon(Repeat2)} label={t('nav.recurring')} value={recurring ? t('nav.moreCount', { count: recurring }) : undefined} />
+            <MoreRow to={ROUTES.trash} id="trash" icon={navIcon('trash', Trash2)} label={t('nav.trash')} value={trash.length ? t('nav.moreCount', { count: trash.length }) : undefined} />
           </div>
         </section>
 
@@ -120,7 +125,7 @@ export function MorePage() {
           <h2 className="more-label" id="more-decorate">{t('nav.moreDecorate')}</h2>
           <div className="more-card">
             <MoreRow to={ROUTES.menuLayout} id="mobile-navigation" icon={rowIcon(PanelBottom)} label={t('nav.menuLayout')} hint={t('nav.menuLayoutHint')} value={layout} />
-            <MoreRow to={ROUTES.myThemes} id="themes" icon={navIcon('themes', Palette)} label={t('nav.themes')} />
+            <MoreRow to={ROUTES.myThemes} id="themes" icon={navIcon('themes', Palette)} label={t('nav.themes')} value={themeName} />
             <MoreRow to={ROUTES.custom} id="custom" icon={navIcon('custom', SlidersHorizontal)} label={t('nav.custom')} hint={t('nav.moreCustomHint')} />
             <MoreRow to={ROUTES.store} id="store" icon={navIcon('store', Store)} label={t('nav.store')} hint={t('nav.moreStoreHint')} />
           </div>
@@ -131,7 +136,7 @@ export function MorePage() {
           <div className="more-card">
             <MoreRow to={ROUTES.guide} id="guide" icon={rowIcon(CircleHelp)} label={t('nav.moreGuide')} />
             <MoreRow to={replayHref('home')} id="replay-tour" icon={rowIcon(CirclePlay)} label={t('settings.general.replayTour')} chevron={false} />
-            <button type="button" className="more-row" data-more-link="replay-pages" aria-expanded={toursOpen} aria-controls="more-page-tours" onClick={() => setToursOpen((open) => !open)}>
+            <button type="button" className="more-row more-row-ic" data-more-link="replay-pages" aria-expanded={toursOpen} aria-controls="more-page-tours" onClick={() => setToursOpen((open) => !open)}>
               <span className="more-ri">{rowIcon(CirclePlay)}</span>
               <span className="more-rt">{t('settings.general.replayPages')}</span>
               <ChevronRight className="more-chev more-chev-toggle" size={16} strokeWidth={1.5} aria-hidden="true" />

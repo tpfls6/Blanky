@@ -221,7 +221,10 @@ try {
   await scenario('confirm-dialog', async () => {
     await navigate(base + '/settings/categories')
     await pause(900)
-    const opened = await evaluate(`(() => { const el = [...document.querySelectorAll('main button')].find((b) => b.textContent.trim() === '삭제'); if (!el) return false; el.click(); return true })()`)
+    // Phones edit a category in its sheet; delete sits there.
+    await evaluate('document.querySelector("[data-settings-row^=category-]")?.click()')
+    await pause(500)
+    const opened = await evaluate(`(() => { const el = [...document.querySelectorAll('[data-mobile-sheet] button')].find((b) => b.textContent.trim() === '삭제'); if (!el) return false; el.click(); return true })()`)
     if (!opened) return 'delete button missing'
     await pause(400)
     const fit = await evaluate(fits('dialog[open], [role=dialog]'))

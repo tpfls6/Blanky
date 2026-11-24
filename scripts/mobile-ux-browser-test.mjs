@@ -238,19 +238,13 @@ try {
     })
     await scenario(`${width} tab-header-alignment`, async () => {
       const headers = {}
-      const selectors = {
-        memo: ['.memo-phone-head[data-app-bar]', '.memo-phone-folder'],
-        schedule: ['.mcal-head', '.mcal-ym'],
-        reading: ['.reading-heading.mobile-tab-header', '.reading-heading-title'],
-        diary: ['.diary-phone .memo-phone-head[data-app-bar]', '.memo-phone-folder'],
-      }
-      for (const [route, [heading, title]] of Object.entries(selectors)) {
+      for (const route of ['memo', 'schedule', 'reading', 'diary']) {
         await navigate(base + '/' + route)
-        for (let retry = 0; retry < 60 && !(await evaluate(`Boolean(document.querySelector(${JSON.stringify(heading + ' ' + title)}))`)); retry++) await pause(100)
+        for (let retry = 0; retry < 60 && !(await evaluate('Boolean(document.querySelector(".mobile-tab-header .mobile-tab-title"))')); retry++) await pause(100)
         headers[route] = await evaluate(`(() => {
-          const header = document.querySelector(${JSON.stringify(heading)});
+          const header = document.querySelector('.mobile-tab-header');
           const menu = header?.querySelector('[data-mobile-tab=more]');
-          const text = header?.querySelector(${JSON.stringify(title)});
+          const text = header?.querySelector('.mobile-tab-title > span');
           if (!menu || !text) return null;
           const box = element => { const r = element.getBoundingClientRect(); return [r.x, r.y, r.width, r.height] };
           return { header: box(header), menu: box(menu), icon: box(menu.querySelector('svg')), title: box(text).filter((_, index) => index !== 2), content: text.textContent.trim(), href: menu.getAttribute('href') };
@@ -261,7 +255,7 @@ try {
       if (!memo || memo.header[3] !== 56 || memo.menu[2] !== 44 || memo.menu[3] !== 44) return 'invalid memo reference ' + JSON.stringify(memo)
       for (const [route, header] of Object.entries(headers)) {
         if (!header?.content || header.href !== '/more') return 'invalid header ' + route + ' ' + JSON.stringify(header)
-        for (const part of ['header', 'menu']) {
+        for (const part of ['header', 'menu', 'icon', 'title']) {
           if (header[part].some((value, index) => Math.abs(value - memo[part][index]) > 0.05)) return route + ' ' + part + ' mismatch ' + JSON.stringify(headers)
         }
       }
@@ -300,9 +294,8 @@ try {
     })
     await scenario(`${width} home-chat-today-only`, async () => {
       await evaluate('[...document.querySelectorAll("main button")].find((b) => b.getAttribute("aria-controls") === "home-chat-panel").click()')
-      for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("#home-chat-panel"))')); i++) await pause(100)
-      const panel = await evaluate('document.querySelector("#home-chat-panel")?.innerText')
-      if (!panel) return 'chat panel did not open'
+      await pause(400)
+      const panel = await evaluate('document.querySelector("#home-chat-panel").innerText')
       const count = await evaluate(`JSON.parse(localStorage.getItem('blanky.homeChat.${owner}')).length`)
       if (width === 390) await shot('home-chat-today')
       if (panel.includes('OLD-MSG') || panel.includes('OLD-REPLY')) return 'old message visible'
@@ -412,9 +405,9 @@ try {
   })
   await scenario('schedule-category-create', async () => {
     await navigate(base + '/schedule')
-    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector(".mcal-fab"))')); i++) await pause(100)
+    await pause(1000)
     await evaluate('document.querySelector(".mcal-fab").click()')
-    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-add=manual]"))')); i++) await pause(100)
+    await pause(300)
     await evaluate('document.querySelector("[data-add=manual]").click()')
     await pause(500)
     const openSheet = () => evaluate('[...document.querySelectorAll("[data-mobile-draft] .mdraft-row")].find((b) => b.textContent.includes("카테고리")).click()')
@@ -988,25 +981,61 @@ try {
 
   // ---------- Settings ----------
   await scenario('settings-app-bar-and-avatar', async () => {
+    const until = async (expression) => { for (let i = 0; i < 80 && !(await evaluate(expression)); i++) await pause(100); return evaluate(expression) }
     await navigate(base + '/settings/general')
-    await pause(900)
-    const bar = await evaluate(`(() => { const head = document.querySelector('.settings-app-bar'); return head ? { title: head.querySelector('h1')?.textContent.trim(), back: head.querySelector('a')?.getAttribute('href'), height: Math.round(head.getBoundingClientRect().height), chips: Boolean(document.querySelector('.settings-chips')), nav: Boolean(document.querySelector('#navigation, #help')), topbar: getComputedStyle(document.querySelector('[data-mobile-topbar]')).display } : null })()`)
+    // Lazy settings chunks can take a while on a cold dev server; wait for the content instead of a fixed pause.
+    await until('Boolean(document.querySelector(".settings-app-bar h1") && document.querySelector(".more-themes"))')
+    const bar = await evaluate(`(() => { const head = document.querySelector('.settings-app-bar'); return head ? { title: head.querySelector('h1')?.textContent.trim(), back: head.querySelector('a')?.getAttribute('href'), height: Math.round(head.getBoundingClientRect().height), chips: Boolean(document.querySelector('.settings-chips')), nav: Boolean(document.querySelector('#navigation, #help')), topbar: getComputedStyle(document.querySelector('[data-mobile-topbar]')).display, lang: document.querySelector('.more-seg [aria-checked=true]')?.textContent, themes: document.querySelectorAll('.more-themes button').length, current: document.querySelectorAll('.mobile-nav [aria-current=page]').length } : null })()`)
     await shot('settings-general-phone')
-    if (!bar || bar.title !== '일반' || bar.back !== '/more' || bar.height < 56 || bar.chips || bar.nav || bar.topbar !== 'none') return 'app bar ' + JSON.stringify(bar)
+    if (!bar || bar.title !== '일반' || bar.back !== '/more' || bar.height < 56 || bar.chips || bar.nav || bar.topbar !== 'none' || bar.lang !== '한국어' || bar.themes !== 3 || bar.current !== 0) return 'general ' + JSON.stringify(bar)
     await tap('.settings-app-bar a')
-    await pause(500)
+    await until('Boolean(document.querySelector("[data-more-page]"))')
     if (await evaluate('location.pathname') !== '/more') return 'back went to ' + await evaluate('location.pathname')
+    if (await evaluate('document.querySelectorAll(".mobile-nav [aria-current=page]").length') !== 0) return 'a bottom tab reads as current on More'
+    // More keeps the shared top bar; its ☰ leads home from here.
+    const top = await evaluate('(() => { const bar = document.querySelector("[data-mobile-topbar]"); return getComputedStyle(bar).display + "|" + bar.querySelector("[data-mobile-tab=more]").getAttribute("href") + "|" + Boolean(document.querySelector("[data-more-page] .more-bar")) })()')
+    if (top !== 'flex|/schedule|false') return 'more top bar ' + top
     await tap('[data-more-link=account]')
-    await pause(500)
-    const avatar = await evaluate(`(() => { const box = document.querySelector('.profile-avatar'); const img = box.querySelector('img'); const r = box.getBoundingClientRect(), i = img.getBoundingClientRect(); return { path: location.pathname, w: Math.round(r.width), h: Math.round(r.height), iw: Math.round(i.width), ih: Math.round(i.height), fit: getComputedStyle(img).objectFit } })()`)
+    await until('Boolean(document.querySelector(".profile-avatar img"))')
+    const avatar = await evaluate(`(() => { const box = document.querySelector('.profile-avatar'); const img = box.querySelector('img'); const r = box.getBoundingClientRect(), i = img.getBoundingClientRect(); return { path: location.pathname, w: Math.round(r.width), h: Math.round(r.height), iw: Math.round(i.width), ih: Math.round(i.height), fit: getComputedStyle(img).objectFit, rows: document.querySelectorAll('[data-settings-row]').length } })()`)
     await shot('settings-account-phone')
     if (avatar.path !== '/settings/account') return 'nav ' + avatar.path
-    if (avatar.w !== avatar.h || avatar.iw !== avatar.ih || avatar.fit !== 'cover' || avatar.w < 60) return 'avatar ' + JSON.stringify(avatar)
-    // AI and calendar list their tabs as sections on phones.
+    if (avatar.w !== avatar.h || avatar.iw !== avatar.ih || avatar.fit !== 'cover' || avatar.w < 60 || avatar.rows < 5) return 'avatar ' + JSON.stringify(avatar)
+    await tap('[data-settings-row=name]')
+    if (!(await until('Boolean(document.querySelector("[data-mobile-sheet] input"))'))) return 'name sheet did not open'
+    await shot('settings-account-name-sheet')
+    await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+    await pause(300)
+    // AI and calendar list their tabs as sections on phones; long values open sheets.
     await navigate(base + '/settings/ai?tab=input')
-    await pause(800)
-    const ai = await evaluate('({ tabs: document.querySelectorAll("[role=tablist]").length, input: Boolean(document.querySelector("#settings-section-input")), groups: document.querySelectorAll(".settings-group").length })')
-    return ai.tabs === 0 && ai.input && ai.groups >= 3 ? 'ok' : 'ai ' + JSON.stringify(ai)
+    await until('Boolean(document.querySelector("[data-settings-row=work-hours]") && document.querySelector("#settings-section-input"))')
+    const ai = await evaluate('({ tabs: document.querySelectorAll("[role=tablist]").length, input: Boolean(document.querySelector("#settings-section-input")), days: document.querySelectorAll(".more-days button").length })')
+    if (ai.tabs !== 0 || !ai.input || ai.days !== 7) return 'ai ' + JSON.stringify(ai)
+    await tap('[data-settings-row=work-hours]')
+    if (!(await until('document.querySelectorAll("[data-mobile-sheet] [data-time-field]").length === 2 && !document.querySelector("[data-mobile-sheet] input[type=time]")'))) return 'work hours sheet did not open'
+    await tap('[data-mobile-sheet] [data-time-field]')
+    if (!(await until('document.querySelectorAll("[data-mobile-sheet] .mcal-wheels .mcal-wcol").length === 3'))) return 'time wheel did not open'
+    await shot('settings-ai-phone')
+    await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+    await pause(300)
+    await navigate(base + '/settings/calendar')
+    if (!(await until('Boolean(document.querySelector(".more-gcal") && document.querySelectorAll(".settings-page .more-seg").length >= 5)'))) return 'calendar cards missing'
+    await tap('[data-settings-row=day-range]')
+    if (!(await until('Boolean(document.querySelector("[data-mobile-sheet] .mcal-wheels"))'))) return 'day range wheel missing'
+    await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+    await pause(300)
+    await shot('settings-calendar-phone')
+    await navigate(base + '/settings/categories')
+    if (!(await until('Boolean(document.querySelector("[data-category-add]") && document.querySelector("[data-settings-row^=category-]"))'))) return 'category rows missing'
+    await tap('[data-category-add]')
+    if (!(await until('Boolean(document.querySelector(".cat-modal .cat-modal-name-row input"))'))) return 'category add dialog missing'
+    await shot('settings-category-add-phone')
+    await tap('.cat-modal header .icon-btn')
+    await pause(300)
+    await tap('[data-settings-row^=category-]')
+    if (!(await until('Boolean(document.querySelector("[data-mobile-sheet]"))'))) return 'category sheet did not open'
+    await shot('settings-categories-phone')
+    return 'ok'
   })
 
   // ---------- Desktop regression ----------
@@ -1019,9 +1048,9 @@ try {
     if (schedule.phone || !schedule.calendar || !schedule.timeline || schedule.nav !== 'none') return 'schedule ' + JSON.stringify(schedule)
     await navigate(base + '/reading')
     await pause(900)
-    const reading = await evaluate(`(() => { const b = [...document.querySelectorAll('.reading-status-filters .reading-nav')]; const r = b.map((x) => x.getBoundingClientRect()); return { count: r.length, stacked: r.every((x, i) => i === 0 || x.top > r[i - 1].top), wide: r.every((x) => x.width > 150) } })()`)
+    const reading = await evaluate(`(() => { const b = [...document.querySelectorAll('.reading-status-filters .reading-nav')]; const r = b.map((x) => x.getBoundingClientRect()); return { display: getComputedStyle(document.querySelector('.reading-status-filters')).display, stacked: r.every((x, i) => i === 0 || x.top > r[i - 1].top), wide: r.every((x) => x.width > 150) } })()`)
     await shot('desktop-reading')
-    if (reading.count < 2 || !reading.stacked || !reading.wide) return 'reading ' + JSON.stringify(reading)
+    if (reading.display !== 'contents' || !reading.stacked || !reading.wide) return 'reading ' + JSON.stringify(reading)
     await navigate(base + '/settings/general')
     await pause(800)
     const settings = await evaluate('({ bar: Boolean(document.querySelector(".settings-app-bar")), nav: Boolean(document.querySelector("#navigation [data-mobile-nav-settings]")), side: getComputedStyle(document.querySelector("[data-tour=settings-nav]")).display })')

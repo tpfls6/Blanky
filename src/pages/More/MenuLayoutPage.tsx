@@ -161,7 +161,7 @@ export function MenuLayoutPage() {
     // a placeholder copy marks where it will land.
     const grabbed = !placeholder && drag?.id === id
     return (
-      <div key={placeholder ? `drop-${id}` : id} role="listitem" className="more-row more-drow" data-menu-row={placeholder ? undefined : id} data-dragging={placeholder ? '' : undefined} hidden={grabbed} aria-hidden={placeholder || undefined}>
+      <div key={placeholder ? `drop-${id}` : id} role="listitem" className="more-row more-row-ic more-drow" data-menu-row={placeholder ? undefined : id} data-dragging={placeholder ? '' : undefined} hidden={grabbed} aria-hidden={placeholder || undefined}>
         <button
           type="button"
           className="more-grip"

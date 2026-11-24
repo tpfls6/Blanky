@@ -17,7 +17,7 @@ export function MobileMoreLink({ className = 'mcal-ib', iconClassName = 'size-5.
   const activeRest = rest.find((item) => matchPath({ path: new URL(item.to, 'http://x').pathname, end: item.end ?? false }, pathname))
   const moreActive = pathname === ROUTES.more || Boolean(activeRest)
   return (
-    <Link to={ROUTES.more} data-mobile-tab="more" className={className} aria-current={moreActive ? 'page' : undefined} aria-label={t('nav.more')}>
+    <Link to={pathname === ROUTES.more ? ROUTES.start : ROUTES.more} data-mobile-tab="more" className={className} aria-current={moreActive ? 'page' : undefined} aria-label={t('nav.more')}>
       <Menu className={iconClassName} strokeWidth={strokeWidth} aria-hidden="true" />
     </Link>
   )
