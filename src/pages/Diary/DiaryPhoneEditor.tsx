@@ -46,6 +46,8 @@ export function DiaryPhoneEditor({ draft, entries, weekStartsOn, field, status, 
   const rootRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
+  // The control that opened the sheet (date button, chip, or ⋮ for the menu's 날짜 바꾸기) gets focus back when it closes.
+  const sheetReturn = useRef<HTMLElement | null>(null)
   const menuId = useId()
   const mood = choiceOf(MOODS, draft.mood), weather = choiceOf(WEATHER, draft.weather)
 
@@ -64,6 +66,14 @@ export function DiaryPhoneEditor({ draft, entries, weekStartsOn, field, status, 
     return () => window.removeEventListener('keydown', onKey)
   }, [menuOpen])
 
+  const openSheet = (kind: 'mood' | 'weather' | 'date', from: HTMLElement | null) => { sheetReturn.current = from; setSheet(kind) }
+  // Esc, system Back, the scrim or a pick. Runs a frame later, after the Sheet's own focus restore;
+  // an editor that is closing unmounts the sheet without calling this.
+  const closeSheet = () => {
+    setSheet(null)
+    const from = sheetReturn.current
+    requestAnimationFrame(() => { if (from?.isConnected) from.focus({ preventScroll: true }) })
+  }
   const share = async () => {
     setMenuOpen(false)
     const result = await shareMemos([{ title: diaryTitle(draft), body: draft.body }])
@@ -71,7 +81,7 @@ export function DiaryPhoneEditor({ draft, entries, weekStartsOn, field, status, 
     if (result === 'failed') showStatusToast({ text: t('diary.shareFailed'), tone: 'failed' })
   }
   const chip = (key: 'mood' | 'weather', choice: ReturnType<typeof choiceOf>) => (
-    <button type="button" className={choice ? 'diary-chip' : 'diary-chip diary-chip-ghost'} aria-haspopup="dialog" onClick={() => setSheet(key)}
+    <button type="button" className={choice ? 'diary-chip' : 'diary-chip diary-chip-ghost'} aria-haspopup="dialog" onClick={event => openSheet(key, event.currentTarget)}
       aria-label={choice ? `${field(key)}: ${choice[2]}` : field(key)}>
       {choice ? `${choice[1]} ${choice[2]}` : `＋ ${field(key)}`}
     </button>
@@ -83,7 +93,7 @@ export function DiaryPhoneEditor({ draft, entries, weekStartsOn, field, status, 
         <button type="button" className="memo-phone-icon diary-back" aria-label={t('diary.back')} onClick={onBack}>
           <ArrowLeft size={22} strokeWidth={1.7} aria-hidden="true" />
         </button>
-        <span className="diary-date-field"><DiaryDateButton className="diary-pe-date" text={longDay(locale, draft.date)} open={sheet === 'date'} disabled={disabled} onToggle={() => setSheet('date')} /></span>
+        <span className="diary-date-field"><DiaryDateButton className="diary-pe-date" text={longDay(locale, draft.date)} open={sheet === 'date'} disabled={disabled} onToggle={button => openSheet('date', button)} /></span>
         <button type="button" className="memo-phone-icon diary-star" aria-label={draft.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'} aria-pressed={Boolean(draft.isFavorite)} disabled={disabled} onClick={() => edit({ isFavorite: !draft.isFavorite })}>
           <ThemeIcon name="favorite" fallback={Star} size={22} strokeWidth={1.7} fill={draft.isFavorite ? 'currentColor' : 'none'} />
         </button>
@@ -96,7 +106,7 @@ export function DiaryPhoneEditor({ draft, entries, weekStartsOn, field, status, 
             <button type="button" role="menuitem" onClick={() => void share()}>
               <Share2 size={18} strokeWidth={1.6} aria-hidden="true" />{t('diary.share')}
             </button>
-            <button type="button" role="menuitem" disabled={disabled} onClick={() => { setMenuOpen(false); setSheet('date') }}>
+            <button type="button" role="menuitem" disabled={disabled} onClick={() => { setMenuOpen(false); openSheet('date', moreRef.current) }}>
               <CalendarDays size={18} strokeWidth={1.6} aria-hidden="true" />{t('diary.changeDate')}
             </button>
             <button type="button" role="menuitem" className="memo-pe-danger" disabled={disabled} onClick={() => { setMenuOpen(false); onDelete() }}>
@@ -118,10 +128,10 @@ export function DiaryPhoneEditor({ draft, entries, weekStartsOn, field, status, 
           onChange={e => edit({ body: e.target.value })} onCompositionStart={composing.start} onCompositionEnd={composing.end} />
       </fieldset>
       <footer className="diary-pe-foot"><span>{t('diary.chars', { count: draft.body.length.toLocaleString() })}</span><span>{t('diary.writtenAt', { time: entryTime(locale, draft) })}</span></footer>
-      {sheet === 'date' ? <Sheet title={field('date')} onClose={() => setSheet(null)}>
-        <DiaryDatePicker value={draft.date} entries={entries} weekStartsOn={weekStartsOn} onPick={date => { edit({ date }); setSheet(null) }} onClose={() => setSheet(null)} />
-      </Sheet> : sheet ? <Sheet title={field(sheet)} onClose={() => setSheet(null)}>
-        <ChoiceGrid choices={sheet === 'mood' ? MOODS : WEATHER} value={draft[sheet]} onPick={value => { edit({ [sheet]: value }); setSheet(null) }} />
+      {sheet === 'date' ? <Sheet title={field('date')} onClose={closeSheet}>
+        <DiaryDatePicker value={draft.date} entries={entries} weekStartsOn={weekStartsOn} onPick={date => { edit({ date }); closeSheet() }} onClose={closeSheet} />
+      </Sheet> : sheet ? <Sheet title={field(sheet)} onClose={closeSheet}>
+        <ChoiceGrid choices={sheet === 'mood' ? MOODS : WEATHER} value={draft[sheet]} onPick={value => { edit({ [sheet]: value }); closeSheet() }} />
       </Sheet> : null}
     </div>
   )

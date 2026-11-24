@@ -100,6 +100,18 @@ export function DiaryWorkspace({
   const [dialogOpen, setDialogOpen] = useState(false)
   // Desktop toolbar popovers: the date picker and the mood / weather grids.
   const [choiceOpen, setChoiceOpen] = useState<'date' | 'mood' | 'weather' | null>(null)
+  // The button that opened the popover; focus goes back to it when the popover is dismissed (not when another entry opens).
+  const choiceReturn = useRef<HTMLElement | null>(null)
+  const openChoice = (kind: 'date' | 'mood' | 'weather', from: HTMLElement) => {
+    if (choiceOpen === kind) { setChoiceOpen(null); return }
+    choiceReturn.current = from
+    setChoiceOpen(kind)
+  }
+  const closeChoice = () => {
+    setChoiceOpen(null)
+    const from = choiceReturn.current
+    requestAnimationFrame(() => { if (from?.isConnected) from.focus({ preventScroll: true }) })
+  }
   const deleting = useRef(false)
   const [showEditor, setShowEditor] = useState(() => Boolean(readDiaryDraft(userId, pageKey)))
   const persisted = useRef(new Set(diaries.map(entry => entry.id)))
@@ -179,11 +191,11 @@ export function DiaryWorkspace({
   }, [save])
   useEffect(() => {
     if (!choiceOpen) return
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.isComposing) setChoiceOpen(null) }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.isComposing) closeChoice() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [choiceOpen])
-  useBackLayer(Boolean(choiceOpen) && !phone, () => setChoiceOpen(null))
+  useBackLayer(Boolean(choiceOpen) && !phone, closeChoice)
   // IME input saves once the syllable is committed, not while it is being composed.
   const composition = { start: () => { composing.current = true }, end: () => { composing.current = false; void save() } }
 
@@ -321,14 +333,14 @@ export function DiaryWorkspace({
     const choice = choiceOf(key === 'mood' ? MOODS : WEATHER, draft?.[key])
     return <span className="diary-chip-pop">
       <button type="button" className={choice ? 'diary-chip' : 'diary-chip diary-chip-ghost'} aria-haspopup="dialog" aria-expanded={choiceOpen === key}
-        aria-label={choice ? `${field(key)}: ${choice[2]}` : field(key)} onClick={() => setChoiceOpen(open => open === key ? null : key)}>
+        aria-label={choice ? `${field(key)}: ${choice[2]}` : field(key)} onClick={event => openChoice(key, event.currentTarget)}>
         {choice ? `${choice[1]} ${choice[2]}` : `＋ ${field(key)}`}
       </button>
       {choiceOpen === key && draft ? <>
-        <div className="diary-pop-dim" aria-hidden="true" onClick={() => setChoiceOpen(null)} />
+        <div className="diary-pop-dim" aria-hidden="true" onClick={closeChoice} />
         <div className="diary-pop" role="dialog" aria-label={field(key)}>
           <p>{field(key)}</p>
-          <ChoiceGrid choices={key === 'mood' ? MOODS : WEATHER} value={draft[key]} onPick={value => { edit({ [key]: value }); setChoiceOpen(null) }} />
+          <ChoiceGrid choices={key === 'mood' ? MOODS : WEATHER} value={draft[key]} onPick={value => { edit({ [key]: value }); closeChoice() }} />
         </div>
       </> : null}
     </span>
@@ -365,11 +377,11 @@ export function DiaryWorkspace({
           {draft ? <>
             <div className="diary-card diary-toolbar">
               <span className="diary-chip-pop diary-date-field">
-                <DiaryDateButton className="diary-tb-date" text={formatDisplayDate(locale, draft.date, 'full')} open={choiceOpen === 'date'} disabled={busy || diaryLoading} onToggle={() => setChoiceOpen(open => open === 'date' ? null : 'date')} />
+                <DiaryDateButton className="diary-tb-date" text={formatDisplayDate(locale, draft.date, 'full')} open={choiceOpen === 'date'} disabled={busy || diaryLoading} onToggle={button => openChoice('date', button)} />
                 {choiceOpen === 'date' ? <>
-                  <div className="diary-pop-dim" aria-hidden="true" onClick={() => setChoiceOpen(null)} />
+                  <div className="diary-pop-dim" aria-hidden="true" onClick={closeChoice} />
                   <div className="diary-pop diary-pop-date" role="dialog" aria-label={field('date')}>
-                    <DiaryDatePicker value={draft.date} entries={diaries} weekStartsOn={settings.weekStartsOn} onPick={date => { edit({ date }); setChoiceOpen(null) }} onClose={() => setChoiceOpen(null)} />
+                    <DiaryDatePicker value={draft.date} entries={diaries} weekStartsOn={settings.weekStartsOn} onPick={date => { edit({ date }); closeChoice() }} onClose={closeChoice} />
                   </div>
                 </> : null}
               </span>

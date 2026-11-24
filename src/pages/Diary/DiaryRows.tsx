@@ -67,13 +67,15 @@ export function DiaryMonthGroups({ entries, label, row }: { entries: DiaryEntry[
 
 /** The date as a button that opens the in-app date picker (DiaryDatePicker in a sheet or popover). */
 export function DiaryDateButton({ text, className, open, onToggle, disabled, buttonRef }: {
-  text: string; className: string; open: boolean; onToggle: () => void; disabled?: boolean
+  text: string; className: string; open: boolean
+  /** Gets the button, so the picker can hand focus back to it when it closes. */
+  onToggle: (button: HTMLButtonElement) => void; disabled?: boolean
   /** Lets a menu item ("날짜 바꾸기") open the same picker. */
   buttonRef?: Ref<HTMLButtonElement>
 }) {
   const { t } = useI18n()
   return (
-    <button ref={buttonRef} type="button" className={className} disabled={disabled} aria-label={t('diary.dateButton', { date: text })} aria-haspopup="dialog" aria-expanded={open} onClick={onToggle}>
+    <button ref={buttonRef} type="button" className={className} disabled={disabled} aria-label={t('diary.dateButton', { date: text })} aria-haspopup="dialog" aria-expanded={open} onClick={event => onToggle(event.currentTarget)}>
       <span>{text}</span><ChevronDown size={16} strokeWidth={1.7} aria-hidden="true" />
     </button>
   )
