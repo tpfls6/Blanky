@@ -197,7 +197,7 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
             onFavorite={library.setMemoFavorite}
             empty={!memos.length && !query.trim() ? (
               <div className="mt-3">
-                <ExampleCard title="회의에서 나온 아이디어" meta="미분류 · 방금" body="온보딩은 짧게, 예시는 화면에서만 보여 주기" action="첫 메모 작성" onStart={createMemo} />
+                <ExampleCard themeSlot="memo-card" title="회의에서 나온 아이디어" meta="미분류 · 방금" body="온보딩은 짧게, 예시는 화면에서만 보여 주기" action="첫 메모 작성" onStart={createMemo} />
               </div>
             ) : visible.length === 0 ? <EmptyState>{query.trim() ? t('memo.empty') : activeFolder === 'star' ? '즐겨찾기한 메모가 없어요. 메모를 길게 눌러 추가해 보세요.' : t('memo.empty')}</EmptyState> : null}
           />
@@ -257,7 +257,7 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
         </div> : null}
         {!memos.length && !query.trim() ? (
           <div className="mt-3">
-            <ExampleCard title="회의에서 나온 아이디어" meta="미분류 · 방금" body="온보딩은 짧게, 예시는 화면에서만 보여 주기" action="첫 메모 작성" onStart={createMemo} />
+            <ExampleCard themeSlot="memo-card" title="회의에서 나온 아이디어" meta="미분류 · 방금" body="온보딩은 짧게, 예시는 화면에서만 보여 주기" action="첫 메모 작성" onStart={createMemo} />
           </div>
         ) : visible.length === 0 ? <EmptyState>{t('memo.empty')}</EmptyState> : null}
         <ul className="mt-2">

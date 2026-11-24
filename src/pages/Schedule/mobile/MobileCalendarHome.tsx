@@ -1,10 +1,9 @@
-import { ChevronDown, Menu, PenLine, Plus, Search, Sparkles, SquareCheckBig, X } from 'lucide-react'
+import { ChevronDown, PenLine, Plus, Search, Sparkles, SquareCheckBig, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import { MobileCalendarBar } from '../../../components/calendars/MobileCalendarBar.tsx'
 import { NotificationBell } from '../../../components/calendars/NotificationBell.tsx'
 import { showStatusToast } from '../../../components/layout/statusToast.ts'
-import { ROUTES } from '../../../constants/routes.ts'
+import { MobileMoreLink } from '../../../components/layout/MobileTopBar.tsx'
 import { isRecurring } from '../../../features/schedule/seriesEdit.ts'
 import { useI18n } from '../../../i18n/useI18n.ts'
 import { useHolidays } from '../../../services/holidays/index.ts'
@@ -250,9 +249,9 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
 
   return (
     <div ref={root} className="mcal" data-schedule-mobile data-snap={snap} style={{ '--mcal-sheet': `${sizes[snap]}px` } as CSSProperties}>
-      <header className="mcal-head" data-theme-slot="page-header">
-        <Link to={ROUTES.more} className="mcal-ib" data-mobile-tab="more" aria-label={t('nav.more')}><Menu aria-hidden="true" className="size-5.5" strokeWidth={1.6} /></Link>
-        <button type="button" className="mcal-ym" aria-expanded={picker !== null} aria-haspopup="dialog" aria-label={t('schedule.mobile.monthPicker', { year, month: Number(monthNumber) })}
+      <header className="mcal-head mobile-tab-header" data-theme-slot="page-header">
+        <MobileMoreLink />
+        <button type="button" className="mcal-ym mobile-tab-title" aria-expanded={picker !== null} aria-haspopup="dialog" aria-label={t('schedule.mobile.monthPicker', { year, month: Number(monthNumber) })}
           onClick={() => setPicker(picker ? null : selected.slice(0, 7) === month ? parseISODate(selected) : parseISODate(`${month}-01`))}>
           <span aria-hidden="true">{year}.{monthNumber}</span><ChevronDown aria-hidden="true" className="size-4.5" strokeWidth={2.4} />
         </button>
@@ -260,6 +259,7 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
           <SquareCheckBig aria-hidden="true" className="size-5.5" strokeWidth={1.8} />
           {due ? <span className="mcal-badge" aria-hidden="true">{due > 99 ? '99+' : due}</span> : null}
         </button>
+        {isSupabaseConfigured ? <MobileCalendarBar /> : null}
         <button type="button" className="mcal-ib" data-open-search aria-label={t('schedule.mobile.search')} onClick={() => setPage('search')}><Search aria-hidden="true" className="size-5.5" strokeWidth={1.8} /></button>
         {isSupabaseConfigured ? <NotificationBell align="right" /> : null}
       </header>
@@ -271,7 +271,7 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
         <MonthGrid key={slide?.key ?? 0} cells={cells} items={items} categories={categories} holidays={holidays} selected={selected} today={today} slide={slide?.dir ?? null} rowHeight={avail / (cells.length / 7)} onPick={pick} />
       </div>
 
-      <section ref={sheetRef} className="mcal-sheet" aria-label={sheetTitle} inert={snap === 'closed'} data-day-sheet
+      <section ref={sheetRef} className="mcal-sheet" data-theme-slot={snap === 'closed' ? undefined : 'modal'} aria-label={sheetTitle} inert={snap === 'closed'} data-day-sheet
         onPointerDown={onSheetDown} onPointerMove={onSheetMove} onPointerUp={onSheetUp} onPointerCancel={onSheetUp}
         onClickCapture={(event) => { if (dragged.current) { dragged.current = false; event.preventDefault(); event.stopPropagation() } }}>
         <div className="mcal-handle" aria-hidden="true" />
@@ -290,13 +290,12 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
       </section>
 
       <div className="mcal-dim mcal-pick-dim" data-open={picker ? '' : undefined} aria-hidden="true" onClick={() => setPicker(null)} />
-      <section className="mcal-picker" data-open={picker ? '' : undefined} role="dialog" aria-label={t('schedule.mobile.datePicker')} inert={!picker}>
+      <section className="mcal-picker" data-theme-slot="modal" data-open={picker ? '' : undefined} role="dialog" aria-label={t('schedule.mobile.datePicker')} inert={!picker}>
         {picker ? <DateWheel value={picker} mode="date" yearUnit onChange={setPicker} /> : null}
         <div className="mcal-pick-act">
           <button type="button" className="mcal-ghost" onClick={() => { setPicker(null); jump(today, snap !== 'closed') }}>{t('today')}</button>
           <button type="button" className="mcal-primary" onClick={() => { if (picker) jump(formatISODate(picker), snap !== 'closed'); setPicker(null) }}>{t('schedule.mobile.go')}</button>
         </div>
-        {isSupabaseConfigured ? <div className="mcal-pick-cal"><MobileCalendarBar /></div> : null}
       </section>
 
       <div className="mcal-dim mcal-dial-dim" data-open={dial ? '' : undefined} aria-hidden="true" onClick={() => setDial(false)} />

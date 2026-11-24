@@ -1,8 +1,11 @@
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import { AddFab } from '../../components/common/AddFab.tsx'
+import { MobileHeader } from '../../components/layout/MobileTopBar.tsx'
+import { ROUTES } from '../../constants/routes.ts'
+import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { ArrowLeft, BookOpen, CalendarDays, List, Check, LoaderCircle, Plus, Search, Star, Trash2 } from 'lucide-react'
+import { ArrowLeft, BookOpen, CalendarDays, List, Check, LoaderCircle, Plus, Search, Star, Trash2, X } from 'lucide-react'
 import { PageCanvas } from '../../features/pages/PageCanvas.tsx'
 import { resolveLayout } from '../../features/pages/layout.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -70,6 +73,8 @@ export function DiaryWorkspace({
   openId,
 }: DiaryWorkspaceProps) {
   const { t, locale } = useI18n()
+  const { pathname } = useLocation()
+  const phoneHeader = useMediaQuery(PHONE_QUERY) && pathname === ROUTES.diary && pageKey === 'builtin' && !editing
   const library = useLibrary()
   const diaries = entries ?? library.diaries
   const commitDiary = saveProp ?? library.commitDiary
@@ -80,6 +85,24 @@ export function DiaryWorkspace({
   const field = (key: string) => fieldLabel('diary', key, labels)
   const [tab, setTab] = useState<string>('records')
   const [search, setSearch] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const phoneSearch = phoneHeader && searchOpen
+  const searchInput = useRef<HTMLInputElement>(null)
+  const searchButton = useRef<HTMLButtonElement>(null)
+  const restoreSearchFocus = useRef(false)
+  useEffect(() => {
+    if (searchOpen) searchInput.current?.focus()
+    else if (restoreSearchFocus.current) {
+      searchButton.current?.focus()
+      restoreSearchFocus.current = false
+    }
+  }, [phoneHeader, searchOpen])
+  const closeSearch = () => {
+    restoreSearchFocus.current = true
+    setSearch('')
+    setSearchOpen(false)
+  }
+  const searchLabel = t('custom.searchRecords')
   const [view, setView] = useState<'list' | 'calendar'>('list')
   const [month, setMonth] = useState(() => todayISO().slice(0, 7))
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -200,11 +223,11 @@ export function DiaryWorkspace({
   }, [openId, diaryLoading, diaries])
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase()
-    return diaries.filter(entry => (tab !== 'favorites' || entry.isFavorite) &&
+    return diaries.filter(entry => (phoneSearch || tab !== 'favorites' || entry.isFavorite) &&
       (!query || [diaryTitle(entry), entry.body, ...entry.tags].some(text => text.toLocaleLowerCase().includes(query))))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  }, [diaries, search, tab])
-  const visible = useMemo(() => view === 'calendar' ? filtered.filter(entry => selectedDate ? entry.date === selectedDate : entry.date.startsWith(month)) : filtered, [filtered, view, selectedDate, month])
+  }, [diaries, phoneSearch, search, tab])
+  const visible = useMemo(() => !phoneSearch && view === 'calendar' ? filtered.filter(entry => selectedDate ? entry.date === selectedDate : entry.date.startsWith(month)) : filtered, [filtered, phoneSearch, view, selectedDate, month])
   const toggleListFavorite = async (entry: DiaryEntry) => {
     if (busy) return
     setBusy(true); setFavoriteError('')
@@ -239,18 +262,47 @@ export function DiaryWorkspace({
     finally { deleting.current = false; setBusy(false) }
   }
 
+  const searchField = (
+    <div className="diary-search" role="search" onKeyDown={event => {
+      if (event.key !== 'Escape' || event.nativeEvent.isComposing) return
+      event.preventDefault()
+      closeSearch()
+    }}>
+      <button type="button" className="mcal-ib" aria-label={t('close')} onClick={closeSearch}><ArrowLeft size={22} strokeWidth={1.8} aria-hidden="true" /></button>
+      <input ref={searchInput} type="search" enterKeyHint="search" aria-label={searchLabel} placeholder={searchLabel} value={search} onChange={event => setSearch(event.target.value)} />
+      {search ? <button type="button" className="mcal-ib" aria-label={t('clearSearch')} onClick={() => { setSearch(''); searchInput.current?.focus() }}><X size={20} aria-hidden="true" /></button> : null}
+    </div>
+  )
+  const searchTrigger = (
+    <button ref={searchButton} type="button" className="mcal-ib" aria-label={searchLabel} onClick={() => {
+      if (phoneHeader) setShowEditor(false)
+      setSearchOpen(true)
+    }}><Search size={22} strokeWidth={1.8} aria-hidden="true" /></button>
+  )
+  const viewLabel = view === 'list' ? '달력으로 보기' : '목록으로 보기'
+  const viewIcon = view === 'list' ? CalendarDays : List
+  const viewIconName = view === 'list' ? 'calendar' : 'diary'
+
   const page = (
     <div className="diary-page">
-      <header data-theme-slot="page-header" className="diary-heading"><div><h1>{heading}</h1><p>{tagline}</p></div><button type="button" data-theme-slot="button-secondary" className="diary-view-toggle" aria-label={view === 'list' ? '달력으로 보기' : '목록으로 보기'} aria-pressed={view === 'calendar'} onClick={changeView}><ThemeIcon name={view === 'list' ? 'calendar' : 'diary'} fallback={view === 'list' ? CalendarDays : List} size={17} strokeWidth={1.5} /><span>{view === 'list' ? '달력 보기' : '목록 보기'}</span></button></header>
+      {!phoneHeader && <header data-theme-slot="page-header" className="diary-heading">
+        {searchOpen ? <><h1 className="sr-only">{heading}</h1>{searchField}</> : <>
+          <div><h1>{heading}</h1><p>{tagline}</p></div>
+          <div className="diary-heading-actions">
+            <button type="button" data-theme-slot="button-secondary" className="diary-view-toggle" aria-label={viewLabel} aria-pressed={view === 'calendar'} onClick={changeView}><ThemeIcon name={viewIconName} fallback={viewIcon} size={17} strokeWidth={1.5} /><span>{view === 'list' ? '달력 보기' : '목록 보기'}</span></button>
+            {searchTrigger}
+          </div>
+        </>}
+      </header>}
       {diaryError && <p role="alert" className="diary-error">기록 연결 오류: {diaryError} <button data-theme-slot="button-secondary" type="button" className="btn btn-line" onClick={() => window.location.reload()}>다시 불러오기</button></p>}
       <div data-theme-slot="diary-page" className={'diary-workspace' + (showEditor ? ' diary-editor-open' : '')}>
         <aside data-theme-slot="diary-list" className="diary-list" aria-label="기록 목록">
-          <div className="diary-tabs" aria-label="기록 필터">{TABS.map(item => <button data-theme-slot="button" key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => setTab(item.id)} className={tab === item.id ? 'tab tab-on' : 'tab'}>{item.label}</button>)}</div>
-          <div className="diary-list-tools"><label className="diary-search"><ThemeIcon name="search" fallback={Search} size={15} aria-hidden="true" /><input data-theme-slot="input" aria-label="기록 검색" placeholder="기록 검색…" value={search} onChange={e => setSearch(e.target.value)} />{search && <button data-theme-slot="button" type="button" aria-label="검색 지우기" onClick={() => setSearch('')}>×</button>}</label>
+          {!phoneSearch && <><div className="diary-tabs" aria-label="기록 필터">{TABS.map(item => <button data-theme-slot="button" key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => setTab(item.id)} className={tab === item.id ? 'tab tab-on' : 'tab'}>{item.label}</button>)}</div>
+          <div className="diary-list-tools">
           <button data-theme-slot="button-primary" type="button" className="btn btn-primary diary-new" onClick={() => void open(null)} disabled={busy || diaryLoading}><ThemeIcon name="add" fallback={Plus} size={15} />새 기록</button></div>
-          {view === 'calendar' && <DiaryCalendar month={month} selectedDate={selectedDate} entries={filtered} weekStartsOn={settings.weekStartsOn} disabled={busy || diaryLoading} onMonth={next => { setMonth(next); setSelectedDate(null) }} onSelect={setSelectedDate} />}
+          {view === 'calendar' && <DiaryCalendar month={month} selectedDate={selectedDate} entries={filtered} weekStartsOn={settings.weekStartsOn} disabled={busy || diaryLoading} onMonth={next => { setMonth(next); setSelectedDate(null) }} onSelect={setSelectedDate} />}</>}
           {favoriteError && <p role="alert" className="diary-error diary-list-error">{favoriteError}</p>}
-          <div className="diary-list-caption"><span>{visible.length}개의 기록</span><span>{view === 'calendar' ? selectedDate ? selectedDate.replaceAll('-', '.') : month.replace('-', '.') : '최신 기록 순'}</span></div>
+          <div className="diary-list-caption" role={phoneSearch ? 'status' : undefined}><span>{visible.length}개의 기록</span>{!phoneSearch && <span>{view === 'calendar' ? selectedDate ? selectedDate.replaceAll('-', '.') : month.replace('-', '.') : '최신 기록 순'}</span>}</div>
           {diaryLoading ? <p className="diary-list-empty" role="status">기록을 불러오는 중…</p> : !diaries.length && !search && tab === 'records' && view === 'list' ? <div className="diary-example"><ExampleCard title="퇴근길에 본 노을" meta={`${formatDisplayDate(locale, todayISO())} · 🙂 · ☀️`} body="오늘은 일찍 나와서 한강까지 걸었다. 하늘이 천천히 붉어졌다." action="첫 기록 쓰기" onStart={() => void open(null)} /></div> : visible.length === 0 ? <p className="diary-list-empty">{search ? '검색 결과가 없습니다.' : tab === 'favorites' ? '마음에 남는 기록에 별을 눌러보세요.' : view === 'calendar' ? '이 날짜에는 아직 기록이 없어요.' : '작은 생각부터 기록해보세요.'}</p> : <ul className="diary-entries">{visible.map(entry => <li key={entry.id}><div className="diary-entry-row"><button type="button" disabled={busy} onClick={() => void open(entry)} aria-current={draft?.id === entry.id ? 'true' : undefined} data-theme-slot="diary-entry" className="diary-entry"><div className="diary-entry-title"><span>{diaryTitle(entry)}</span></div><p className="diary-entry-date">{entry.date.replaceAll('-', '.')} · {new Date(entry.createdAt).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })}</p><p className="diary-entry-preview">{entry.body || '제목만 작성된 기록'}</p><div className="diary-entry-meta"><span>{emoji(MOODS, entry.mood)} {emoji(WEATHER, entry.weather)}</span><span>{entry.tags.slice(0, 2).map(tag => '#' + tag).join(' ')}</span></div></button><button type="button" className="diary-list-star" data-theme-slot="button" disabled={busy || diaryLoading} aria-label={(entry.isFavorite ? '기록 즐겨찾기 해제: ' : '기록 즐겨찾기 추가: ') + diaryTitle(entry)} aria-pressed={Boolean(entry.isFavorite)} onClick={() => void toggleListFavorite(entry)}><ThemeIcon name="favorite" fallback={Star} size={15} strokeWidth={1.5} fill={entry.isFavorite ? 'currentColor' : 'none'} /></button></div></li>)}</ul>}
         </aside>
         <section className="diary-editor" aria-label="기록 작성 영역">
@@ -268,10 +320,19 @@ export function DiaryWorkspace({
           {error && <p className="diary-error" role="alert">{error} 입력한 내용은 임시 보관되어 있습니다.</p>}
         </section>
       </div>
-      {pageKey === 'builtin' ? <AddFab hidden={(showEditor && Boolean(draft)) || diaryLoading} onManual={() => void open(null)} /> : null}
+      {pageKey === 'builtin' ? <AddFab hidden={phoneSearch || (showEditor && Boolean(draft)) || diaryLoading} onManual={() => void open(null)} /> : null}
       <dialog data-theme-slot="modal" ref={dialog} className="diary-delete-dialog" onClose={() => setDialogOpen(false)} onCancel={event => { if (busy) event.preventDefault() }}><h2>이 기록을 삭제하시겠습니까?</h2><p>휴지통으로 이동하며, 거기서 복구할 수 있습니다.</p><div><button data-theme-slot="button-secondary" type="button" autoFocus className="btn btn-line" disabled={busy} onClick={() => dialog.current?.close()}>취소</button><button data-theme-slot="button-primary" type="button" className="btn btn-primary" disabled={busy} onClick={() => void remove()}>{busy ? '삭제 중…' : '삭제'}</button></div>{error && <p role="alert">{error}</p>}</dialog>
     </div>
   )
   if (!canvas) return page
-  return <PageCanvas pageId="diary" editing={editing} blocks={resolveLayout('diary', pageLayouts.diary)} onChange={blocks => setPageLayout('diary', blocks)} render={block => block.type === 'page-body' ? <>{pageKey === 'builtin' && !editing ? <PageTour page="diary" /> : null}{page}</> : null} />
+  return <>
+    {phoneHeader && <MobileHeader tab search={searchOpen ? <><h1 className="sr-only">{heading}</h1>{searchField}</> : undefined}>
+      <h1 className="mobile-tab-title"><span className="truncate">{heading}</span></h1>
+      <button type="button" className="mcal-ib" aria-label={viewLabel} aria-pressed={view === 'calendar'} onClick={changeView}>
+        <ThemeIcon name={viewIconName} fallback={viewIcon} size={22} strokeWidth={1.8} aria-hidden="true" />
+      </button>
+      {searchTrigger}
+    </MobileHeader>}
+    <PageCanvas pageId="diary" editing={editing} blocks={resolveLayout('diary', pageLayouts.diary)} onChange={blocks => setPageLayout('diary', blocks)} render={block => block.type === 'page-body' ? <>{pageKey === 'builtin' && !editing ? <PageTour page="diary" /> : null}{page}</> : null} />
+  </>
 }

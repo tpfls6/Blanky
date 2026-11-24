@@ -84,10 +84,8 @@
 .memo-phone-icon { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--fg); touch-action: manipulation; }
 .memo-phone-icon:active, .memo-phone-folder:active, .memo-phone-all:active { background: var(--press, var(--hover)); }
 .memo-phone-head > .memo-phone-icon:first-child { margin-left: -8px; }
-/* Memo tab: MobileTopBar is hidden, so this row is the app bar — ☰ · folder ▾ · search · bell, sized and spaced like
-   the schedule header (.mcal-head / .mcal-ym) and pulled up over the page padding to the same top edge. */
-.memo-phone-head[data-app-bar] { gap: 2px; margin-top: -16px; padding: 0 6px 0 4px; }
-.memo-phone-head[data-app-bar] .memo-phone-folder { flex: 0 1 auto; margin-left: 0; margin-right: auto; padding: 0 6px; letter-spacing: -.2px; }
+/* The tab's shared header sits above the page canvas padding. */
+.memo-phone-head[data-app-bar] { margin-top: -16px; }
 .memo-phone-head[data-app-bar] .memo-phone-search { padding-left: 4px; }
 .memo-phone-head [data-notification-bell] { flex: none; }
 .memo-phone-folder { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; height: 44px; margin-left: -8px; padding: 0 8px; border-radius: 12px; color: var(--fg); font-size: 19px; font-weight: 700; text-align: left; }

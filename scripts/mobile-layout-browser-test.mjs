@@ -213,7 +213,7 @@ try {
     const fit = await evaluate('document.documentElement.scrollWidth <= innerWidth + 1 ? "ok" : "menu overflows"')
     await shot('scenario-more-page')
     if (fit !== 'ok') return fit
-    await evaluate('document.querySelector("[data-more-link=settings]").click()')
+    await evaluate('document.querySelector("[data-more-link=general]").click()')
     await pause(700)
     const state = await evaluate('location.pathname + "|" + Boolean(document.querySelector("dialog[open]")) + "|" + document.querySelector("[data-mobile-tab=more]").getAttribute("aria-current")')
     return state === '/settings/general|false|page' ? 'ok' : state

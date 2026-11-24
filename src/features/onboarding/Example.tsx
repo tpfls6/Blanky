@@ -5,7 +5,7 @@ import { useI18n } from '../../i18n/useI18n.ts'
  * A picture of what a filled page looks like. Shown only while the page has no real data,
  * never stored, and pressing it starts the real action instead of opening the sample.
  */
-export function ExampleCard({ title, meta, body, action, icon, onStart, className }: {
+export function ExampleCard({ title, meta, body, action, icon, onStart, className, themeSlot }: {
   title: string
   meta?: string
   body?: string
@@ -13,12 +13,14 @@ export function ExampleCard({ title, meta, body, action, icon, onStart, classNam
   icon?: ReactNode
   onStart: () => void
   className?: string
+  themeSlot?: 'memo-card'
 }) {
   const { t } = useI18n()
   return (
     <button
       type="button"
       data-example
+      data-theme-slot={themeSlot}
       className={'example-card' + (className ? ` ${className}` : '')}
       aria-label={t('exampleLabel', { title, action })}
       onClick={onStart}

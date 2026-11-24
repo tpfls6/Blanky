@@ -1,5 +1,6 @@
 .diary-page { max-width: 1240px; margin: 8px auto; color: var(--fg); }
-.diary-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.diary-heading { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin-bottom: 28px; }
+.diary-heading-actions { display: flex; flex: none; align-items: center; gap: 4px; }
 .diary-heading h1 { font-size: 25px; font-weight: 500; letter-spacing: -.04em; }
 .diary-heading p { margin-top: 6px; color: var(--muted); font-size: 13px; }
 .diary-heading > svg { color: var(--faint); }
@@ -7,11 +8,11 @@
 .diary-list { min-width: 0; border-right: 1px solid var(--line); }
 .diary-tabs { display: flex; gap: 24px; padding: 22px 22px 0; border-bottom: 1px solid var(--line); }
 .diary-list-tools { padding: 20px 20px 10px; }
-.diary-search { display: flex; align-items: center; gap: 8px; padding: 9px 11px; background: var(--hover); color: var(--muted); border-radius: var(--radius); }
-.diary-page .diary-search input[data-theme-slot='input'] { min-width: 0; flex: 1; font-size: 13px; color: var(--fg); background: transparent; background-color: transparent; border: 0; outline: none; box-shadow: none; }
-.diary-search { transition: box-shadow 150ms ease; }
-.diary-search:focus-within { box-shadow: inset 0 0 0 1px var(--field-border-focus), var(--focus-ring); }
-.diary-new { margin-top: 12px; width: 100%; }
+.diary-search { display: flex; flex: 1; min-width: 0; align-items: center; gap: 4px; }
+.diary-search input { flex: 1; min-width: 0; height: 44px; padding: 0 8px; border: 0; border-radius: var(--radius); background: var(--surface); color: var(--fg); font-size: 16px; }
+.diary-search input::placeholder { color: var(--faint); }
+.diary-search input::-webkit-search-cancel-button { display: none; }
+.diary-new { width: 100%; }
 .diary-list-caption { display: flex; justify-content: space-between; padding: 12px 22px; font-size: 11px; color: var(--faint); }
 .diary-entries { max-height: 650px; overflow-y: auto; padding: 0 10px 12px; }
 .diary-entries li + li { border-top: 1px solid var(--line); }

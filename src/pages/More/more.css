@@ -1,24 +1,93 @@
-.more-page { flex: 0 0 auto; width: 100%; max-width: 40rem; margin-inline: auto; padding: 8px 20px 24px; }
-.more-header { display: flex; align-items: center; justify-content: space-between; min-height: 52px; }
-.more-header h1 { font-size: 22px; font-weight: 600; letter-spacing: -.04em; }
-.more-settings { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-right: -10px; border-radius: 50%; }
-.more-profile { display: flex; align-items: center; gap: 12px; min-height: 88px; padding-block: 12px; }
-.more-avatar { display: flex; align-items: center; justify-content: center; width: 46px; height: 46px; flex-shrink: 0; overflow: hidden; border-radius: 50%; background: var(--accent-light); color: var(--accent-text); }
+/* More, menu layout and phone settings share one look: a 56px app bar with a 19px bold title (as on memo and
+   schedule), rounded 16px group cards and 54px rows with a 32px icon tile. Colors come from the theme tokens. */
+.more-page { flex: 0 0 auto; width: 100%; max-width: 40rem; margin-inline: auto; }
+/* These screens draw their own app bar, so the shared phone top bar (☰ · bell) steps aside. */
+.theme-app-layout > main:has(.more-bar) > [data-mobile-topbar] { display: none; }
+
+.more-bar { position: sticky; top: 0; z-index: 20; display: flex; flex: none; align-items: center; gap: 2px; box-sizing: content-box; height: 56px; padding: env(safe-area-inset-top) 6px 0 8px; background: var(--bg); }
+.more-bar h1 { flex: 1; min-width: 0; padding: 0 8px; overflow: hidden; font-size: 19px; font-weight: 700; letter-spacing: -.2px; text-overflow: ellipsis; white-space: nowrap; }
+.more-bar .more-ib + h1 { padding-left: 2px; }
+.more-ib { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--fg); touch-action: manipulation; }
+.more-ib:active { background: var(--press); }
+.more-body { padding: 4px 16px 40px; }
+
+.more-label { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 22px 4px 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.more-label small { min-width: 0; font-size: 12px; font-weight: 400; color: var(--faint); text-align: right; }
+.more-label small[data-state='full'] { color: var(--danger); }
+.more-hint { display: block; margin: 8px 4px 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
+.more-hint-top { margin-top: 0; }
+.more-hint > svg { display: inline; vertical-align: -2px; }
+
+.more-profile { display: flex; align-items: center; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.more-avatar { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; flex-shrink: 0; overflow: hidden; border-radius: 50%; background: var(--accent-light); color: var(--accent-text); }
 .more-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.more-profile-text { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.more-profile-text { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
 .more-profile-text strong { font-size: 17px; font-weight: 600; overflow-wrap: anywhere; }
 .more-profile-text > span { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-.more-profile > svg { flex-shrink: 0; color: var(--faint); }
-.more-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-block: 8px 24px; }
-.more-shortcuts a { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 10px 12px; background: var(--hover); border-radius: 10px; font-size: 13px; }
-.more-shortcuts svg { flex-shrink: 0; color: var(--accent-text); }
-.more-group + .more-group { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
-.more-group h2 { margin-bottom: 4px; font-size: 11px; font-weight: 500; color: var(--muted); }
-.more-menu-row { display: flex; align-items: center; gap: 14px; min-height: 52px; padding-block: 12px; font-size: 15px; }
-.more-menu-row > :first-child { flex-shrink: 0; color: var(--muted); }
-.more-menu-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.more-menu-row > svg:last-child { flex-shrink: 0; color: var(--faint); }
-.more-page a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.more-page a:active { background: var(--press); }
-.more-page a:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 3px; border-radius: 6px; }
-@media (min-width: 768px) { .more-page { padding-top: 24px; } }
+
+/* Shortcut tiles: records and pages that are not on the bottom bar. */
+.more-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.more-tiles a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 76px; padding: 10px 4px; border-radius: 14px; background: var(--hover); font-size: 12px; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
+.more-tiles a > :first-child { flex-shrink: 0; color: var(--accent-text); }
+.more-tiles .more-tiles-empty { grid-column: 1 / -1; min-height: 0; padding: 14px; border: 1px dashed var(--line); background: none; color: var(--muted); font-size: 12.5px; }
+
+.more-card { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.more-row { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 10px 14px; font-size: 15px; text-align: left; }
+.more-row + .more-row::before, .more-row + .more-tours::before { content: ''; position: absolute; top: 0; right: 0; left: 58px; height: 1px; background: var(--line); }
+.more-ri { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--hover); color: var(--muted); }
+.more-rt { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 1px; overflow-wrap: anywhere; }
+.more-rt small { font-size: 12px; line-height: 1.4; color: var(--muted); }
+.more-rv { flex: none; max-width: 44%; overflow: hidden; font-size: 13px; color: var(--muted); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.more-rv-on { color: var(--accent-text); }
+.more-chev { flex-shrink: 0; color: var(--faint); }
+.more-chev-toggle { transition: transform .15s; }
+[aria-expanded='true'] > .more-chev-toggle { transform: rotate(90deg); }
+.more-row[hidden] + .more-row::before { display: none; }
+.more-tours { position: relative; display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 14px 58px; }
+.more-foot { margin-top: 28px; font-size: 12px; color: var(--faint); text-align: center; }
+
+.more-page a, .more-page button { scroll-margin-top: 64px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.more-profile:active, a.more-row:active, button.more-row:active, .more-tiles a:active { background: var(--press); }
+.more-page :is(a, button):focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+
+/* Menu layout: bar preview and three drop zones. */
+.more-navprev { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 4px 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.more-navprev span { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 3px; overflow: hidden; font-size: 10.5px; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.more-navprev span:first-child { color: var(--accent-text); font-weight: 600; }
+.more-dzone { min-height: 54px; transition: box-shadow .15s; }
+.more-dzone[data-state='over'] { box-shadow: 0 0 0 2px var(--accent-color); }
+.more-dzone[data-state='full'] { box-shadow: 0 0 0 2px var(--danger); }
+.more-dzone[data-zone='hidden'] .more-rt { color: var(--muted); }
+.more-dzone-empty { font-size: 13px; color: var(--faint); }
+.more-drow { user-select: none; -webkit-user-select: none; }
+.more-drow[data-dragging] { background: var(--hover); }
+.more-drow[data-dragging] > * { opacity: .25; }
+.more-num { width: 18px; flex: none; font-size: 12px; font-weight: 700; color: var(--accent-text); text-align: center; }
+.more-page .more-grip { display: grid; flex: none; place-items: center; width: 36px; height: 44px; margin: -6px -6px -6px -10px; border-radius: 10px; color: var(--faint); cursor: grab; touch-action: none; }
+.more-page .more-grip:hover { background: var(--hover); color: var(--muted); }
+.more-ghost { position: fixed; z-index: 1000; margin: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--fg); box-shadow: 0 14px 34px rgb(0 0 0 / .2); pointer-events: none; transform: scale(1.03); }
+body.menu-dragging, body.menu-dragging * { cursor: grabbing !important; }
+.more-toast { position: fixed; bottom: calc(5.25rem + env(safe-area-inset-bottom)); left: 50%; z-index: 40; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 12px; background: var(--fg); color: var(--bg); font-size: 13px; opacity: 0; pointer-events: none; transform: translate(-50%, 12px); transition: opacity .2s, transform .2s; }
+.more-toast[data-on] { opacity: 1; transform: translate(-50%, 0); }
+@media (min-width: 768px) { .more-toast { bottom: 24px; } }
+
+/* Settings below lg: the chips give way to the app bar, and each Group becomes a labelled card. Desktop is unchanged. */
+.settings-app-bar { display: none; }
+@media (max-width: 1023px) {
+  .settings-app-bar { display: flex; }
+  .settings-page :is(a, button, input, select, textarea) { scroll-margin-top: 64px; }
+  .theme-app-layout main .settings-page { padding: 0 16px 40px; }
+  .theme-app-layout main .settings-content { overflow: visible; padding: 0; border: 0; background: transparent; }
+  .theme-app-layout main .settings-content [data-tour='settings-body'] { margin-top: 0; }
+  .settings-section > * { margin-block: 0; }
+  .settings-section > * + * { padding-top: 0; border-top: 0; }
+  .settings-section { display: flex; flex-direction: column; }
+  .settings-group { display: flex; flex-direction: column; }
+  .settings-group-title { order: 0; margin: 22px 4px 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .settings-group-body { order: 1; margin-top: 0; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  .settings-group-hint { order: 2; margin: 8px 4px 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
+  .settings-reset { margin-top: 22px; padding-top: 0; border-top: 0; }
+  .settings-reset > button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--danger); font-size: 15px; text-align: left; }
+  .settings-reset .more-ri { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
+  .settings-page .settings-danger { color: var(--danger); }
+}

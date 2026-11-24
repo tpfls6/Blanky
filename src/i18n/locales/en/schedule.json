@@ -140,6 +140,8 @@
     "titleTask": "Task title",
     "titleRequired": "Enter a title.",
     "calendar": "Calendar",
+    "hiddenCalendarCount": "Hidden calendars ({{count}})",
+    "calendarInvitationCount": "Pending invitations ({{count}})",
     "sharedCalendar": "{{name}} (shared)",
     "start": "Start",
     "end": "End",

@@ -17,8 +17,8 @@ const TOURS: Record<PageTourId, TourStep[]> = {
   ],
   reading: [
     { target: '[data-tour="add-book"]', title: '책을 담아요', body: '책 추가 · 검색에서 읽고 싶은 책을 찾아 서재에 담아요.' },
-    { target: '.reading-shelf-heading', title: '나만의 책장을 만들어요', body: '+ 버튼으로 책장을 만들고 책을 모아요. 책을 열면 읽은 페이지와 문장도 기록할 수 있어요.' },
-    { target: '.reading-toolbar', title: '읽는 책을 찾아요', body: '제목·저자 검색과 독서 상태 필터로 원하는 책을 찾아요.' },
+    { target: '[data-tour="reading-folders"]', title: '나만의 책장을 만들어요', body: '상단 메뉴에서 읽기 상태와 책장을 고를 수 있어요. 책장 옆 + 버튼으로 책장을 추가해요.' },
+    { target: '[data-tour="reading-search"]', title: '읽는 책을 찾아요', body: '제목이나 저자를 입력해 내 서재에서 원하는 책을 찾아요.' },
   ],
   memo: [
     { target: '[data-tour="new-memo"]', prepare: 'memo-list', title: '떠오른 생각을 바로 적어요', body: '메모 작성으로 새 메모를 열어요. 제목과 본문은 쓰는 대로 저장돼요.' },
@@ -31,7 +31,7 @@ const TOURS: Record<PageTourId, TourStep[]> = {
   ],
   custom: [
     { target: '[data-tour="new-page"]', prepare: 'templates', title: '템플릿으로 페이지를 꾸며요', body: '새 템플릿을 만들거나 기존 페이지를 골라 나만의 구성을 만들어요.' },
-    { target: '.customization-themes header', prepare: 'themes', title: '테마 색상을 바꿔요', body: '새 테마에서 색상·이미지·아이콘·폰트를 고르세요. 가져오기로 .blanky 파일도 불러올 수 있어요.' },
+    { target: '[data-tour="add-theme"]', prepare: 'themes', title: '테마 색상을 바꿔요', body: '새 테마에서 색상·이미지·아이콘·폰트를 고르세요. 가져오기로 .blanky 파일도 불러올 수 있어요.' },
     { target: '[data-tour="layout-controls"]', prepare: 'layout', title: '블록 배치를 조정해요', body: '페이지를 고르고 블록 간격과 배치를 조정해요. 변경한 구성은 해당 페이지에 적용돼요.' },
   ],
   settings: [

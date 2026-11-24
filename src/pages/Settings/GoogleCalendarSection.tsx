@@ -199,7 +199,7 @@ export function GoogleCalendarSection() {
           </button>
           <button
             type="button"
-            className="btn btn-ghost mt-3"
+            className="settings-danger btn btn-ghost mt-3"
             disabled={busy}
             onClick={() => void run(async () => {
               const leave = await confirm(t('calendar.disconnectConfirm'), {

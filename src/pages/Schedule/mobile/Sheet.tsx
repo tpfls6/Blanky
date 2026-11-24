@@ -44,7 +44,7 @@ export function Sheet({ title, onClose, onDone, children, label, inline = false 
   const sheet = (
     <>
       <div className="mcal-sub-dim" aria-hidden="true" onClick={onDone ? apply : onClose} />
-      <section ref={ref} className="mcal-sub" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-label={label} tabIndex={-1} data-mobile-sheet>
+      <section ref={ref} className="mcal-sub" data-theme-slot="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-label={label} tabIndex={-1} data-mobile-sheet>
         <div className="mcal-handle" aria-hidden="true" />
         <div className="mcal-sub-head">
           <h3 id={titleId}>{title}</h3>

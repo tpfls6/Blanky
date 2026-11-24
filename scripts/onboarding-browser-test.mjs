@@ -145,16 +145,17 @@ try {
   assert.equal(await examples(), 0); assert.equal((await stored()).memos.length, 1)
   checks.push('Memo guide complete; example starts a memo and hides')
 
-  // 6. Reading: shelf and book examples open the real actions.
+  // 6. Reading: the guide points to the compact header, and the shelf menu opens the real action.
   await navigate(base + '/reading')
-  await wait('document.querySelectorAll("[data-example]").length === 2 && document.querySelectorAll("[data-page-tour]").length === 1', 'reading examples')
-  await screenshot('desktop-reading-examples')
-  await click('.reading-example-shelf'); await wait('[...document.querySelectorAll("h2")].some(h => h.textContent.includes("새 책장"))', 'new shelf dialog')
-  assert.equal(JSON.parse(await evaluate('localStorage.getItem("blanky.reading.v1.' + owner + '") || "{\\"shelves\\":[]}"')).shelves.length, 0)
-  await navigate(base + '/reading')
-  await wait('document.querySelectorAll("[data-page-tour]").length === 1', 'reading guide again')
+  await wait('Boolean(document.querySelector("[data-page-tour]") && document.querySelector("[data-tour=reading-folders]"))', 'reading guide')
+  assert.equal(await examples(), 0, 'the reading list has no example cards')
+  await screenshot('desktop-reading-guide')
   await tourButton('건너뛰기'); await settle()
-  checks.push('Reading shows shelf + book examples; the shelf example opens the real dialog without saving')
+  await click('[data-tour=reading-folders]')
+  await click('.reading-shelf-heading button')
+  await wait('document.querySelector(".reading-modal h2")?.textContent === "새 책장"', 'new shelf dialog')
+  assert.equal(JSON.parse(await evaluate('localStorage.getItem("blanky.reading.v1.' + owner + '") || "{\\"shelves\\":[]}"')).shelves.length, 0)
+  checks.push('Reading shows a guide and opens the shelf dialog from the header menu')
 
   // 7. Store, custom and settings guides. 내 테마 (/custom?tab=themes) names its tab: the customization guide,
   //    which walks every tab and ends on 레이아웃, waits for a visit without one instead of moving the user.

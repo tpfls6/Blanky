@@ -189,7 +189,7 @@ export function MemoPhoneList({
   return (
     <div className="memo-phone" data-picking={picking ? '' : undefined}>
       <h1 className="sr-only">{heading}</h1>
-      <div className="memo-phone-head" data-app-bar={appBar ? '' : undefined}>
+      <div className={appBar ? 'memo-phone-head mobile-tab-header' : 'memo-phone-head'} data-app-bar={appBar ? '' : undefined}>
         {picking ? <>
           <button type="button" className={iconClass} aria-label="선택 닫기" onClick={stopPicking}>
             <X size={22} strokeWidth={1.7} aria-hidden="true" />
@@ -208,10 +208,10 @@ export function MemoPhoneList({
             <X size={20} strokeWidth={1.7} aria-hidden="true" />
           </button> : null}
         </> : <>
-          {appBar ? <MobileMoreLink className="mcal-ib" iconClassName="size-5.5" strokeWidth={1.6} /> : null}
+          {appBar ? <MobileMoreLink /> : null}
           {hideFolders
-            ? <p className="memo-phone-folder"><span>{heading}</span><small>{folderCount}</small></p>
-            : <button type="button" data-tour="memo-folders" className="memo-phone-folder" aria-expanded={folderOpen} aria-controls={menuId} aria-label={`메모 폴더: ${folderLabel}, ${folderCount}개`} onClick={() => setFolderOpen(open => !open)}>
+            ? <p className={appBar ? 'memo-phone-folder mobile-tab-title' : 'memo-phone-folder'}><span>{heading}</span><small>{folderCount}</small></p>
+            : <button type="button" data-tour="memo-folders" className={appBar ? 'memo-phone-folder mobile-tab-title' : 'memo-phone-folder'} aria-expanded={folderOpen} aria-controls={menuId} aria-label={`메모 폴더: ${folderLabel}, ${folderCount}개`} onClick={() => setFolderOpen(open => !open)}>
               {current ? <span className="memo-phone-dot" style={{ background: current.color ?? 'var(--faint)' }} aria-hidden="true" /> : null}
               <span>{folderLabel}</span><small>{folderCount}</small>
               <ChevronDown size={18} strokeWidth={1.7} aria-hidden="true" />
@@ -237,7 +237,7 @@ export function MemoPhoneList({
           const on = picked.has(memo.id)
           const category = hideFolders ? undefined : categories.find(item => item.id === memo.categoryId)
           return (
-            <li key={memo.id} data-memo-row={memo.id} className="memo-phone-row" data-picked={on ? '' : undefined}>
+            <li key={memo.id} data-memo-row={memo.id} className="memo-phone-row" data-theme-slot="memo-card" data-picked={on ? '' : undefined}>
               <button type="button" className="memo-phone-item" aria-pressed={picking ? on : undefined} aria-current={!picking && memo.id === selectedId ? 'true' : undefined}
                 onPointerDown={event => startPress(event, memo.id)} onPointerMove={movePress} onPointerUp={cancelPress} onPointerCancel={cancelPress} onPointerLeave={cancelPress}
                 onContextMenu={event => event.preventDefault()} onClick={() => tapRow(memo.id)}>

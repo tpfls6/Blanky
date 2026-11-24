@@ -140,6 +140,8 @@
     "titleTask": "할 일을 입력하세요.",
     "titleRequired": "제목을 입력해 주세요.",
     "calendar": "캘린더",
+    "hiddenCalendarCount": "{{count}}개 숨김",
+    "calendarInvitationCount": "초대 {{count}}개",
     "sharedCalendar": "{{name}} (공유)",
     "start": "시작",
     "end": "종료",

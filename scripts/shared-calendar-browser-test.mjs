@@ -173,6 +173,13 @@ try {
   await step('member is notified on the phone and accepts', async () => {
     await member.go('/schedule')
     await member.wait('document.querySelector("[data-notification-bell] [data-unread]")', 'unread badge', 20000)
+    const bellSize = await member.evaluate(`(() => {
+      const bell = document.querySelector('.mcal-head [data-notification-bell] button')
+      const { width, height } = bell.getBoundingClientRect()
+      const icon = bell.querySelector('svg')
+      return [width, height, icon.getBoundingClientRect().width, icon.getAttribute('stroke-width')]
+    })()`)
+    assert.deepEqual(bellSize, [44, 44, 22, '1.8'])
     await member.click('[data-notification-bell] button')
     await member.wait('document.querySelector(".notification-panel [data-invitation]")', 'invitation in panel')
     await member.shot('02-mobile-invitation.png')
@@ -347,8 +354,13 @@ try {
   })
 
   await step('member leaves through the phone UI', async () => {
+    await member.click('.mcal-ym')
+    await member.wait('document.querySelector(".mcal-picker[data-open]")', 'date picker')
+    assert.equal(await member.evaluate('Boolean(document.querySelector(".mcal-picker [data-open-calendars]"))'), false)
+    await member.click('.mcal-ym')
+    assert.ok(await member.evaluate('document.querySelector(".mcal-head [data-open-tasks] + [data-mobile-calendar-bar] [data-open-calendars]")?.getAttribute("aria-label")'))
     await member.click('[data-open-calendars]')
-    await member.wait(`document.querySelector('.calendar-sheet [data-calendar-row=${q(calendarId)}]')`, 'calendar sheet')
+    await member.wait(`document.querySelector('.calendar-sheet[open] [data-calendar-row=${q(calendarId)}]')`, 'calendar sheet')
     await member.shot('10-mobile-calendar-sheet.png')
     await member.click(`.calendar-sheet [aria-label=${q(calendarName + ' 관리')}]`)
     await member.wait('document.querySelector("[data-shared-calendar-dialog]")', 'manage dialog')
