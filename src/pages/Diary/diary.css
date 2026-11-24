@@ -77,7 +77,12 @@
 .diary-save-status svg { color: var(--accent-color); }
 .diary-save-status[data-state='failed'] { color: var(--danger); }
 .diary-date-field { position: relative; display: inline-flex; min-width: 0; }
-.diary-date-native { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+/* In-app date picker (DiaryDatePicker): the list calendar's grid in a bottom sheet (phone) or under the toolbar date (desktop). */
+.diary-page.diary-date-picker { max-width: none; margin: 0; }
+.diary-date-picker .diary-cal { border-bottom: 0; }
+.mcal-sub .diary-date-picker .diary-cal { padding: 0 12px 8px; }
+.diary-pop-date { width: 340px; padding: 4px 6px 6px; }
+.diary-pop-date .diary-cal { padding: 8px 4px 2px; }
 .diary-star[aria-pressed='true'] { color: var(--accent-color); }
 
 /* Mood / weather picker grid (phone bottom sheet, desktop popover); the chosen one again clears it. */
@@ -172,3 +177,5 @@
 @media (max-width: 1100px) { .diary-workspace { grid-template-columns: 300px minmax(0, 1fr); } .diary-write-card { padding: 18px 20px; } }
 @media (prefers-reduced-motion: reduce) { .diary-page .diary-entry, .diary-write-card, .diary-page .diary-calendar-day { transition: none; } }
 .diary-row[data-picked] .memo-phone-check { border-color: var(--accent-color); background: var(--accent-color); }
+/* Custom diary pages: their wrapper (.custom-user-page, py-6) has 24px above, so the app bar pulls up that much to the top edge. */
+.custom-user-page .diary-phone .memo-phone-head[data-app-bar], .custom-user-page .diary-phone-page[data-app-bar] .diary-pe { margin-top: -24px; }

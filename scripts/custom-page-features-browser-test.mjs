@@ -247,6 +247,7 @@ try {
   await navigate(base + '/pages/memo-a')
   await wait('document.querySelector(".memo-layout")','mobile memo')
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true)
+  assert.equal(await evaluate('!!document.querySelector("[data-mobile-topbar]")'),true,'custom memo pages keep MobileTopBar')
   await shot('07-memo-mobile')
   // Custom diary page on a phone: the header + stays a 44px icon and the filter title keeps its width.
   await navigate(base + '/pages/diary-a')
@@ -254,6 +255,10 @@ try {
   const diaryHead = await evaluate('(()=>{const r=e=>Math.round(document.querySelector(e).getBoundingClientRect().width);return {title:r(".memo-phone-folder > span"),plus:r(".diary-phone .diary-new")}})()')
   console.log('mobile diary header', JSON.stringify(diaryHead))
   assert.equal(diaryHead.plus,44); assert.ok(diaryHead.title > 0)
+  // One app bar (☰ · title ▾ · calendar · search · +) at the top edge, 56px like /diary; no MobileTopBar row above it.
+  const diaryBar = await evaluate('(()=>{const h=document.querySelector(".memo-phone-head[data-app-bar]");if(!h)return null;const r=h.getBoundingClientRect();return {top:Math.round(r.top),height:Math.round(r.height),more:!!h.querySelector("[data-mobile-tab=more]"),topbar:!!document.querySelector("[data-mobile-topbar]")}})()')
+  console.log('mobile diary app bar', JSON.stringify(diaryBar))
+  assert.deepEqual(diaryBar,{top:0,height:56,more:true,topbar:false})
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true)
   await shot('08-diary-mobile')
   assert.equal(errors.length,0,errors.join('\n'))

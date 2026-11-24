@@ -25,8 +25,12 @@ export function MobileMoreLink({ className, iconClassName, strokeWidth }: { clas
 /** Phones: "more" sits top-left so all five bottom tabs stay free; the bell sits top-right on every page. */
 export function MobileTopBar() {
   const { pathname } = useLocation()
-  // The schedule, memo and diary screens draw their own one-line header (menu, title, search, bell).
-  if (pathname === ROUTES.schedule || pathname === ROUTES.memo || pathname === ROUTES.diary) return null
+  const { customPages } = useLibrary()
+  // The schedule, memo and diary screens draw their own one-line header (menu, title, search, bell);
+  // so do custom diary pages (/pages/<id> with the diary template). Other custom pages keep this bar.
+  const pageId = matchPath('/pages/:pageId', pathname)?.params.pageId
+  const customDiary = Boolean(pageId) && customPages.some(page => page.id === pageId && page.template === 'diary')
+  if (pathname === ROUTES.schedule || pathname === ROUTES.memo || pathname === ROUTES.diary || customDiary) return null
 
   return (
     <div className="mobile-topbar sticky top-0 z-20 flex shrink-0 items-center justify-between bg-surface px-2 pb-1 pt-[calc(env(safe-area-inset-top)+0.25rem)] md:hidden" data-mobile-topbar>

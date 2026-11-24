@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import type { DiaryEntry } from '../../types/records.ts'
 import { formatMonthTitle } from '../../i18n/format.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
@@ -45,5 +46,27 @@ export function DiaryCalendar({ month, selectedDate, entries, weekStartsOn, onMo
         <span>{day.getDate()}</span>{count > 0 ? <i className={mood ? 'diary-cal-mood' : 'diary-cal-dot'} aria-hidden="true">{mood}</i> : null}
       </button>
     })}</div>
+  </div>
+}
+
+/**
+ * In-app date picker for an entry (phone bottom sheet, desktop popover): the same month grid as the list's
+ * calendar, starting on the entry's month with its date selected and focused. Picking a day (or 오늘) applies it;
+ * picking the selected day again just closes.
+ */
+export function DiaryDatePicker({ value, entries, weekStartsOn, onPick, onClose }: {
+  value: string; entries: DiaryEntry[]; weekStartsOn: 0 | 1
+  onPick: (date: string) => void; onClose: () => void
+}) {
+  const [month, setMonth] = useState(() => value.slice(0, 7))
+  const ref = useRef<HTMLDivElement>(null)
+  // After the sheet focuses itself on open, move focus to the selected day.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => ref.current?.querySelector<HTMLElement>('.diary-calendar-day[aria-pressed=true]')?.focus({ preventScroll: true }))
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  return <div ref={ref} className="diary-page diary-date-picker">
+    <DiaryCalendar month={month} selectedDate={value} entries={entries} weekStartsOn={weekStartsOn} disabled={false}
+      onMonth={setMonth} onSelect={date => { if (date && date !== value) onPick(date); else onClose() }} />
   </div>
 }

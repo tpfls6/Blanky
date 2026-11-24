@@ -11,6 +11,7 @@ import { shareMemos } from '../Memo/memoShare.ts'
 import '../Schedule/mobile/mobileCalendar.css'
 import '../Memo/memo.css'
 import { ChoiceGrid, DiaryDateButton, DiaryTags } from './DiaryRows.tsx'
+import { DiaryDatePicker } from './DiaryCalendar.tsx'
 import { MOODS, WEATHER, choiceOf, entryTime, longDay } from './diaryChoices.ts'
 
 /**
@@ -18,8 +19,11 @@ import { MOODS, WEATHER, choiceOf, entryTime, longDay } from './diaryChoices.ts'
  * then a chip row (mood · weather · tags · save status), the title and the body.
  * Saving stays with DiaryWorkspace (autosave, recovery draft); this only lays the fields out.
  */
-export function DiaryPhoneEditor({ draft, field, status, dirty, error, disabled, appBar, backToList, titleRef, composing, edit, onBack, onSave, onDelete }: {
+export function DiaryPhoneEditor({ draft, entries, weekStartsOn, field, status, dirty, error, disabled, appBar, backToList, titleRef, composing, edit, onBack, onSave, onDelete }: {
   draft: DiaryEntry
+  /** All entries, for the date picker's mood emoji. */
+  entries: DiaryEntry[]
+  weekStartsOn: 0 | 1
   field: (key: string) => string
   status: string
   dirty: boolean
@@ -38,11 +42,10 @@ export function DiaryPhoneEditor({ draft, field, status, dirty, error, disabled,
 }) {
   const { t, locale } = useI18n()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [sheet, setSheet] = useState<'mood' | 'weather' | null>(null)
+  const [sheet, setSheet] = useState<'mood' | 'weather' | 'date' | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
-  const dateRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
   const mood = choiceOf(MOODS, draft.mood), weather = choiceOf(WEATHER, draft.weather)
 
@@ -80,7 +83,7 @@ export function DiaryPhoneEditor({ draft, field, status, dirty, error, disabled,
         <button type="button" className="memo-phone-icon diary-back" aria-label={t('diary.back')} onClick={onBack}>
           <ArrowLeft size={22} strokeWidth={1.7} aria-hidden="true" />
         </button>
-        <DiaryDateButton buttonRef={dateRef} className="diary-pe-date" value={draft.date} text={longDay(locale, draft.date)} label={field('date')} disabled={disabled} onChange={date => edit({ date })} />
+        <span className="diary-date-field"><DiaryDateButton className="diary-pe-date" text={longDay(locale, draft.date)} open={sheet === 'date'} disabled={disabled} onToggle={() => setSheet('date')} /></span>
         <button type="button" className="memo-phone-icon diary-star" aria-label={draft.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'} aria-pressed={Boolean(draft.isFavorite)} disabled={disabled} onClick={() => edit({ isFavorite: !draft.isFavorite })}>
           <ThemeIcon name="favorite" fallback={Star} size={22} strokeWidth={1.7} fill={draft.isFavorite ? 'currentColor' : 'none'} />
         </button>
@@ -93,7 +96,7 @@ export function DiaryPhoneEditor({ draft, field, status, dirty, error, disabled,
             <button type="button" role="menuitem" onClick={() => void share()}>
               <Share2 size={18} strokeWidth={1.6} aria-hidden="true" />{t('diary.share')}
             </button>
-            <button type="button" role="menuitem" disabled={disabled} onClick={() => { setMenuOpen(false); dateRef.current?.click() }}>
+            <button type="button" role="menuitem" disabled={disabled} onClick={() => { setMenuOpen(false); setSheet('date') }}>
               <CalendarDays size={18} strokeWidth={1.6} aria-hidden="true" />{t('diary.changeDate')}
             </button>
             <button type="button" role="menuitem" className="memo-pe-danger" disabled={disabled} onClick={() => { setMenuOpen(false); onDelete() }}>
@@ -115,7 +118,9 @@ export function DiaryPhoneEditor({ draft, field, status, dirty, error, disabled,
           onChange={e => edit({ body: e.target.value })} onCompositionStart={composing.start} onCompositionEnd={composing.end} />
       </fieldset>
       <footer className="diary-pe-foot"><span>{t('diary.chars', { count: draft.body.length.toLocaleString() })}</span><span>{t('diary.writtenAt', { time: entryTime(locale, draft) })}</span></footer>
-      {sheet ? <Sheet title={field(sheet)} onClose={() => setSheet(null)}>
+      {sheet === 'date' ? <Sheet title={field('date')} onClose={() => setSheet(null)}>
+        <DiaryDatePicker value={draft.date} entries={entries} weekStartsOn={weekStartsOn} onPick={date => { edit({ date }); setSheet(null) }} onClose={() => setSheet(null)} />
+      </Sheet> : sheet ? <Sheet title={field(sheet)} onClose={() => setSheet(null)}>
         <ChoiceGrid choices={sheet === 'mood' ? MOODS : WEATHER} value={draft[sheet]} onPick={value => { edit({ [sheet]: value }); setSheet(null) }} />
       </Sheet> : null}
     </div>

@@ -15,8 +15,9 @@ import { useI18n } from '../../i18n/useI18n.ts'
 import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { ROUTES } from '../../constants/routes.ts'
 import { todayISO } from '../../utils/date.ts'
-import { DiaryCalendar } from './DiaryCalendar.tsx'
+import { DiaryCalendar, DiaryDatePicker } from './DiaryCalendar.tsx'
 import { DiaryPhoneList } from './DiaryPhoneList.tsx'
+import { useBackLayer } from '../Schedule/mobile/layers.ts'
 import { DiaryPhoneEditor, SaveStatus } from './DiaryPhoneEditor.tsx'
 import { ChoiceGrid, DiaryDateButton, DiaryMonthGroups, DiaryRow, DiaryTags } from './DiaryRows.tsx'
 import { MOODS, WEATHER, choiceOf, entryTime } from './diaryChoices.ts'
@@ -79,9 +80,10 @@ export function DiaryWorkspace({
   const field = (key: string) => fieldLabel('diary', key, labels)
   const heading = headingProp ?? t('diary.title')
   const phone = useMediaQuery(PHONE_QUERY)
-  // Only the built-in /diary hides MobileTopBar; custom pages and previews keep it, so they keep their own header.
+  // The built-in /diary hides MobileTopBar and draws its own app bar; previews and layout editing keep it.
   const { pathname } = useLocation()
-  const appBar = pageKey === 'builtin' && pathname === ROUTES.diary
+  // Custom diary pages (/pages/<id>) hide it too (MobileTopBar), so their phone header carries ☰ the same way.
+  const appBar = pageKey === 'builtin' ? pathname === ROUTES.diary : pathname === ROUTES.page(pageKey)
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
   // Phones search every entry from the app bar; desktop opens a search field under the title.
@@ -96,7 +98,8 @@ export function DiaryWorkspace({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [choiceOpen, setChoiceOpen] = useState<'mood' | 'weather' | null>(null)
+  // Desktop toolbar popovers: the date picker and the mood / weather grids.
+  const [choiceOpen, setChoiceOpen] = useState<'date' | 'mood' | 'weather' | null>(null)
   const deleting = useRef(false)
   const [showEditor, setShowEditor] = useState(() => Boolean(readDiaryDraft(userId, pageKey)))
   const persisted = useRef(new Set(diaries.map(entry => entry.id)))
@@ -180,6 +183,7 @@ export function DiaryWorkspace({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [choiceOpen])
+  useBackLayer(Boolean(choiceOpen) && !phone, () => setChoiceOpen(null))
   // IME input saves once the syllable is committed, not while it is being composed.
   const composition = { start: () => { composing.current = true }, end: () => { composing.current = false; void save() } }
 
@@ -298,7 +302,7 @@ export function DiaryWorkspace({
     <div className="diary-page diary-phone-page" data-app-bar={appBar ? '' : undefined}>
       {errorBanner}
       {showEditor && draft ? <>
-        <DiaryPhoneEditor key={draft.id} draft={draft} field={field} status={status} dirty={dirty} error={error} disabled={busy || diaryLoading} appBar={appBar}
+        <DiaryPhoneEditor key={draft.id} draft={draft} entries={diaries} weekStartsOn={settings.weekStartsOn} field={field} status={status} dirty={dirty} error={error} disabled={busy || diaryLoading} appBar={appBar}
           backToList={!(openId && draft.id === openId)} titleRef={titleInput} composing={composition} edit={edit}
           onBack={() => void closeEditor()} onSave={() => void save()} onDelete={askDelete} />
         {editorError}
@@ -360,7 +364,15 @@ export function DiaryWorkspace({
         <section className="diary-editor" aria-label="기록 작성 영역">
           {draft ? <>
             <div className="diary-card diary-toolbar">
-              <DiaryDateButton className="diary-tb-date" value={draft.date} text={formatDisplayDate(locale, draft.date, 'full')} label={field('date')} disabled={busy || diaryLoading} onChange={date => edit({ date })} />
+              <span className="diary-chip-pop diary-date-field">
+                <DiaryDateButton className="diary-tb-date" text={formatDisplayDate(locale, draft.date, 'full')} open={choiceOpen === 'date'} disabled={busy || diaryLoading} onToggle={() => setChoiceOpen(open => open === 'date' ? null : 'date')} />
+                {choiceOpen === 'date' ? <>
+                  <div className="diary-pop-dim" aria-hidden="true" onClick={() => setChoiceOpen(null)} />
+                  <div className="diary-pop diary-pop-date" role="dialog" aria-label={field('date')}>
+                    <DiaryDatePicker value={draft.date} entries={diaries} weekStartsOn={settings.weekStartsOn} onPick={date => { edit({ date }); setChoiceOpen(null) }} onClose={() => setChoiceOpen(null)} />
+                  </div>
+                </> : null}
+              </span>
               {choiceChip('mood')}
               {choiceChip('weather')}
               <SaveStatus status={status} dirty={dirty} error={error} onRetry={() => void save()} />

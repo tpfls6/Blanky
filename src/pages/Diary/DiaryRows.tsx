@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Star, X } from 'lucide-react'
-import { useRef, useState, type PointerEventHandler, type ReactNode, type Ref } from 'react'
+import { useState, type PointerEventHandler, type ReactNode, type Ref } from 'react'
 import type { DiaryEntry } from '../../types/records.ts'
 import { diaryTitle } from '../../services/diary/index.ts'
 import { formatMonthTitle } from '../../i18n/format.ts'
@@ -65,27 +65,17 @@ export function DiaryMonthGroups({ entries, label, row }: { entries: DiaryEntry[
   ))}</div>
 }
 
-/** The date as a button that opens the native date picker. */
-export function DiaryDateButton({ value, text, label, className, onChange, disabled, buttonRef }: {
-  value: string; text: string; label: string; className: string; onChange: (date: string) => void; disabled?: boolean
+/** The date as a button that opens the in-app date picker (DiaryDatePicker in a sheet or popover). */
+export function DiaryDateButton({ text, className, open, onToggle, disabled, buttonRef }: {
+  text: string; className: string; open: boolean; onToggle: () => void; disabled?: boolean
   /** Lets a menu item ("날짜 바꾸기") open the same picker. */
   buttonRef?: Ref<HTMLButtonElement>
 }) {
   const { t } = useI18n()
-  const input = useRef<HTMLInputElement>(null)
-  const pick = () => {
-    const field = input.current
-    if (!field) return
-    try { field.showPicker() } catch { field.focus(); field.click() }
-  }
   return (
-    <span className="diary-date-field">
-      <button ref={buttonRef} type="button" className={className} disabled={disabled} aria-label={t('diary.dateButton', { date: text })} onClick={pick}>
-        <span>{text}</span><ChevronDown size={16} strokeWidth={1.7} aria-hidden="true" />
-      </button>
-      <input ref={input} data-theme-slot="input" type="date" tabIndex={-1} aria-label={label} className="diary-date-native" value={value} disabled={disabled}
-        onChange={event => { if (event.target.value) onChange(event.target.value) }} />
-    </span>
+    <button ref={buttonRef} type="button" className={className} disabled={disabled} aria-label={t('diary.dateButton', { date: text })} aria-haspopup="dialog" aria-expanded={open} onClick={onToggle}>
+      <span>{text}</span><ChevronDown size={16} strokeWidth={1.7} aria-hidden="true" />
+    </button>
   )
 }
 
