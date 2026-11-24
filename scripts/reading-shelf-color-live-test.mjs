@@ -75,7 +75,12 @@ try {
   await navigate(base + '/login'); await wait('document.querySelector("input[type=email]")', 'login')
   await fill('input[type=email]', session.email); await fill('input[type=password]', session.password); await click('button[type=submit]')
   await wait('document.querySelector("#home-entry")', 'authenticated Home')
-  await navigate(base + '/reading'); await wait('document.querySelector("[aria-label=\'새 책장\']")', 'reading page')
+  async function openShelves() {
+   await wait('document.querySelector("[data-tour=reading-folders]")', 'reading page')
+   await click('[data-tour=reading-folders]')
+   await wait('document.querySelector(".reading-folders-disclosure:not([inert])")', 'shelf menu')
+  }
+  await navigate(base + '/reading'); await openShelves()
   // Create one shelf per swatch, then edit each to the next swatch.
   for (const [i, s] of SWATCHES.entries()) {
    await click('[aria-label="새 책장"]'); await wait('document.querySelector(".reading-form")', 'shelf modal')
@@ -95,7 +100,7 @@ try {
   await click('[aria-label="새 책장"]'); await wait('document.querySelector(".reading-form")', 'custom modal')
   await fill('.reading-form input.field', 'Custom color'); await click('.reading-icon-picker > button'); await wait('document.querySelector("input[type=color]")', 'color input')
   await fill('input[type=color]', '#00ff7f'); await button('만들기'); await wait('!document.querySelector(".reading-form")', 'create custom')
-  await navigate(); await wait('document.querySelector(".reading-nav")', 'reload')
+  await navigate(); await openShelves()
   assert.equal(await shown('Custom color'), rgb('#00ff7f'), 'custom color survives reload')
   assert.equal((await db()).data.at(-1).color, '#00ff7f')
   // Invalid colors: rejected by app validation and by the DB constraint.
@@ -108,7 +113,7 @@ try {
   // Legacy theme-token rows still load and render.
   const legacy = await session.client.from('reading_shelves').insert({ user_id: session.userId, name: 'Legacy accent', color: 'accent', sort_order: 50 })
   assert.equal(legacy.error, null)
-  await navigate(); await wait('document.body.innerText.includes("Legacy accent")', 'legacy shelf')
+  await navigate(); await openShelves(); await wait('document.body.innerText.includes("Legacy accent")', 'legacy shelf')
   assert.ok(await shown('Legacy accent'), 'legacy token shelf renders')
   assert.deepEqual(errors, [])
   console.log(JSON.stringify({ swatchCreate: SWATCHES.length, swatchUpdate: SWATCHES.length, customReload: 'passed', invalidRejected: 4, legacyToken: 'passed' }))

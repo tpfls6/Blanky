@@ -64,8 +64,8 @@ export function NotificationBell({ align = 'left' }: { align?: 'left' | 'right' 
   }
 
   return <div ref={root} className="relative" data-notification-bell>
-    <button type="button" className="icon-btn relative" aria-label={count ? `알림 ${count}개` : '알림'} aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <Bell aria-hidden="true" className="size-4" strokeWidth={1.5} />
+    <button type="button" className="notification-trigger" aria-label={count ? `알림 ${count}개` : '알림'} aria-expanded={open} onClick={() => setOpen(value => !value)}>
+      <Bell aria-hidden="true" className="size-5.5" strokeWidth={1.8} />
       {count ? <span className="notification-count" data-unread={count}>{count > 99 ? '99+' : count}</span> : null}
     </button>
     {open && place ? <div role="dialog" aria-label="알림" className="notification-panel" style={{ top: place.top, left: place.left, width: place.width }}>
