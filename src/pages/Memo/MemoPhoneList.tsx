@@ -1,6 +1,10 @@
-import { ArrowLeft, Check, ChevronDown, FileText, Folder, FolderInput, Plus, Search, Share2, Star, StarOff, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, FileText, Folder, FolderInput, Search, Share2, Star, StarOff, Trash2, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { NotificationBell } from '../../components/calendars/NotificationBell.tsx'
+import { MobileMoreLink } from '../../components/layout/MobileTopBar.tsx'
+import { AddFab } from '../../components/common/AddFab.tsx'
 import { showStatusToast } from '../../components/layout/statusToast.ts'
+import { isSupabaseConfigured } from '../../services/supabase/client.ts'
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
 import type { Memo } from '../../types/records.ts'
 import type { WorkspaceCategory } from '../../types/work.ts'
@@ -17,9 +21,10 @@ const MOVE_TOLERANCE = 8
 /**
  * Phone memo list (<768px): folder dropdown and search in the top row, a + button for new memos,
  * and long-press selection with a move / favorite / share / delete bar over the bottom navigation.
+ * On the memo tab (`appBar`) the row also carries the app's ☰ and bell, like the schedule header.
  */
 export function MemoPhoneList({
-  heading, memos, categories, folder, folderLabel, folderCount, count, onFolder, hideFolders, canFavorite,
+  heading, memos, categories, folder, folderLabel, folderCount, count, onFolder, hideFolders, canFavorite, appBar = false,
   query, onQuery, searching, onSearching, selectedId, onOpen, onCreate, onDelete, onMove, onFavorite, empty,
 }: {
   heading: string
@@ -33,6 +38,8 @@ export function MemoPhoneList({
   onFolder: (id: string) => void
   hideFolders: boolean
   canFavorite: boolean
+  /** The /memo route hides MobileTopBar, so this row draws the ☰ more link and the bell itself. */
+  appBar?: boolean
   query: string
   onQuery: (value: string) => void
   searching: boolean
@@ -64,6 +71,8 @@ export function MemoPhoneList({
   const allPicked = memos.length > 0 && pickedIds.length === memos.length
   const allFavorite = pickedMemos.length > 0 && pickedMemos.every(memo => memo.favorite)
   const current = categories.find(category => category.id === folder)
+  // In the app bar the icon buttons match the schedule header's (.mcal-ib).
+  const iconClass = appBar ? 'mcal-ib' : 'memo-phone-icon'
   const ordered = categories.filter(category => category.parentId === null)
     .flatMap(parent => [parent, ...categories.filter(child => child.parentId === parent.id)])
 
@@ -180,9 +189,9 @@ export function MemoPhoneList({
   return (
     <div className="memo-phone" data-picking={picking ? '' : undefined}>
       <h1 className="sr-only">{heading}</h1>
-      <div className="memo-phone-head">
+      <div className="memo-phone-head" data-app-bar={appBar ? '' : undefined}>
         {picking ? <>
-          <button type="button" className="memo-phone-icon" aria-label="선택 닫기" onClick={stopPicking}>
+          <button type="button" className={iconClass} aria-label="선택 닫기" onClick={stopPicking}>
             <X size={22} strokeWidth={1.7} aria-hidden="true" />
           </button>
           <p className="memo-phone-picked" role="status" aria-live="polite">{pickedIds.length ? `${pickedIds.length}개 선택됨` : '메모 선택'}</p>
@@ -191,14 +200,15 @@ export function MemoPhoneList({
             전체 선택
           </button>
         </> : searching ? <>
-          <button type="button" className="memo-phone-icon" aria-label="검색 닫기" onClick={closeSearch}>
+          <button type="button" className={iconClass} aria-label="검색 닫기" onClick={closeSearch}>
             <ArrowLeft size={22} strokeWidth={1.7} aria-hidden="true" />
           </button>
           <input ref={searchRef} type="search" enterKeyHint="search" className="memo-phone-search" value={query} placeholder="메모 검색" aria-label="메모 검색" onChange={event => onQuery(event.target.value)} />
-          {query ? <button type="button" className="memo-phone-icon" aria-label="검색어 지우기" onClick={() => { onQuery(''); searchRef.current?.focus() }}>
+          {query ? <button type="button" className={iconClass} aria-label="검색어 지우기" onClick={() => { onQuery(''); searchRef.current?.focus() }}>
             <X size={20} strokeWidth={1.7} aria-hidden="true" />
           </button> : null}
         </> : <>
+          {appBar ? <MobileMoreLink className="mcal-ib" iconClassName="size-5.5" strokeWidth={1.6} /> : null}
           {hideFolders
             ? <p className="memo-phone-folder"><span>{heading}</span><small>{folderCount}</small></p>
             : <button type="button" data-tour="memo-folders" className="memo-phone-folder" aria-expanded={folderOpen} aria-controls={menuId} aria-label={`메모 폴더: ${folderLabel}, ${folderCount}개`} onClick={() => setFolderOpen(open => !open)}>
@@ -206,9 +216,10 @@ export function MemoPhoneList({
               <span>{folderLabel}</span><small>{folderCount}</small>
               <ChevronDown size={18} strokeWidth={1.7} aria-hidden="true" />
             </button>}
-          <button type="button" data-tour="memo-search" className="memo-phone-icon" aria-label="메모 검색" onClick={() => { setFolderOpen(false); onSearching(true) }}>
-            <Search size={22} strokeWidth={1.7} aria-hidden="true" />
+          <button type="button" data-tour="memo-search" className={iconClass} aria-label="메모 검색" onClick={() => { setFolderOpen(false); onSearching(true) }}>
+            <Search size={22} strokeWidth={appBar ? 1.8 : 1.7} aria-hidden="true" />
           </button>
+          {appBar && isSupabaseConfigured ? <NotificationBell align="right" /> : null}
         </>}
         {hideFolders ? null : <nav ref={menuRef} id={menuId} className="memo-phone-folders" aria-label="메모 카테고리 폴더" data-open={folderOpen && !picking && !searching ? '' : undefined} inert={!folderOpen || picking || searching}>
           {folderItem('all', '전체 메모')}
@@ -247,9 +258,7 @@ export function MemoPhoneList({
           )
         })}
       </ul>
-      {picking || searching ? null : <button type="button" data-tour="new-memo" data-theme-slot="button-primary" className="memo-fab" aria-label="메모 작성" onClick={onCreate}>
-        <ThemeIcon name="add" fallback={Plus} className="size-6" strokeWidth={2} aria-hidden="true" />
-      </button>}
+      <AddFab tour="new-memo" hidden={picking || searching} onManual={onCreate} />
       {picking ? <div className="memo-phone-actions" role="toolbar" aria-label="선택한 메모 작업">
         {hideFolders ? null : <button type="button" disabled={!pickedIds.length || busy !== null} onClick={() => setMoving(true)}>
           <FolderInput size={22} strokeWidth={1.6} aria-hidden="true" />이동

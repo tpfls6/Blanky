@@ -10,7 +10,7 @@
   "emptyRange": "No tasks in this range.",
   "taskRange": "Task range",
   "conflicts": "{{count}} AI events overlap other events. Events you created stay as they are.",
-  "replanHome": "Review rescheduling in Quick add",
+  "replanHome": "Review rescheduling in AI add",
   "kindEvent": "Event",
   "kindTask": "Task",
   "mobile": {
@@ -68,7 +68,7 @@
     "now": "Now {{time}}",
     "add": "Add",
     "closeAdd": "Close add menu",
-    "quickAdd": "Quick add",
+    "quickAdd": "AI add",
     "manualAdd": "Add manually",
     "quickHint": "Write it as you would say it; it is saved as an event, task, diary, memo or reading log.",
     "searchPlaceholder": "Search events and tasks",
@@ -199,5 +199,20 @@
       "all": "Save, delete and complete apply to the whole series, past ones included."
     },
     "seriesLink": "Edit with a preview in Recurring events"
+  },
+  "deleteConfirm": {
+    "title": "Delete?",
+    "untitled": "Untitled",
+    "event": "The event '{{title}}' moves to the trash. You can restore it from there.",
+    "task": "The task '{{title}}' moves to the trash. You can restore it from there.",
+    "future": "Repeats of '{{title}}' from {{date}} on will be deleted. Earlier ones stay.",
+    "all": "The whole series '{{title}}' moves to the trash. You can restore it from there.",
+    "this": "Only {{date}} of '{{title}}' will be deleted. Other repeats stay as they are."
+  },
+  "discardConfirm": {
+    "title": "Stop writing?",
+    "body": "What you entered won't be saved.",
+    "confirm": "Leave",
+    "cancel": "Keep writing"
   }
 }

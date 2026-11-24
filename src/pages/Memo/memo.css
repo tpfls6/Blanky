@@ -84,6 +84,12 @@
 .memo-phone-icon { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--fg); touch-action: manipulation; }
 .memo-phone-icon:active, .memo-phone-folder:active, .memo-phone-all:active { background: var(--press, var(--hover)); }
 .memo-phone-head > .memo-phone-icon:first-child { margin-left: -8px; }
+/* Memo tab: MobileTopBar is hidden, so this row is the app bar — ☰ · folder ▾ · search · bell, sized and spaced like
+   the schedule header (.mcal-head / .mcal-ym) and pulled up over the page padding to the same top edge. */
+.memo-phone-head[data-app-bar] { gap: 2px; margin-top: -16px; padding: 0 6px 0 4px; }
+.memo-phone-head[data-app-bar] .memo-phone-folder { flex: 0 1 auto; margin-left: 0; margin-right: auto; padding: 0 6px; font-size: 21px; letter-spacing: -.2px; }
+.memo-phone-head[data-app-bar] .memo-phone-search { padding-left: 4px; }
+.memo-phone-head [data-notification-bell] { flex: none; }
 .memo-phone-folder { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; height: 44px; margin-left: -8px; padding: 0 8px; border-radius: 12px; color: var(--fg); font-size: 19px; font-weight: 700; text-align: left; }
 .memo-phone-folder > span:not(.memo-phone-dot) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .memo-phone-folder small { flex: none; color: var(--muted); font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
@@ -110,7 +116,7 @@
 .memo-phone-star { flex: none; color: var(--accent-color); fill: currentColor; }
 .memo-phone-folder-item .memo-phone-star { fill: none; }
 .memo-phone-count { padding: 4px 16px 6px; color: var(--muted); font-size: 12px; }
-.memo-phone > .mt-3, .memo-phone > [data-theme-slot]:not(.memo-fab) { margin-inline: 16px; }
+.memo-phone > .mt-3, .memo-phone > [data-theme-slot]:not(.add-fab) { margin-inline: 16px; }
 .memo-phone-list { padding-bottom: 88px; }
 .memo-phone-row { position: relative; }
 .memo-phone-row + .memo-phone-row::before { content: ''; position: absolute; top: 0; inset-inline: 16px; border-top: 1px solid var(--line); }
@@ -129,11 +135,6 @@
 .memo-phone-meta { display: flex; gap: 8px; margin-top: 5px; color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
 .memo-phone-meta > span { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .memo-phone-meta .memo-phone-dot { width: 6px; height: 6px; }
-/* Same spot, size and color as the schedule home's + (.mcal-fab): 16px from the right edge and 16px above main's
-   bottom padding (4.25rem + safe area, see AppLayout), where .mcal ends. */
-.memo-fab { position: fixed; right: 16px; bottom: calc(4.25rem + env(safe-area-inset-bottom) + 16px); z-index: 32; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent-color); color: var(--accent-on); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent-color) 45%, transparent); touch-action: manipulation; }
-.memo-fab:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 3px; }
-.theme-app-layout[data-keyboard-open='true'] .memo-fab { visibility: hidden; }
 /* Covers the bottom navigation (z-30) while picking; the nav itself is untouched underneath. */
 .memo-phone-actions { position: fixed; inset-inline: 0; bottom: 0; z-index: 35; display: flex; min-height: calc(3.5rem + 1px); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); border-top: 1px solid var(--line); background: var(--surface); animation: memo-actions-up .22s ease-out; }
 @keyframes memo-actions-up { from { transform: translateY(100%); } }
@@ -150,6 +151,8 @@
    Its height is set from the visible viewport, so the format row sits on the bottom navigation or the keyboard;
    the negative margins cancel the page padding (PageCanvas px-4 py-4) so nothing scrolls under it. */
 .memo-phone-editor { display: flex; flex-direction: column; min-height: 0; margin: -8px -16px -16px; background: var(--bg); }
+/* Memo tab: no MobileTopBar above, so the ← · title · ⋮ bar takes the top edge like the list's app bar. */
+.memo-layout[data-app-bar] .memo-phone-editor { margin-top: -16px; }
 .memo-phone-editor button { -webkit-tap-highlight-color: transparent; }
 .memo-pe-top { position: relative; z-index: 26; display: flex; flex: none; align-items: center; gap: 2px; height: 56px; padding: 0 4px; }
 .memo-pe-top .memo-phone-icon:active { background: var(--press, var(--hover)); }

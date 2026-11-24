@@ -20,6 +20,7 @@ import { SearchPage } from './SearchPage.tsx'
 import { TasksPage } from './TasksPage.tsx'
 import { DateWheel } from './Wheel.tsx'
 import { clearStaleLayer, useBackLayer, useToastLift } from './layers.ts'
+import '../../../components/common/addFab.css'
 import './mobileCalendar.css'
 
 type Snap = 'closed' | 'half' | 'full'
@@ -299,8 +300,8 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
       </section>
 
       <div className="mcal-dim mcal-dial-dim" data-open={dial ? '' : undefined} aria-hidden="true" onClick={() => setDial(false)} />
-      <div className="mcal-dial" data-open={dial ? '' : undefined} inert={!dial} id="mcal-dial">
-        <button type="button" data-add="quick" onClick={() => { setDial(false); openQuickAdd() }}><span>{t('schedule.mobile.quickAdd')}</span><i><Sparkles aria-hidden="true" className="size-5.5" strokeWidth={1.6} /></i></button>
+      <div className="mcal-dial add-dial" data-open={dial ? '' : undefined} inert={!dial} id="mcal-dial">
+        <button type="button" data-add="quick" onClick={() => { setDial(false); openQuickAdd() }}><span>{t('schedule.mobile.quickAdd')}</span><i className="ai-add-icon"><Sparkles aria-hidden="true" className="size-5.5" strokeWidth={1.8} /></i></button>
         <button type="button" data-add="manual" onClick={() => { setDial(false); onNew() }}><span>{t('schedule.mobile.manualAdd')}</span><i><PenLine aria-hidden="true" className="size-5.5" strokeWidth={1.8} /></i></button>
       </div>
       <button type="button" className="mcal-fab" data-theme-slot="button-primary" aria-expanded={dial} aria-controls="mcal-dial" aria-label={t(dial ? 'schedule.mobile.closeAdd' : 'schedule.mobile.add')} onClick={() => setDial(!dial)}>

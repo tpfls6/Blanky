@@ -124,12 +124,7 @@ html.dark .mcal-handle::before { background: var(--muted); }
 .mcal-dim[data-open] { opacity: 1; pointer-events: auto; }
 .mcal-dial-dim { z-index: 30; }
 .mcal-dial { position: absolute; right: 16px; bottom: 84px; z-index: 31; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; pointer-events: none; }
-.mcal-dial button { display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(12px); transition: .22s; }
-.mcal-dial button span { padding: 8px 14px; border-radius: 999px; background: var(--surface); color: var(--fg); font-size: 14px; font-weight: 600; box-shadow: 0 4px 14px rgb(0 0 0 / 15%); }
-.mcal-dial button i { display: grid; place-items: center; width: 48px; height: 48px; margin-right: 4px; border-radius: 50%; background: var(--surface); color: var(--accent-color); box-shadow: 0 4px 14px rgb(0 0 0 / 15%); }
 .mcal-dial[data-open] { pointer-events: auto; }
-.mcal-dial[data-open] button { opacity: 1; transform: none; }
-.mcal-dial[data-open] button:nth-child(2) { transition-delay: .04s; }
 
 /* Year · month · day dropdown */
 .mcal-pick-dim { top: var(--mcal-head); z-index: 26; }

@@ -1,4 +1,5 @@
 import { ThemeIcon } from '../../theme/ThemeIcon.tsx'
+import { AddFab } from '../../components/common/AddFab.tsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ArrowLeft, BookOpen, CalendarDays, List, Check, LoaderCircle, Plus, Search, Star, Trash2 } from 'lucide-react'
@@ -267,6 +268,7 @@ export function DiaryWorkspace({
           {error && <p className="diary-error" role="alert">{error} 입력한 내용은 임시 보관되어 있습니다.</p>}
         </section>
       </div>
+      {pageKey === 'builtin' ? <AddFab hidden={(showEditor && Boolean(draft)) || diaryLoading} onManual={() => void open(null)} /> : null}
       <dialog data-theme-slot="modal" ref={dialog} className="diary-delete-dialog" onClose={() => setDialogOpen(false)} onCancel={event => { if (busy) event.preventDefault() }}><h2>이 기록을 삭제하시겠습니까?</h2><p>휴지통으로 이동하며, 거기서 복구할 수 있습니다.</p><div><button data-theme-slot="button-secondary" type="button" autoFocus className="btn btn-line" disabled={busy} onClick={() => dialog.current?.close()}>취소</button><button data-theme-slot="button-primary" type="button" className="btn btn-primary" disabled={busy} onClick={() => void remove()}>{busy ? '삭제 중…' : '삭제'}</button></div>{error && <p role="alert">{error}</p>}</dialog>
     </div>
   )

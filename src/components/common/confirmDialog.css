@@ -1,0 +1,124 @@
+/* Phone confirm dialog: a compact centered card. Desktop keeps the base
+   .app-confirm-* look from index.css. `dialog.app-confirm-dialog[data-tone]`
+   outranks those rules and the Tailwind utilities on the markup. */
+@media (max-width: 639px) {
+  dialog.app-confirm-dialog[data-tone] {
+    width: min(320px, calc(100vw - 48px));
+    max-height: calc(100dvh - 48px);
+    padding: 24px 20px 16px;
+    border: 1px solid transparent;
+    border-radius: 20px;
+    background: var(--surface);
+    text-align: left;
+    box-shadow: 0 12px 40px rgb(0 0 0 / 14%);
+  }
+  html.dark dialog.app-confirm-dialog[data-tone] { border-color: var(--line); }
+  dialog.app-confirm-dialog[data-tone]:focus,
+  dialog.app-confirm-dialog[data-tone]:focus-visible { outline: none; }
+  dialog.app-confirm-dialog[data-tone][open] { animation: app-confirm-in 180ms ease-out; }
+
+  dialog.app-confirm-dialog[data-tone]::backdrop {
+    background: rgb(0 0 0 / 40%);
+    backdrop-filter: blur(4px);
+  }
+  html.dark dialog.app-confirm-dialog[data-tone]::backdrop { background: rgb(0 0 0 / 60%); }
+
+  /* Esc, backdrop and the cancel button still close it. */
+  dialog.app-confirm-dialog[data-tone] .app-confirm-close { display: none; }
+  /* Icon left, title right in one row; body and buttons span the full width below. */
+  dialog.app-confirm-dialog[data-tone][open] {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    column-gap: 12px;
+    align-items: center;
+  }
+  dialog.app-confirm-dialog[data-tone] .app-confirm-head { display: contents; }
+  dialog.app-confirm-dialog[data-tone] .app-confirm-icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+  }
+  dialog.app-confirm-dialog[data-tone] .app-confirm-icon svg { width: 20px; height: 20px; }
+  dialog.app-confirm-dialog[data-tone='danger'] .app-confirm-icon {
+    background: color-mix(in srgb, var(--danger) 11%, transparent);
+    color: var(--danger);
+  }
+  dialog.app-confirm-dialog[data-tone='neutral'] .app-confirm-icon {
+    background: var(--hover);
+    color: var(--fg);
+  }
+
+  dialog.app-confirm-dialog[data-tone] .app-confirm-title {
+    grid-column: 2;
+    grid-row: 1;
+    margin-top: 0;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--fg);
+  }
+  dialog.app-confirm-dialog[data-tone] .app-confirm-body {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  dialog.app-confirm-dialog[data-tone] .app-confirm-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-column: 1 / -1;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  dialog.app-confirm-dialog[data-tone] .app-confirm-actions .btn {
+    min-width: 0;
+    height: 48px;
+    padding: 0 12px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  dialog.app-confirm-dialog[data-tone] .app-confirm-actions .app-confirm-cancel,
+  dialog.app-confirm-dialog[data-tone] .app-confirm-actions .app-confirm-cancel:hover:not(:disabled) {
+    background: var(--hover);
+    color: var(--fg);
+  }
+  dialog.app-confirm-dialog[data-tone] .app-confirm-actions .app-confirm-cancel:active:not(:disabled) {
+    background: color-mix(in srgb, var(--hover) 92%, var(--fg));
+  }
+
+  /* Danger keeps the theme's --danger; dark mode darkens it so white text stays >= 4.5:1. */
+  dialog.app-confirm-dialog[data-tone='danger'] .app-confirm-actions .app-confirm-action {
+    background: var(--danger);
+    color: #fff;
+  }
+  dialog.app-confirm-dialog[data-tone='danger'] .app-confirm-actions .app-confirm-action:active:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 86%, #000);
+  }
+  html.dark dialog.app-confirm-dialog[data-tone='danger'] .app-confirm-actions .app-confirm-action {
+    background: color-mix(in srgb, var(--danger) 72%, #000);
+  }
+  html.dark dialog.app-confirm-dialog[data-tone='danger'] .app-confirm-actions .app-confirm-action:active:not(:disabled) {
+    background: color-mix(in srgb, var(--danger) 62%, #000);
+  }
+  dialog.app-confirm-dialog[data-tone='neutral'] .app-confirm-actions .app-confirm-action {
+    background: var(--accent-color);
+    color: var(--accent-on);
+  }
+  dialog.app-confirm-dialog[data-tone='neutral'] .app-confirm-actions .app-confirm-action:active:not(:disabled) {
+    background: var(--accent-hover);
+  }
+}
+
+@media (max-width: 639px) and (prefers-reduced-motion: reduce) {
+  dialog.app-confirm-dialog[data-tone][open] { animation: none; }
+}
+
+@keyframes app-confirm-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}

@@ -393,18 +393,31 @@ try {
     const nav = document.querySelector('.mobile-nav')?.getBoundingClientRect()
     return fab && nav ? { size: Math.round(fab.width) + 'x' + Math.round(fab.height), right: innerWidth - fab.right, gap: nav.top - fab.bottom } : null
   })()`)
+  // The one-line header of a phone tab: its box, the ☰ and search buttons, the title's type, and whether MobileTopBar is drawn.
+  const headSpot = (head, title, search) => evaluate(`(() => {
+    const box = (el) => { const r = el?.getBoundingClientRect(); return r ? [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)].join(',') : null }
+    const h = document.querySelector(${JSON.stringify(head)}), t = h?.querySelector(${JSON.stringify(title)})
+    return { head: box(h), more: box(h?.querySelector('[data-mobile-tab=more]')), search: box(h?.querySelector(${JSON.stringify(search)})),
+      title: t ? getComputedStyle(t).fontSize + ' ' + getComputedStyle(t).fontWeight : null, topbar: Boolean(document.querySelector('[data-mobile-topbar]')),
+      rows: h ? new Set([...h.children].filter((c) => c.getBoundingClientRect().height > 0 && getComputedStyle(c).position !== 'absolute').map((c) => Math.round(c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2))).size : 0 }
+  })()`)
   await scenario('memo-phone-list', async () => {
     // The memo + must sit exactly where the schedule home's + does.
     await navigate(base + '/schedule')
     for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector(".mcal-fab"))')); i++) await pause(100)
     const scheduleFab = await fabSpot('.mcal-fab')
+    const scheduleHead = await headSpot('.mcal-head', '.mcal-ym', '[data-open-search]')
     await navigate(base + '/memo')
     // Phones open the memo tab on its list, not on the first memo.
     for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-memo-row]"))')); i++) await pause(100)
     await pause(300)
     if (await evaluate('Boolean(document.querySelector(".memo-phone-editor, [data-tour=memo-back]"))')) return 'memo tab opened a memo instead of the list'
     await shot('memo-list-phone')
-    const memoFab = await fabSpot('.memo-fab[data-tour=new-memo]')
+    // One header line like the schedule's: ☰ · folder ▾ · search, same box, same ☰ and search spots, no MobileTopBar above.
+    const memoHead = await headSpot('.memo-phone-head', '.memo-phone-folder', '[data-tour=memo-search]')
+    log('header schedule ' + JSON.stringify(scheduleHead) + ' memo ' + JSON.stringify(memoHead))
+    if (memoHead.topbar || memoHead.rows !== 1 || memoHead.head !== scheduleHead.head || memoHead.more !== scheduleHead.more || memoHead.search !== scheduleHead.search || memoHead.title !== scheduleHead.title) return 'header memo ' + JSON.stringify(memoHead) + ' schedule ' + JSON.stringify(scheduleHead)
+    const memoFab = await fabSpot('.add-fab[data-tour=new-memo]')
     const layout = await evaluate(`({ rows: document.querySelectorAll('[data-memo-row]').length, icons: document.querySelectorAll('.memo-row-actions, .memo-browse, .memo-pick-toggle').length })`)
     if (layout.rows !== 3 || layout.icons !== 0) return 'layout ' + JSON.stringify(layout)
     if (!scheduleFab || !memoFab || memoFab.size !== '56x56' || memoFab.size !== scheduleFab.size || Math.abs(memoFab.right - scheduleFab.right) > 1 || Math.abs(memoFab.gap - scheduleFab.gap) > 1) return 'fab memo ' + JSON.stringify(memoFab) + ' schedule ' + JSON.stringify(scheduleFab)
@@ -418,16 +431,23 @@ try {
     const focused = await evaluate('document.activeElement?.classList.contains("memo-phone-search")')
     await typeInto('.memo-phone-search', '둘째')
     await pause(200)
-    const found = await evaluate('[...document.querySelectorAll("[data-memo-row]")].map((r) => r.dataset.memoRow).join(",") + "|" + Boolean(document.querySelector(".memo-fab"))')
+    const found = await evaluate('[...document.querySelectorAll("[data-memo-row]")].map((r) => r.dataset.memoRow).join(",") + "|" + Boolean(document.querySelector(".add-fab"))')
     await shot('memo-search-phone')
     await tap('[aria-label="검색 닫기"]')
     const back = await evaluate('document.querySelectorAll("[data-memo-row]").length + "|" + Boolean(document.querySelector("[data-tour=memo-folders]"))')
-    return focused && found === 'm1|false' && back === '3|true' ? 'ok' : `search focused=${focused} found=${found} back=${back}`
+    if (!focused || found !== 'm1|false' || back !== '3|true') return `search focused=${focused} found=${found} back=${back}`
+    // The ☰ in the memo header opens the more page.
+    await tap('.memo-phone-head [data-mobile-tab=more]')
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-more-page]"))')); i++) await pause(100)
+    const more = await evaluate('location.pathname')
+    await navigate(base + '/memo')
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-memo-row]"))')); i++) await pause(100)
+    return more === '/more' ? 'ok' : 'more link went to ' + more
   })
   await scenario('memo-long-press-actions', async () => {
     await longPress('[data-memo-row=m0] button')
     await tap('[data-memo-row=m2] button')
-    const count = await evaluate('document.querySelector(".memo-phone-picked").textContent + "|" + Boolean(document.querySelector(".memo-phone-actions")) + "|" + Boolean(document.querySelector(".memo-fab"))')
+    const count = await evaluate('document.querySelector(".memo-phone-picked").textContent + "|" + Boolean(document.querySelector(".memo-phone-actions")) + "|" + Boolean(document.querySelector(".add-fab"))')
     await shot('memo-picking')
     if (count !== '2개 선택됨|true|false') return 'picking ' + count
     if (!await clickAction('즐겨찾기')) return 'favorite button missing'
@@ -492,6 +512,10 @@ try {
         toolsOnNav: tools && nav ? Math.abs(nav.top - tools.bottom) <= 1 : false, overflow: document.querySelector('main').scrollHeight - document.querySelector('main').clientHeight }
     })()`)
     await shot('memo-editor-phone')
+    // The editor bar takes the same top edge as the list header (no MobileTopBar above it).
+    const bar = await evaluate(`(() => { const r = document.querySelector('.memo-pe-top').getBoundingClientRect(); return Math.round(r.top) + ',' + Math.round(r.height) + '|' + Boolean(document.querySelector('[data-mobile-topbar]')) })()`)
+    log('editor bar top,height ' + bar)
+    if (bar !== '0,56|false') return 'editor bar ' + bar
     if (!shape.back || shape.title !== '둘째 메모' || shape.more !== 'false' || shape.oldButtons !== 0 || shape.chip !== '학교' || !shape.status || !shape.toolsOnNav || shape.overflow > 1) return 'shape ' + JSON.stringify(shape)
     // Typing saves by itself after a pause.
     await typeInto('.memo-pe-title', '둘째 메모 수정')
@@ -542,7 +566,9 @@ try {
     return await evaluate('Boolean(document.querySelector("[data-memo-row=m1]")) && !document.querySelector(".memo-phone-editor")') ? 'ok' : 'back did not return to the list'
   })
   await scenario('memo-phone-editor-new-and-delete', async () => {
-    await tap('.memo-fab')
+    await tap('.add-fab')
+    await pause(300)
+    await tap('[data-add=manual]')
     await editorReady()
     const empty = await evaluate('document.querySelector(".memo-pe-title").value')
     await typeBody('장보기 목록')

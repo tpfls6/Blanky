@@ -1,4 +1,5 @@
 import { useConfirm } from '../../state/useConfirm.ts'
+import { AddFab } from '../../components/common/AddFab.tsx'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { EmptyState } from '../../components/common/EmptyState.tsx'
@@ -52,6 +53,7 @@ export function RecordPage() {
         </h1>
         <button type="button" className="btn btn-primary" onClick={openNew}>추가</button>
       </div>
+      <AddFab hidden={editing !== null} onManual={openNew} />
       {type.description ? <p className="mt-2 text-sm text-neutral-400">{type.description}</p> : null}
       {readingRow && readingRow.templateVersion !== type.version ? (
         <p className="mt-2 text-xs text-neutral-400">템플릿 버전 {readingRow.templateVersion}에서 작성된 기록입니다. 입력값은 그대로 남아 있습니다.</p>
