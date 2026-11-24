@@ -31,7 +31,7 @@ const TOURS: Record<PageTourId, TourStep[]> = {
   ],
   custom: [
     { target: '[data-tour="new-page"]', prepare: 'templates', title: '템플릿으로 페이지를 꾸며요', body: '새 템플릿을 만들거나 기존 페이지를 골라 나만의 구성을 만들어요.' },
-    { target: '.customization-themes header', prepare: 'themes', title: '테마 색상을 바꿔요', body: '새 테마에서 색상·이미지·아이콘·폰트를 고르세요. 가져오기로 .blanky 파일도 불러올 수 있어요.' },
+    { target: '[data-tour="add-theme"]', prepare: 'themes', title: '테마 색상을 바꿔요', body: '새 테마에서 색상·이미지·아이콘·폰트를 고르세요. 가져오기로 .blanky 파일도 불러올 수 있어요.' },
     { target: '[data-tour="layout-controls"]', prepare: 'layout', title: '블록 배치를 조정해요', body: '페이지를 고르고 블록 간격과 배치를 조정해요. 변경한 구성은 해당 페이지에 적용돼요.' },
   ],
   settings: [

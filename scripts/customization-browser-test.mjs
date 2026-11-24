@@ -33,14 +33,26 @@ const browserEndpoint = await new Promise((resolvePromise, reject) => {
   })
   browser.on('exit', (code) => reject(new Error('Chromium exited: ' + code + ' ' + browserOutput)))
 })
-const server = spawn(process.execPath, ['--input-type=module', '-e', 'import { createServer } from "vite"; const server = await createServer({ server: { host: "127.0.0.1", port: ' + new URL(base).port + ', strictPort: true, watch: null } }); await server.listen(); server.printUrls();'], { env: { ...process.env, NODE_ENV: 'production', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }, windowsHide: true, stdio: 'pipe' })
+const outDir = JSON.stringify(join(profile, 'dist'))
+const server = spawn(process.execPath, ['--input-type=module', '-e', `
+  import { build, preview } from 'vite'
+  const config = { build: { outDir: ${outDir}, emptyOutDir: true } }
+  await build(config)
+  await preview({ ...config, preview: { host: '127.0.0.1', port: ${new URL(base).port}, strictPort: true } })
+`], { env: { ...process.env, NODE_ENV: 'production', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }, windowsHide: true, stdio: 'pipe' })
 let serverOutput = ''
 server.stdout.on('data', (data) => { serverOutput += data })
 server.stderr.on('data', (data) => { serverOutput += data })
-for (let i = 0; i < 80; i++) {
+const serverStartAttempts = 600
+for (let i = 0; i < serverStartAttempts; i++) {
   try { if ((await fetch(base)).ok) break } catch {}
+  if (server.exitCode !== null || i === serverStartAttempts - 1) {
+    server.kill()
+    browser.kill()
+    await rm(profile, { recursive: true, force: true, maxRetries: 3 }).catch(() => {})
+    throw new Error('Vite failed to start: ' + serverOutput)
+  }
   await new Promise((r) => setTimeout(r, 100))
-  if (i === 79) throw new Error(serverOutput)
 }
 let targets
 for (let i = 0; i < 50; i++) {
@@ -191,20 +203,61 @@ try {
   await wait(heading('내 테마'), 'theme refresh')
   assert.equal(await themeState(), applied)
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
-  await wait(`getComputedStyle(document.querySelector('main label')).display !== 'none'`, 'mobile switcher')
+  const mobileMenu = text => evaluate(`[...document.querySelectorAll('.customization-menu')].find(a => a.textContent.trim() === ${q(text)}).click()`)
+  const openThemeActions = async () => {
+    await evaluate('document.querySelector("[data-tour=add-theme]").click()')
+    await wait(`document.querySelector(${q('dialog[open] a[href="/customize/theme"]')})`, 'mobile theme actions')
+  }
+  await wait('document.querySelector(".customization-menu")?.offsetHeight > 0 && document.querySelector(".customization-themes .add-fab")', 'mobile switcher')
+  assert.ok(await evaluate('(() => { const widths = [...document.querySelectorAll(".customization-menu")].map(a => a.offsetWidth); return widths.length === 3 && Math.max(...widths) - Math.min(...widths) <= 1; })()'))
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
   await shot('02-mobile-themes')
-  await evaluate(`(() => { const el = document.querySelector('main select'); el.value = 'templates'; el.dispatchEvent(new Event('change', { bubbles: true })); })()`)
+  await openThemeActions()
+  await evaluate('document.querySelector("dialog[open] button:not(.icon-btn)").click()')
+  await wait('document.querySelector("dialog[open] input[type=file]")?.accept.includes(".blankytheme")', 'mobile theme import')
+  await shot('02b-mobile-theme-import')
+  await evaluate('document.querySelector("dialog[open] .icon-btn").click()')
+  await openThemeActions()
+  await evaluate('document.querySelector("dialog[open] a").click()')
+  await wait('location.pathname === "/customize/theme" && document.querySelectorAll(".theme-editor-swatch").length === 6', 'mobile theme editor')
+  assert.ok(await evaluate('[...document.querySelectorAll(".theme-editor-swatch")].every(el => el.offsetWidth === el.offsetHeight && getComputedStyle(el).borderRadius === "50%")'))
+  const nameTheme = name => evaluate(`(() => { const input = document.querySelector(".theme-editor input[required]"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, ${q(name)}); input.dispatchEvent(new Event("input", { bubbles: true })); })()`)
+  await nameTheme('   ')
+  await evaluate('document.querySelector(".theme-editor-actions .btn-line").click()')
+  await wait('document.querySelector(".theme-editor [role=status]")?.textContent.includes("테마 이름을 입력해 주세요")', 'blank theme name rejected')
+  await nameTheme('  새 모바일 테마  ')
+  await evaluate('document.querySelector(".theme-editor-actions .btn-line").click()')
+  await wait(`localStorage.getItem('blanky.themes.${owner}')?.includes('"name":"새 모바일 테마"')`, 'mobile theme saved with trimmed name')
+  await evaluate('document.querySelector(".mobile-theme-editor-heading a").click()')
+  await wait(heading('내 테마'), 'back to my themes')
+  await mobileMenu('커스텀 템플릿')
   await wait(heading('커스텀 템플릿'), 'mobile templates')
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
+  assert.equal(await evaluate('!!document.querySelector("main input[type=file]")'), false)
   await shot('03-mobile-templates')
-  await evaluate(`(() => { const el = document.querySelector('main select'); el.value = 'layout'; el.dispatchEvent(new Event('change', { bubbles: true })); })()`)
+  await evaluate('document.querySelector(".add-fab[data-tour=new-page]").click()')
+  await wait('document.querySelector("dialog[open] input[type=file]")?.accept.includes(".blankytpl")', 'mobile template import')
+  await uploadTemplate(JSON.stringify({ formatVersion: 1, kind: 'blanky.template-package', id: 'mobile-diary', name: '모바일 검증 일기', description: '', author: 'tester', version: '1.0.0', pageType: 'diary', icon: 'BookOpen' }))
+  await wait('document.querySelector("dialog[open] .theme-import-review")', 'mobile template review')
+  await evaluate('[...document.querySelectorAll("dialog[open] .theme-import-review button")].find(b => b.textContent === "템플릿 추가").click()')
+  await wait('document.querySelector("dialog[open] [role=alert]")?.textContent.includes("저장했습니다")', 'mobile template saved')
+  await evaluate('document.querySelector("dialog[open] .icon-btn").click()')
+  const installedTemplate = '[...document.querySelectorAll("main article details")].find(el => el.querySelector("summary").textContent.includes("모바일 검증 일기"))'
+  await wait(installedTemplate, 'mobile template installed')
+  assert.equal(await evaluate(installedTemplate + '.open'), false)
+  await evaluate(installedTemplate + '.querySelector("summary").click()')
+  assert.equal(await evaluate(installedTemplate + '.open'), true)
+  await mobileMenu('앱 레이아웃')
   await wait(heading('앱 레이아웃'), 'mobile layout')
+  assert.deepEqual(await evaluate('[...document.querySelectorAll("[data-tour=layout-controls] button")].map(el => el.textContent.trim())'), ['일정', '메모', '독서', '일기'])
+  await evaluate('[...document.querySelectorAll("[data-tour=layout-controls] button")].find(el => el.textContent.trim() === "메모").click()')
+  assert.equal(await evaluate('document.querySelector("[data-tour=layout-controls] [aria-pressed=true]").textContent.trim()'), '메모')
+  assert.equal(await evaluate('[...document.querySelectorAll(".add-fab")].some(el => el.getClientRects().length > 0)'), false)
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
   await shot('04-mobile-layout')
   assert.equal(errors.length, 0, errors.join('\n'))
   await finish(true)
-  log('PASS unified navigation, template validation/import/persistence, legacy redirect, history, refresh, saved layout, four builtins, apply, preview isolation, mobile tabs and overflow')
+  log('PASS customization navigation, template imports, persisted layout, theme apply/preview, mobile theme menu and round swatches, mobile layout chips and overflow')
 } catch (error) {
   log('FAIL ' + (error instanceof Error ? error.message : String(error)))
   await finish(false, { error: error instanceof Error ? error.stack : String(error) }).catch(() => undefined)

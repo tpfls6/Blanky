@@ -53,7 +53,7 @@ export function ColorField({ label, value, onChange }: { label: string; value: s
     const channel = (key: 'r' | 'g' | 'b', n: number) => paint(hexOf(key === 'r' ? n : rgb.r, key === 'g' ? n : rgb.g, key === 'b' ? n : rgb.b));
     return (
         <details ref={box} className="color-choice">
-            <summary><span className="color-circle" style={{ background: value }} /><span>{label}<small>{value.toUpperCase()}</small></span></summary>
+            <summary><span className="color-circle theme-editor-swatch" style={{ background: value }} aria-hidden="true" /><span>{label}<small>{value.toUpperCase()}</small></span></summary>
             <div className="color-popover">
                 <div className="color-sv" role="slider" aria-label={label + ' 채도 명도'} style={{ background: `linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,hsl(${hsv.h} 100% 50%))` }} onPointerDown={event => { event.preventDefault(); drag(event.currentTarget, event, (x, y, rect) => setHsv(hsv.h, clamp((x - rect.left) / rect.width), clamp(1 - (y - rect.top) / rect.height))); }}>
                     <i style={{ left: `${hsv.s * 100}%`, top: `${(1 - hsv.v) * 100}%`, background: value }} />

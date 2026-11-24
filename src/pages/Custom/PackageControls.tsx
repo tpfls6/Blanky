@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { IconView } from '../../constants/icons.ts'
@@ -15,6 +16,7 @@ import { compareSemver, isTemplatePackageFile, snapshotHasContent, type Installe
 import { importTemplatePackages } from '../../template/package/TemplateLoader.ts'
 import { systemPageType } from '../../template/package/TemplateValidator.ts'
 import { TemplatePreview } from './TemplatePreview.tsx'
+import { CustomizationSheet } from './CustomizationSheet.tsx'
 
 function previewSrc(pkg: TemplatePackage): string | null {
   const path = pkg.manifest.preview ?? Object.values(pkg.manifest.assets)[0]
@@ -22,7 +24,13 @@ function previewSrc(pkg: TemplatePackage): string | null {
   return file ? 'data:' + file.mime + ';base64,' + file.data : null
 }
 
-export function TemplateImport({ list = true, dropzone = true, hideEmpty = false }: { list?: boolean; dropzone?: boolean; hideEmpty?: boolean }) {
+export function TemplateImport({ list = true, dropzone = true, hideEmpty = false, sheet, query = '' }: {
+  list?: boolean
+  dropzone?: boolean
+  hideEmpty?: boolean
+  sheet?: { open: boolean; onClose: () => void }
+  query?: string
+}) {
   const { t } = useI18n()
   const { user } = useSession()
   const confirm = useConfirm()
@@ -92,9 +100,8 @@ export function TemplateImport({ list = true, dropzone = true, hideEmpty = false
     load()
   }
 
-  return (
-    <div className={dropzone ? 'theme-custom-pane mt-8 max-w-none' : 'mt-2'}>
-      {dropzone ? (
+  const importer = <>
+      {dropzone || sheet ? (
         <label
           className="theme-dropzone"
           data-active={over}
@@ -126,7 +133,23 @@ export function TemplateImport({ list = true, dropzone = true, hideEmpty = false
           onCancel={() => setPending((current) => current.filter((item) => item !== pkg))}
         />
       ))}
-      {list ? <InstalledList items={installed} hideEmpty={hideEmpty} onRemove={(item) => void remove(item)} /> : null}
+  </>
+  const search = query.trim().toLowerCase()
+  const visibleInstalled = search ? installed.filter(({ manifest }) =>
+    manifest.name.toLowerCase().includes(search) || manifest.description?.toLowerCase().includes(search)
+  ) : installed
+
+  return (
+    <div className={dropzone && !sheet ? 'theme-custom-pane mt-8 max-w-none' : 'mt-2'}>
+      {sheet
+        ? sheet.open && <CustomizationSheet title={t('custom.importTitle')} onClose={() => {
+          if (busy) return
+          setPending([])
+          setMessage('')
+          sheet.onClose()
+        }}>{importer}</CustomizationSheet>
+        : importer}
+      {list ? <InstalledList items={visibleInstalled} compact={Boolean(sheet)} hideEmpty={hideEmpty} onRemove={(item) => void remove(item)} /> : null}
     </div>
   )
 }
@@ -213,7 +236,7 @@ function PackagePreview({ pkg }: { pkg: TemplatePackage }) {
   )
 }
 
-function InstalledList({ items, hideEmpty, onRemove }: { items: InstalledTemplatePackage[]; hideEmpty?: boolean; onRemove: (item: InstalledTemplatePackage) => void }) {
+function InstalledList({ items, compact, hideEmpty, onRemove }: { items: InstalledTemplatePackage[]; compact: boolean; hideEmpty?: boolean; onRemove: (item: InstalledTemplatePackage) => void }) {
   const { t, locale } = useI18n()
   const navigate = useNavigate()
   const { addUserPage, adoptInstalledPage } = useLibrary()
@@ -237,49 +260,71 @@ function InstalledList({ items, hideEmpty, onRemove }: { items: InstalledTemplat
   if (!items.length) return hideEmpty ? null : <p className="mt-6 text-sm text-neutral-400">{t('custom.emptyTemplates')}</p>
 
   return (
-    <section className="mt-8">
-      <h2 className="mb-2 font-medium">{t('custom.myTemplates')}</h2>
-      <div className="divide-y divide-line">
-        {items.map((item) => (
+    <section className="mt-4 md:mt-8">
+      <h2 className="mb-2 font-medium">{t('custom.installedTemplates')}</h2>
+      <div className={compact ? 'divide-y divide-line rounded-lg border border-line' : 'divide-y divide-line'}>
+        {items.map((item) => {
+          const Row = compact ? 'span' : 'div'
+          const Name = compact ? 'span' : 'h2'
+          const identity = (
+            <Row className={compact ? 'flex min-w-0 flex-1 items-center gap-2' : 'flex min-w-0 items-start gap-2'}>
+              <span className={compact ? 'grid size-9 shrink-0 place-items-center rounded-lg bg-accent-light text-accent' : 'mt-0.5 shrink-0 text-neutral-400'}>
+                <IconView name={item.manifest.icon} className="size-4" />
+              </span>
+              <Row className="min-w-0">
+                <Name className="block truncate font-medium">{item.manifest.name}</Name>
+                <span className="block truncate text-xs text-neutral-400">
+                  {t('custom.pageType.' + item.manifest.pageType)} · v{item.manifest.version}
+                  {item.manifest.author ? ' · ' + item.manifest.author : ''}
+                </span>
+              </Row>
+            </Row>
+          )
+          const actions = (
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                className="btn btn-line"
+                onClick={() => {
+                  const pageId = materialize(item)
+                  if (pageId) navigate(ROUTES.page(pageId))
+                }}
+              >
+                {t('custom.createPage')}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  const pageId = materialize(item)
+                  if (pageId) navigate(ROUTES.templatePublish + '?id=' + pageId)
+                }}
+              >
+                {t('templates.publish')}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => onRemove(item)}>{t('delete')}</button>
+            </div>
+          )
+          return compact ? (
+            <article key={item.installedId}>
+              <details className="group">
+                <summary className="customization-template-summary flex min-h-14 cursor-pointer list-none items-center gap-2 px-3 py-2">
+                  {identity}
+                  <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-neutral-400 group-open:rotate-90" strokeWidth={1.7} />
+                </summary>
+                <div className="border-t border-line px-3 py-3">
+                  {actions}
+                  <PackagePreview pkg={item} />
+                </div>
+              </details>
+            </article>
+          ) : (
             <article key={item.installedId} className="py-8">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex min-w-0 items-start gap-2">
-                  <IconView name={item.manifest.icon} className="mt-0.5 size-4 shrink-0 text-neutral-400" />
-                  <div className="min-w-0">
-                    <h2 className="truncate font-medium">{item.manifest.name}</h2>
-                    <p className="truncate text-xs text-neutral-400">
-                      {t('custom.pageType.' + item.manifest.pageType)} · v{item.manifest.version}
-                      {item.manifest.author ? ' · ' + item.manifest.author : ''}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    type="button"
-                    className="btn btn-line"
-                    onClick={() => {
-                      const pageId = materialize(item)
-                      if (pageId) navigate(ROUTES.page(pageId))
-                    }}
-                  >
-                    {t('custom.createPage')}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() => {
-                      const pageId = materialize(item)
-                      if (pageId) navigate(ROUTES.templatePublish + '?id=' + pageId)
-                    }}
-                  >
-                    {t('templates.publish')}
-                  </button>
-                  <button type="button" className="btn btn-ghost" onClick={() => onRemove(item)}>{t('delete')}</button>
-                </div>
-              </div>
+              <div className="flex flex-wrap items-start justify-between gap-2">{identity}{actions}</div>
               <PackagePreview pkg={item} />
             </article>
-        ))}
+          )
+        })}
       </div>
     </section>
   )

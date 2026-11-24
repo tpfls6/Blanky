@@ -1,4 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Palette, Upload } from 'lucide-react'
 import { BUILTIN_THEMES, type BlankyTheme } from '@blanky/types'
 import { ROUTES } from '../../constants/routes.ts'
 import { useConfirm } from '../../state/useConfirm.ts'
@@ -7,6 +9,8 @@ import { useTheme } from '../../theme/context.ts'
 import { removeTheme, saveTheme, setActiveTheme } from '../../services/themes/index.ts'
 import { ThemeImport, ThemeExportButton } from './PackageControls.tsx'
 import { useAction } from './useThemeAction.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
+import { CustomizationAdd, CustomizationSheet } from '../Custom/CustomizationSheet.tsx'
 
 function ThemeLibraryCard({ theme, busy, onApply, onPreview, onCopy, onRemove, owned, active }: {
   theme: BlankyTheme
@@ -50,12 +54,14 @@ function ThemeLibraryCard({ theme, busy, onApply, onPreview, onCopy, onRemove, o
   )
 }
 
-export function MyThemesPage() {
+export function MyThemesPage({ compact = false }: { compact?: boolean }) {
+  const { t } = useI18n()
   const confirm = useConfirm()
   const ctx = useTheme()
   const { user } = useSession()
   const action = useAction()
   const navigate = useNavigate()
+  const [sheet, setSheet] = useState<'add' | 'import' | null>(null)
   const groups = [
     { label: '사용 중인 테마', list: ctx.themes.filter(theme => theme.id === ctx.active), empty: '기존 Appearance 설정을 사용 중입니다.' },
     { label: '설치한 테마', list: ctx.themes.filter(theme => !theme.creatorId || ctx.installed.includes(theme.id)), empty: '설치한 테마가 없습니다. 테마를 가져오거나 스토어에서 찾아보세요.' },
@@ -64,13 +70,28 @@ export function MyThemesPage() {
 
   return (
     <section data-theme-protected className="customization-themes">
-      <ThemeImport renderTrigger={trigger => <header className="flex flex-wrap items-center gap-2">
+      {compact ? <>
+        <h1 className="sr-only">{t('nav.themes')}</h1>
+        <CustomizationAdd label={t('custom.addTheme')} onClick={() => setSheet('add')} tour="add-theme" />
+        {sheet ? <CustomizationSheet title={t(sheet === 'add' ? 'custom.addTheme' : 'custom.importTheme')} onClose={() => setSheet(null)}>
+          {sheet === 'add' ? <div className="grid gap-2">
+            <button type="button" className="flex min-h-12 items-center gap-3 rounded-lg border border-line px-3 text-left" onClick={() => setSheet('import')}>
+              <Upload aria-hidden="true" className="size-5 shrink-0 text-accent" strokeWidth={1.7} />
+              {t('custom.importTheme')}
+            </button>
+            <Link className="flex min-h-12 items-center gap-3 rounded-lg border border-line px-3" to={ROUTES.themeEditor}>
+              <Palette aria-hidden="true" className="size-5 shrink-0 text-accent" strokeWidth={1.7} />
+              {t('themes.newTheme')}
+            </Link>
+          </div> : <ThemeImport variant="dropzone" showFormats />}
+        </CustomizationSheet> : null}
+      </> : <ThemeImport renderTrigger={trigger => <header data-tour="add-theme" className="flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-medium tracking-tight">내 테마</h1>
         <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-2">
           {trigger}
           <Link className="btn btn-primary" to={ROUTES.themeEditor}>새 테마 만들기</Link>
         </div>
-      </header>} />
+      </header>} />}
       <div className="mt-4 flex flex-wrap gap-2">
         <Link className="btn btn-line" to={ROUTES.store}>스토어</Link>
         <button type="button" className="btn btn-ghost" disabled={action.busy} onClick={() => void action.run(async () => {

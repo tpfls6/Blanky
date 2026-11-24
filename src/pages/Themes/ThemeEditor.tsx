@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { BUILTIN_THEMES, normalizeThemeConfig, type BlankyTheme, type ThemeConfig } from '@blanky/types';
 import { useAction } from './useThemeAction.ts';
 import { ColorField } from './ColorField.tsx';
@@ -8,6 +9,9 @@ import { ThemeImport } from './PackageControls.tsx';
 import { useSession } from '../../state/useSession.ts';
 import { useTheme } from '../../theme/context.ts';
 import { saveTheme } from '../../services/themes/index.ts';
+import { ROUTES } from '../../constants/routes.ts';
+import { useI18n } from '../../i18n/useI18n.ts';
+import './themeEditor.css';
 
 const COLOR_FIELDS: { group: 'colors' | 'sidebar'; key: string; label: string }[] = [
     { group: 'colors', key: 'primary', label: '메인 컬러' },
@@ -50,6 +54,7 @@ export function ThemeEditorPage() {
 }
 
 function ThemeEditor({ original }: { original?: BlankyTheme }) {
+    const { t } = useI18n();
     const { user } = useSession();
     const ctx = useTheme();
     const action = useAction();
@@ -73,15 +78,20 @@ function ThemeEditor({ original }: { original?: BlankyTheme }) {
     const save = async (apply = false) => {
         if (!user)
             return;
-        const next = await saveTheme(user.id, draft);
+        const name = draft.name.trim();
+        if (!name) throw new Error(t('custom.themeNameRequired'));
+        const next = await saveTheme(user.id, { ...draft, name });
         setDraft(next);
         await ctx.refresh();
         if (apply)
             await ctx.apply(next);
     };
     return <section data-theme-protected className="theme-page theme-customizer">
-        <header className="theme-editor-heading">
-            <h1>테마 만들기</h1>
+        <header className="theme-editor-heading mobile-theme-editor-heading">
+            <Link to={ROUTES.myThemes} className="icon-btn size-11 shrink-0 md:hidden" aria-label={t('custom.goBack')}>
+                <ArrowLeft className="size-5" strokeWidth={1.7} aria-hidden="true" />
+            </Link>
+            <h1>{t('themes.createTheme')}</h1>
         </header>
         <div className="theme-editor-tabs" role="tablist" aria-label="테마 제작">
             <button type="button" role="tab" aria-selected={tab === 'colors'} className={tab === 'colors' ? 'tab tab-on' : 'tab'} onClick={() => setTab('colors')}>색상 변경</button>
@@ -89,6 +99,10 @@ function ThemeEditor({ original }: { original?: BlankyTheme }) {
         </div>
         {tab === 'colors' ? <div className="theme-editor theme-editor-stack mt-6">
             <div>
+                <label className={`mb-4 block text-sm${draft.name.trim() ? ' md:hidden' : ''}`}>
+                    {t('themes.themeName')}
+                    <input className="field mt-1 block w-full" value={draft.name} onChange={event => setDraft(theme => ({ ...theme, name: event.target.value }))} maxLength={100} required />
+                </label>
                 <div className="theme-editor-colors">{COLOR_FIELDS.map(field => {
                     const value = field.group === 'sidebar' ? draft.config.sidebar.background : draft.config.colors[field.key as keyof ThemeConfig['colors']];
                     return <ColorField key={field.group + field.key} label={field.label} value={value} onChange={next => change(field.group, field.key, next)} />;

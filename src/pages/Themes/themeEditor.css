@@ -1,0 +1,14 @@
+.color-choice > summary > .theme-editor-swatch {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+@media (max-width: 767px) {
+  .theme-customizer .mobile-theme-editor-heading {
+    justify-content: flex-start;
+    gap: 4px;
+    min-height: 44px;
+    padding-inline: 8px 16px;
+  }
+}

@@ -81,7 +81,7 @@ async function readImportedTheme(file: File, userId: string): Promise<BlankyThem
     return { id: crypto.randomUUID(), creatorId: userId, creatorName: pkg.manifest.author, name: pkg.manifest.name, description: pkg.manifest.description, thumbnailUrl: '', category: '가져온 테마', tags: [], visibility: 'private', pricingType: 'free', price: 0, config: pkg.config, themeType: 'package', package: pkg, downloadCount: 0, ratingAverage: 0, ratingCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
 }
 
-export function ThemeImport({ onPreview, variant = 'button', renderTrigger }: { onPreview?: (theme: BlankyTheme | null) => void; variant?: 'button' | 'dropzone'; renderTrigger?: (trigger: ReactNode) => ReactNode } = {}) {
+export function ThemeImport({ onPreview, variant = 'button', renderTrigger, showFormats = false }: { onPreview?: (theme: BlankyTheme | null) => void; variant?: 'button' | 'dropzone'; renderTrigger?: (trigger: ReactNode) => ReactNode; showFormats?: boolean } = {}) {
     const ctx = useTheme();
     const { user } = useSession();
     const [pending, setPending] = useState<BlankyTheme | null>(null);
@@ -135,6 +135,7 @@ export function ThemeImport({ onPreview, variant = 'button', renderTrigger }: { 
             ? <label className="theme-dropzone" data-active={over} onDragEnter={event => { event.preventDefault(); setOver(true); }} onDragOver={event => { event.preventDefault(); setOver(true); }} onDragLeave={event => { event.preventDefault(); if (!event.currentTarget.contains(event.relatedTarget as Node)) setOver(false); }} onDrop={event => { event.preventDefault(); setOver(false); void open(event.dataTransfer.files[0]); }}>
                 <strong>.blanky 파일 가져오기</strong>
                 <p>파일을 끌어다 놓거나 선택하세요.</p>
+                {showFormats ? <p className="text-xs">{THEME_PACKAGE_IMPORT_EXTS.join(' · ')}</p> : null}
                 <input aria-label="테마 가져오기" type="file" accept={accept} disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void open(file); }} />
             </label>
             : (renderTrigger ?? (trigger => trigger))(<label className="btn btn-line theme-import-label">테마 가져오기<input aria-label="테마 가져오기" type="file" accept={accept} disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; void open(file); }} /></label>)}
