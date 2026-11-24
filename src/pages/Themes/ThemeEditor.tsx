@@ -1,21 +1,29 @@
-import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useId, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { BUILTIN_THEMES, normalizeThemeConfig, type BlankyTheme, type ThemeConfig } from '@blanky/types';
 import { useAction } from './useThemeAction.ts';
-import { ColorField } from './ColorField.tsx';
+import { ColorPicker } from './ColorField.tsx';
 import { ThemePreview } from './ThemePreview.tsx';
 import { ThemeImport } from './PackageControls.tsx';
 import { useSession } from '../../state/useSession.ts';
 import { useTheme } from '../../theme/context.ts';
 import { saveTheme } from '../../services/themes/index.ts';
+import { ROUTES } from '../../constants/routes.ts';
+import { useI18n } from '../../i18n/useI18n.ts';
+import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts';
+import { CustomizationSheet } from '../Custom/CustomizationSheet.tsx';
+import '../More/more.css';
+import './themeEditor.css';
 
-const COLOR_FIELDS: { group: 'colors' | 'sidebar'; key: string; label: string }[] = [
-    { group: 'colors', key: 'primary', label: '메인 컬러' },
-    { group: 'colors', key: 'background', label: '배경색' },
-    { group: 'sidebar', key: 'background', label: '사이드바 색상' },
-    { group: 'colors', key: 'surface', label: '카드 · 입력창' },
-    { group: 'colors', key: 'textPrimary', label: '텍스트 색상' },
-    { group: 'colors', key: 'accent', label: '강조 색상' },
+// `id` names the i18n label/hint (themes.colorFields.*); `soft` picks light suggestions for background-like colors.
+const COLOR_FIELDS: { id: string; group: 'colors' | 'sidebar'; key: string; soft?: boolean }[] = [
+    { id: 'primary', group: 'colors', key: 'primary' },
+    { id: 'background', group: 'colors', key: 'background', soft: true },
+    { id: 'sidebar', group: 'sidebar', key: 'background', soft: true },
+    { id: 'surface', group: 'colors', key: 'surface', soft: true },
+    { id: 'textPrimary', group: 'colors', key: 'textPrimary' },
+    { id: 'accent', group: 'colors', key: 'accent' },
 ];
 const LINKED: Record<string, string[]> = {
     surface: ['card.background', 'schedule.background', 'task.background', 'calendar.background'],
@@ -49,12 +57,38 @@ export function ThemeEditorPage() {
     return <ThemeEditor key={original?.id ?? 'new'} original={original} />;
 }
 
+// Phone mini preview drawn straight from the draft colors: sidebar, title, a week of calendar cells with
+// today (primary) and one highlight (accent), on a card (surface) over the background.
+function MiniPreview({ theme }: { theme: BlankyTheme }) {
+    const { colors, sidebar, calendar } = theme.config;
+    return <div className="te-mini" aria-hidden="true" style={{ background: colors.background }}>
+        <div className="te-mini-side" style={{ background: sidebar.background }}>
+            <i style={{ background: sidebar.selectedBackground }} />
+            {[0, 1, 2].map(n => <i key={n} style={{ background: sidebar.textColor }} />)}
+        </div>
+        <div className="te-mini-main" style={{ background: colors.surface, borderColor: colors.border }}>
+            <span className="te-mini-title" style={{ background: colors.textPrimary }} />
+            <span className="te-mini-text" style={{ background: colors.textSecondary }} />
+            <div className="te-mini-cal" style={{ background: calendar.background }}>
+                {Array.from({ length: 14 }, (_, n) => <b key={n} data-on={n === 2 || n === 6 ? '' : undefined} style={{ background: n === 2 ? colors.primary : n === 6 ? colors.accent : colors.border }} />)}
+            </div>
+        </div>
+    </div>;
+}
+
 function ThemeEditor({ original }: { original?: BlankyTheme }) {
+    const { t } = useI18n();
     const { user } = useSession();
     const ctx = useTheme();
     const action = useAction();
+    const nameId = useId();
+    const phone = useMediaQuery(PHONE_QUERY);
     const [tab, setTab] = useState<'colors' | 'custom'>('colors');
+    const [editing, setEditing] = useState<string | null>(null);
     const [draft, setDraft] = useState<BlankyTheme>(() => colorDraft(user!.id, user!.nickname || user!.name, original, ctx.themes.find(theme => theme.id === ctx.active)));
+    // The last saved (or opened) state; the app bar says so when the draft differs from it.
+    const [baseline, setBaseline] = useState(draft);
+    const dirty = draft.name !== baseline.name || JSON.stringify(draft.config) !== JSON.stringify(baseline.config);
     const change = (group: string, key: string, value: string) => setDraft(theme => {
         const config = structuredClone(theme.config);
         const target = config[group as keyof ThemeConfig] as unknown as Record<string, string | number>;
@@ -73,33 +107,55 @@ function ThemeEditor({ original }: { original?: BlankyTheme }) {
     const save = async (apply = false) => {
         if (!user)
             return;
-        const next = await saveTheme(user.id, draft);
+        const name = draft.name.trim();
+        if (!name) throw new Error(t('custom.themeNameRequired'));
+        const next = await saveTheme(user.id, { ...draft, name });
         setDraft(next);
+        setBaseline(next);
         await ctx.refresh();
         if (apply)
             await ctx.apply(next);
     };
-    return <section data-theme-protected className="theme-page theme-customizer">
-        <header className="theme-editor-heading">
-            <h1>테마 만들기</h1>
+    const valueOf = (field: typeof COLOR_FIELDS[number]) => field.group === 'sidebar' ? draft.config.sidebar.background : draft.config.colors[field.key as keyof ThemeConfig['colors']];
+    const field = COLOR_FIELDS.find(item => item.id === editing);
+    const title = original ? draft.name.trim() || original.name : t('themes.editorNew');
+    return <section data-theme-protected className="te-page">
+        <header className="more-bar te-bar mobile-theme-editor-heading">
+            <Link to={ROUTES.myThemes} className="more-ib" aria-label={t('custom.goBack')}>
+                <ArrowLeft className="size-5.5" strokeWidth={1.8} aria-hidden="true" />
+            </Link>
+            <h1>{title}{dirty ? <span className="te-bar-sub">{t('themes.unsaved')}</span> : null}</h1>
         </header>
-        <div className="theme-editor-tabs" role="tablist" aria-label="테마 제작">
-            <button type="button" role="tab" aria-selected={tab === 'colors'} className={tab === 'colors' ? 'tab tab-on' : 'tab'} onClick={() => setTab('colors')}>색상 변경</button>
-            <button type="button" role="tab" aria-selected={tab === 'custom'} className={tab === 'custom' ? 'tab tab-on' : 'tab'} onClick={() => setTab('custom')}>커스텀</button>
-        </div>
-        {tab === 'colors' ? <div className="theme-editor theme-editor-stack mt-6">
-            <div>
-                <div className="theme-editor-colors">{COLOR_FIELDS.map(field => {
-                    const value = field.group === 'sidebar' ? draft.config.sidebar.background : draft.config.colors[field.key as keyof ThemeConfig['colors']];
-                    return <ColorField key={field.group + field.key} label={field.label} value={value} onChange={next => change(field.group, field.key, next)} />;
-                })}</div>
-                <div className="theme-editor-actions">
-                    <button type="button" disabled={action.busy} className="btn btn-line" onClick={() => void action.run(() => save())}>저장</button>
-                    <button type="button" disabled={action.busy} className="btn btn-primary" onClick={() => void action.run(() => save(true))}>적용하기</button>
+        <div className="theme-editor te-layout" data-tab={tab}>
+            <div className="te-form">
+                <div className="te-seg" role="tablist" aria-label={t('themes.editorModes')}>
+                    <button type="button" role="tab" aria-selected={tab === 'colors'} onClick={() => setTab('colors')}>{t('themes.segColors')}</button>
+                    <button type="button" role="tab" aria-selected={tab === 'custom'} onClick={() => setTab('custom')}>{t('themes.segCustom')}</button>
                 </div>
-                <p role="status" className="mt-3">{action.message}</p>
+                {tab === 'colors' ? <>
+                    <label className="more-label" htmlFor={nameId}>{t('themes.nameLabel')}</label>
+                    <input id={nameId} className="field te-name" value={draft.name} onChange={event => setDraft(theme => ({ ...theme, name: event.target.value }))} maxLength={100} required />
+                    <h2 className="more-label">{t('themes.colorsLabel')}<small>{t('themes.tapToChange')}</small></h2>
+                    <div className="more-card theme-editor-colors">{COLOR_FIELDS.map(item => {
+                        const value = valueOf(item);
+                        return <button key={item.id} type="button" className="more-row te-color-row" aria-haspopup="dialog" onClick={() => setEditing(item.id)}>
+                            <span className="more-rt">{t(`themes.colorFields.${item.id}.label`)}<small>{t(`themes.colorFields.${item.id}.hint`)}</small></span>
+                            <span className="te-hex">{value.toUpperCase()}</span>
+                            <span className="theme-editor-swatch" style={{ background: value }} aria-hidden="true" />
+                        </button>;
+                    })}</div>
+                    <p role="status" className="te-status">{action.message}</p>
+                </> : <ThemeImport variant="dropzone" />}
             </div>
-            <ThemePreview theme={draft} fill />
-        </div> : <ThemeImport variant="dropzone" />}
+            {tab === 'colors' ? <div className="te-preview">{phone ? <MiniPreview theme={draft} /> : <ThemePreview theme={draft} fill />}</div> : null}
+        </div>
+        {tab === 'colors' ? <div className="theme-editor-actions te-actionbar">
+            <button type="button" disabled={action.busy} className="btn btn-line" onClick={() => void action.run(() => save())}>{t('themes.save')}</button>
+            <button type="button" disabled={action.busy} className="btn btn-primary" onClick={() => void action.run(() => save(true))}>{t('themes.saveAndApply')}</button>
+        </div> : null}
+        {field ? <CustomizationSheet title={t(`themes.colorFields.${field.id}.label`)} subtitle={t(`themes.colorFields.${field.id}.hint`)} onClose={() => setEditing(null)}>
+            <ColorPicker label={t(`themes.colorFields.${field.id}.label`)} value={valueOf(field)} soft={field.soft} onChange={next => change(field.group, field.key, next)} />
+            <button type="button" className="btn btn-primary te-done" onClick={() => setEditing(null)}>{t('themes.done')}</button>
+        </CustomizationSheet> : null}
     </section>;
 }

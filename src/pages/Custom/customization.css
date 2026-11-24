@@ -1,0 +1,85 @@
+.customization-sheet {
+  position: fixed;
+  inset: auto 0 var(--kb-inset, 0px);
+  width: 100%;
+  max-width: none;
+  max-height: min(88dvh, calc(100dvh - var(--kb-inset, 0px) - 16px));
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-radius: 18px 18px 0 0;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.customization-sheet::backdrop { background: rgb(0 0 0 / 35%); }
+.customization-sheet::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 2px;
+  border-radius: 99px;
+  background: var(--line);
+}
+.customization-sheet-header {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.customization-sheet .theme-custom-pane { margin: 0; }
+.customization-sheet .theme-dropzone { min-height: 124px; padding: 16px; }
+.customization-menu[aria-current='page'] {
+  border-color: var(--accent-color);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.customization-layout-preview .add-fab { display: none; }
+.customization-template-summary::-webkit-details-marker { display: none; }
+.customization-sheet-header > .theme-thumb { margin-right: 4px; }
+/* The global .icon-btn size would otherwise shrink the close button to 28px. */
+.customization-sheet-header > .icon-btn { width: 44px; height: 44px; }
+.customization-sheet-sub { font-size: 12px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+.customization-sheet .more-card + .more-card { margin-top: 10px; }
+/* Desktop only opens the theme action sheet; there it floats as a centered card instead of a bottom sheet. */
+@media (min-width: 768px) {
+  .customization-sheet { inset: 0; width: min(420px, calc(100% - 32px)); margin: auto; border-radius: 18px; padding-top: 4px; }
+  .customization-sheet::before { display: none; }
+}
+
+/* My themes: hero card for the theme in use, then 44px thumbnail rows (phone) or swatch cards (desktop). */
+.customization-themes :is(a, button):focus-visible, .customization-sheet :is(a, button):focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+.customization-themes :is(a.more-row, button.more-row):active, .customization-sheet :is(a.more-row, button.more-row):active { background: var(--press); }
+.theme-hero .theme-swatch { height: 150px; border: 0; border-radius: 0; }
+.theme-hero-info { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-top: 1px solid var(--line); }
+.theme-hero-info .more-rt > a { font-size: 16px; font-weight: 700; }
+.theme-hero-actions { display: flex; gap: 8px; padding: 0 14px 14px; }
+.theme-hero-actions > * { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; }
+.theme-badge { display: inline-flex; flex: none; align-items: center; gap: 3px; height: 20px; padding: 0 7px; border-radius: 99px; background: var(--accent-light); color: var(--accent-text); font-size: 11px; font-weight: 700; }
+.theme-thumb { display: grid; flex: none; grid-template-columns: 12px 1fr; gap: 3px; width: 44px; height: 44px; overflow: hidden; padding: 4px; border: 1px solid var(--line); border-radius: 12px; }
+.theme-thumb > img { grid-column: 1 / -1; width: 100%; height: 100%; object-fit: contain; }
+.theme-thumb > i { border-radius: 4px; }
+.theme-thumb > span { display: flex; flex-direction: column; gap: 3px; padding: 3px; border-radius: 4px; }
+.theme-thumb em { height: 4px; border-radius: 2px; }
+.theme-row { gap: 8px; padding-right: 6px; }
+.theme-row + .theme-row::before { left: 70px; }
+.theme-row-link { display: flex; flex: 1; min-width: 0; align-items: center; gap: 12px; }
+.theme-pill { position: relative; display: inline-flex; flex: none; align-items: center; height: 30px; padding: 0 12px; border-radius: 99px; background: var(--accent-light); color: var(--accent-text); font-size: 13px; font-weight: 600; }
+.theme-pill:disabled { opacity: .5; }
+/* The pill and the store link keep their small look; an invisible ::after stretches the hit area to 44px. */
+.theme-pill::after, .theme-store-link::after { content: ''; position: absolute; inset: -7px -2px; }
+.theme-store-link { position: relative; }
+.theme-store-link::after { inset: -13px -6px; }
+.theme-more { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: 10px; color: var(--muted); }
+.theme-more:hover { background: var(--hover); color: var(--fg); }
+.theme-more:active { background: var(--press); }
+/* Room under the last row and the 테마 끄기 card so the fixed + button (56px, 16px above the tab bar) never covers them. */
+.customization-themes-phone { padding-bottom: 88px; }
+.more-ri-accent { background: var(--accent-light); color: var(--accent-text); }
+.more-row-danger { color: var(--danger); }
+.more-row-danger .more-ri { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
+.theme-empty { padding: 28px 16px; border: 1px dashed var(--line); border-radius: 16px; font-size: 13px; color: var(--muted); text-align: center; }

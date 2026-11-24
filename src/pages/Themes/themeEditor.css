@@ -1,0 +1,71 @@
+/* Theme editor: the shared 56px app bar, a segmented [colors | custom file] switch, grouped color rows
+   and a save bar. Phones pin a mini preview under the app bar; desktop keeps form | large preview.
+   Only theme tokens here — the preview itself paints with the draft theme's colors. */
+.te-page { display: flex; flex: 0 0 auto; flex-direction: column; width: 100%; color: var(--fg); }
+.te-bar h1 { display: flex; flex-direction: column; justify-content: center; line-height: 1.25; }
+.te-bar-sub { display: block; overflow: hidden; font-size: 11.5px; font-weight: 500; letter-spacing: 0; color: var(--muted); text-overflow: ellipsis; }
+.te-page a, .te-page button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.te-page :is(a, button):focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+.te-page button.more-row:active, .te-page .more-ib:active { background: var(--press); }
+
+.te-page .te-layout { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0 16px; }
+.te-page .te-layout > div { position: static; max-height: none; overflow: visible; }
+.te-form { min-width: 0; }
+
+/* Track and idle labels mix fg into surface so contrast holds (≥4.5) on light, dark and custom themes alike. */
+.te-seg { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: color-mix(in srgb, var(--fg) 7%, var(--surface)); }
+.te-seg button { position: relative; flex: 1; min-height: 40px; border-radius: 9px; font-size: 13.5px; color: color-mix(in srgb, var(--fg) 72%, var(--surface)); }
+.te-seg button::before { content: ''; position: absolute; inset: -3px 0; }
+.te-seg button[aria-selected='true'] { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 8%); }
+
+.te-page .te-name { display: block; width: 100%; height: 48px; padding: 0 14px; border-radius: 12px; background: var(--surface); font-size: 15px; }
+.te-color-row { gap: 10px; }
+.te-color-row + .te-color-row::before { left: 14px; }
+.te-hex { flex: none; font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+.te-page .theme-editor-swatch { flex: none; width: 32px; height: 32px; border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); border-radius: 50%; }
+.te-status { margin: 8px 4px 0; font-size: 13px; color: var(--muted); }
+.te-status:empty { display: none; }
+
+/* Color sheet: the existing picker parts, laid out full width. */
+.customization-sheet .color-picker .color-sv { height: 150px; border-radius: 14px; }
+.customization-sheet .color-picker .color-rgb label { color: var(--muted); }
+.customization-sheet .color-picker .more-label { margin: 16px 4px 8px; }
+/* Each suggestion is a 44px button around a smaller visible circle. */
+.customization-sheet .color-picker .color-palette { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 0; margin: 0 -4px; }
+.customization-sheet .color-picker .color-swatch-btn { display: grid; place-items: center; min-width: 0; height: 44px; border-radius: 12px; }
+.customization-sheet .color-picker .color-swatch-btn .color-circle { width: min(34px, 100%); height: auto; aspect-ratio: 1; }
+.customization-sheet .color-picker .color-swatch-btn[aria-pressed='true'] .color-circle { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent-color); }
+.customization-sheet .color-picker .color-rgb input { min-height: 44px; }
+.customization-sheet .color-hex .field { width: 100%; height: 48px; margin-top: 16px; padding: 0 14px; border-radius: 12px; font: 15px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.customization-sheet .te-done { width: 100%; min-height: 48px; margin-top: 12px; }
+
+/* Phone mini preview (draft colors only), pinned under the app bar. */
+.te-mini { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; height: 130px; padding: 12px; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; }
+.te-mini-side { display: flex; flex-direction: column; gap: 6px; padding: 8px 6px; border-radius: 10px; }
+.te-mini-side i { display: block; height: 7px; border-radius: 4px; opacity: .45; }
+.te-mini-side i:first-child { opacity: 1; }
+.te-mini-main { display: flex; min-width: 0; flex-direction: column; gap: 6px; padding: 9px; border: 1px solid; border-radius: 10px; }
+.te-mini-title { display: block; width: 50%; height: 8px; border-radius: 4px; }
+.te-mini-text { display: block; width: 72%; height: 5px; border-radius: 3px; opacity: .7; }
+.te-mini-cal { display: grid; flex: 1; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; padding: 5px; border-radius: 8px; }
+.te-mini-cal b { border-radius: 3px; }
+
+@media (max-width: 767px) {
+  .te-page .te-layout > .te-preview { position: sticky; top: calc(56px + env(safe-area-inset-top)); z-index: 10; order: -1; margin: 0 -16px; padding: 0 16px 10px; background: var(--bg); }
+  /* Room for the fixed save bar so the last row is never hidden under it. */
+  .te-layout[data-tab='colors'] .te-form { padding-bottom: 88px; }
+  .te-actionbar { position: fixed; right: 0; bottom: calc(4.25rem + env(safe-area-inset-bottom)); left: 0; z-index: 30; }
+  .theme-app-layout[data-keyboard-open='true'] .te-actionbar { visibility: hidden; }
+}
+
+.te-page .te-actionbar { display: flex; flex-wrap: nowrap; gap: 8px; margin: 0; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--surface); }
+.te-actionbar .btn { flex: 1; min-height: 44px; }
+
+@media (min-width: 768px) {
+  .te-page .te-layout { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 32px; align-items: start; padding: 8px 24px 0; }
+  .te-page .te-layout[data-tab='custom'] { grid-template-columns: minmax(0, 40rem); }
+  .te-page .te-layout > .te-preview { position: sticky; top: 72px; }
+  .te-preview .theme-preview-frame { height: calc(100dvh - 10rem); min-height: 420px; }
+  /* Desktop keeps the save buttons under the form instead of a pinned bar. */
+  .te-page .te-actionbar { position: sticky; bottom: 0; z-index: 5; width: min(448px, 100%); padding: 12px 24px 16px; border-top: 0; background: var(--bg); }
+}

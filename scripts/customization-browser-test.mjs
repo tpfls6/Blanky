@@ -33,14 +33,26 @@ const browserEndpoint = await new Promise((resolvePromise, reject) => {
   })
   browser.on('exit', (code) => reject(new Error('Chromium exited: ' + code + ' ' + browserOutput)))
 })
-const server = spawn(process.execPath, ['--input-type=module', '-e', 'import { createServer } from "vite"; const server = await createServer({ server: { host: "127.0.0.1", port: ' + new URL(base).port + ', strictPort: true, watch: null } }); await server.listen(); server.printUrls();'], { env: { ...process.env, NODE_ENV: 'production', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }, windowsHide: true, stdio: 'pipe' })
+const outDir = JSON.stringify(join(profile, 'dist'))
+const server = spawn(process.execPath, ['--input-type=module', '-e', `
+  import { build, preview } from 'vite'
+  const config = { build: { outDir: ${outDir}, emptyOutDir: true } }
+  await build(config)
+  await preview({ ...config, preview: { host: '127.0.0.1', port: ${new URL(base).port}, strictPort: true } })
+`], { env: { ...process.env, NODE_ENV: 'production', VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }, windowsHide: true, stdio: 'pipe' })
 let serverOutput = ''
 server.stdout.on('data', (data) => { serverOutput += data })
 server.stderr.on('data', (data) => { serverOutput += data })
-for (let i = 0; i < 80; i++) {
+const serverStartAttempts = 600
+for (let i = 0; i < serverStartAttempts; i++) {
   try { if ((await fetch(base)).ok) break } catch {}
+  if (server.exitCode !== null || i === serverStartAttempts - 1) {
+    server.kill()
+    browser.kill()
+    await rm(profile, { recursive: true, force: true, maxRetries: 3 }).catch(() => {})
+    throw new Error('Vite failed to start: ' + serverOutput)
+  }
   await new Promise((r) => setTimeout(r, 100))
-  if (i === 79) throw new Error(serverOutput)
 }
 let targets
 for (let i = 0; i < 50; i++) {
@@ -158,6 +170,7 @@ try {
   await wait(`document.querySelectorAll('.customization-themes article').length === 4`, 'four builtins')
   assert.equal(await evaluate(`document.querySelector('main nav [aria-current="page"]').textContent`), '내 테마')
   assert.equal(await evaluate(`document.querySelector('#app-sidebar a[href="/custom"]').getAttribute('aria-current')`), 'page')
+  assert.ok(await evaluate(`(() => { const r = document.querySelector('.customization-themes article .theme-more').getBoundingClientRect(); return r.width >= 40 && r.height >= 40 })()`), 'desktop card ⋯ is at least 40px')
   await shot('01-desktop-themes')
   await clickMenu('앱 레이아웃')
   await wait(heading('앱 레이아웃'), 'layout tab')
@@ -182,7 +195,9 @@ try {
   await evaluate(`document.querySelector('.customization-themes article button').click()`)
   await wait(`!!JSON.parse(localStorage.getItem('blanky.themes.${owner}')).active`, 'theme applied')
   const applied = await themeState()
-  await evaluate(`[...document.querySelectorAll('.customization-themes article button')].find(b => b.textContent === '미리보기').click()`)
+  // The applied theme moves into the hero card, which holds the preview button; the other cards keep only 적용 + ⋯.
+  assert.equal(await evaluate(`document.querySelectorAll('.customization-themes article').length`), 3, 'theme in use leaves the groups')
+  await evaluate(`[...document.querySelectorAll('.customization-themes .theme-hero button')].find(b => b.textContent === '미리보기').click()`)
   await wait(`!!document.querySelector('.theme-preview-bar')`, 'preview active')
   assert.equal(await themeState(), applied, 'preview must not persist changes')
   await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent === '미리보기 종료').click()`)
@@ -191,20 +206,100 @@ try {
   await wait(heading('내 테마'), 'theme refresh')
   assert.equal(await themeState(), applied)
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
-  await wait(`getComputedStyle(document.querySelector('main label')).display !== 'none'`, 'mobile switcher')
+  const mobileMenu = text => evaluate(`[...document.querySelectorAll('.customization-menu')].find(a => a.textContent.trim() === ${q(text)}).click()`)
+  const openThemeActions = async () => {
+    await evaluate('document.querySelector("[data-tour=add-theme]").click()')
+    await wait(`document.querySelector(${q('dialog[open] a[href="/customize/theme"]')})`, 'mobile theme actions')
+  }
+  await wait('document.querySelector(".customization-menu")?.offsetHeight > 0 && document.querySelector(".customization-themes .add-fab")', 'mobile switcher')
+  assert.ok(await evaluate('(() => { const widths = [...document.querySelectorAll(".customization-menu")].map(a => a.offsetWidth); return widths.length === 3 && Math.max(...widths) - Math.min(...widths) <= 1; })()'))
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
   await shot('02-mobile-themes')
-  await evaluate(`(() => { const el = document.querySelector('main select'); el.value = 'templates'; el.dispatchEvent(new Event('change', { bubbles: true })); })()`)
+  assert.ok(await evaluate('!!document.querySelector(".customization-themes .theme-hero") && document.querySelectorAll(".customization-themes .theme-row").length === 3'), 'mobile hero + thumbnail rows')
+  // Scrolled to the end, the fixed + button must clear the last row's ⋯ and the 테마 끄기 card; touch targets stay ≥44px.
+  const fabClear = await evaluate(`(() => {
+    for (let el = document.querySelector('.customization-themes'); el; el = el.parentElement) el.scrollTop = el.scrollHeight
+    scrollTo(0, document.documentElement.scrollHeight)
+    const fab = document.querySelector('.customization-themes .add-fab').getBoundingClientRect()
+    const rows = document.querySelectorAll('.customization-themes .theme-row')
+    const off = [...document.querySelectorAll('.customization-themes button.more-row')].at(-1).getBoundingClientRect()
+    const more = rows[rows.length - 1].querySelector('.theme-more').getBoundingClientRect()
+    return [more, off].every(r => r.bottom <= fab.top || r.right <= fab.left)
+  })()`)
+  assert.ok(fabClear, 'add button clears the last row and the turn-off card at scroll end')
+  assert.ok(await evaluate(`(() => {
+    const box = el => { const r = el.getBoundingClientRect(), a = getComputedStyle(el, '::after'); return { w: r.width - parseFloat(a.left || 0) - parseFloat(a.right || 0), h: r.height - parseFloat(a.top || 0) - parseFloat(a.bottom || 0) } }
+    const more = document.querySelector('.theme-row .theme-more').getBoundingClientRect()
+    return more.width >= 44 && more.height >= 44 && [document.querySelector('.theme-pill'), document.querySelector('.theme-store-link')].every(el => { const b = box(el); return b.w >= 44 && b.h >= 44 })
+  })()`), 'theme row touch targets are at least 44px')
+  await evaluate('document.querySelector(".theme-row .theme-more").click()')
+  await wait(`[...document.querySelectorAll('dialog[open] .more-row')].some(b => b.textContent === '적용하기')`, 'mobile theme action sheet')
+  await shot('02a-mobile-theme-actions')
+  await evaluate('document.querySelector("dialog[open] .icon-btn").click()')
+  await wait('!document.querySelector("dialog[open]")', 'theme action sheet closed')
+  // The hero card opens the same sheet without 적용하기, since that theme is already applied.
+  assert.ok(await evaluate('(() => { const r = document.querySelector(".theme-hero .theme-more").getBoundingClientRect(); return r.width >= 44 && r.height >= 44 })()'), 'hero ⋯ is 44px')
+  await evaluate('document.querySelector(".theme-hero .theme-more").click()')
+  await wait(`[...document.querySelectorAll('dialog[open] .more-row')].some(b => b.textContent.startsWith('미리보기'))`, 'hero action sheet')
+  assert.equal(await evaluate(`[...document.querySelectorAll('dialog[open] .more-row')].some(b => b.textContent === '적용하기')`), false, 'hero sheet hides apply')
+  await evaluate('document.querySelector("dialog[open] .icon-btn").click()')
+  await wait('!document.querySelector("dialog[open]")', 'hero action sheet closed')
+  await openThemeActions()
+  await evaluate('document.querySelector("dialog[open] button:not(.icon-btn)").click()')
+  await wait('document.querySelector("dialog[open] input[type=file]")?.accept.includes(".blankytheme")', 'mobile theme import')
+  await shot('02b-mobile-theme-import')
+  await evaluate('document.querySelector("dialog[open] .icon-btn").click()')
+  await openThemeActions()
+  await evaluate('document.querySelector("dialog[open] a").click()')
+  await wait('location.pathname === "/customize/theme" && document.querySelectorAll(".theme-editor-swatch").length === 6', 'mobile theme editor')
+  assert.ok(await evaluate('[...document.querySelectorAll(".theme-editor-swatch")].every(el => el.offsetWidth === el.offsetHeight && getComputedStyle(el).borderRadius === "50%")'))
+  // Mobile editor: mini preview pinned under the app bar, and at scroll end the fixed save bar clears the last color row.
+  assert.ok(await evaluate(`(() => {
+    const main = document.querySelector('main'); main.scrollTop = main.scrollHeight
+    const bar = document.querySelector('.te-actionbar').getBoundingClientRect()
+    const last = [...document.querySelectorAll('.te-color-row')].at(-1).getBoundingClientRect()
+    const preview = document.querySelector('.te-preview').getBoundingClientRect()
+    const targets = [...document.querySelectorAll('.te-actionbar .btn, .te-color-row, .te-bar .more-ib')].every(el => el.offsetHeight >= 44)
+    return last.bottom <= bar.top && preview.top >= 56 && preview.top <= 60 && targets && !!document.querySelector('.te-preview .te-mini') && !document.querySelector('.te-preview iframe')
+  })()`), 'mobile theme editor: save bar clears content, preview pinned, 44px targets')
+  await shot('02c-mobile-theme-editor')
+  const nameTheme = name => evaluate(`(() => { const input = document.querySelector(".theme-editor input[required]"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, ${q(name)}); input.dispatchEvent(new Event("input", { bubbles: true })); })()`)
+  await nameTheme('   ')
+  await evaluate('document.querySelector(".theme-editor-actions .btn-line").click()')
+  await wait('document.querySelector(".theme-editor [role=status]")?.textContent.includes("테마 이름을 입력해 주세요")', 'blank theme name rejected')
+  await nameTheme('  새 모바일 테마  ')
+  await evaluate('document.querySelector(".theme-editor-actions .btn-line").click()')
+  await wait(`localStorage.getItem('blanky.themes.${owner}')?.includes('"name":"새 모바일 테마"')`, 'mobile theme saved with trimmed name')
+  await evaluate('document.querySelector(".mobile-theme-editor-heading a").click()')
+  await wait(heading('내 테마'), 'back to my themes')
+  await mobileMenu('커스텀 템플릿')
   await wait(heading('커스텀 템플릿'), 'mobile templates')
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
+  assert.equal(await evaluate('!!document.querySelector("main input[type=file]")'), false)
   await shot('03-mobile-templates')
-  await evaluate(`(() => { const el = document.querySelector('main select'); el.value = 'layout'; el.dispatchEvent(new Event('change', { bubbles: true })); })()`)
+  await evaluate('document.querySelector(".add-fab[data-tour=new-page]").click()')
+  await wait('document.querySelector("dialog[open] input[type=file]")?.accept.includes(".blankytpl")', 'mobile template import')
+  await uploadTemplate(JSON.stringify({ formatVersion: 1, kind: 'blanky.template-package', id: 'mobile-diary', name: '모바일 검증 일기', description: '', author: 'tester', version: '1.0.0', pageType: 'diary', icon: 'BookOpen' }))
+  await wait('document.querySelector("dialog[open] .theme-import-review")', 'mobile template review')
+  await evaluate('[...document.querySelectorAll("dialog[open] .theme-import-review button")].find(b => b.textContent === "템플릿 추가").click()')
+  await wait('document.querySelector("dialog[open] [role=alert]")?.textContent.includes("저장했습니다")', 'mobile template saved')
+  await evaluate('document.querySelector("dialog[open] .icon-btn").click()')
+  const installedTemplate = '[...document.querySelectorAll("main article details")].find(el => el.querySelector("summary").textContent.includes("모바일 검증 일기"))'
+  await wait(installedTemplate, 'mobile template installed')
+  assert.equal(await evaluate(installedTemplate + '.open'), false)
+  await evaluate(installedTemplate + '.querySelector("summary").click()')
+  assert.equal(await evaluate(installedTemplate + '.open'), true)
+  await mobileMenu('앱 레이아웃')
   await wait(heading('앱 레이아웃'), 'mobile layout')
+  assert.deepEqual(await evaluate('[...document.querySelectorAll("[data-tour=layout-controls] button")].map(el => el.textContent.trim())'), ['일정', '메모', '독서', '일기'])
+  await evaluate('[...document.querySelectorAll("[data-tour=layout-controls] button")].find(el => el.textContent.trim() === "메모").click()')
+  assert.equal(await evaluate('document.querySelector("[data-tour=layout-controls] [aria-pressed=true]").textContent.trim()'), '메모')
+  assert.equal(await evaluate('[...document.querySelectorAll(".add-fab")].some(el => el.getClientRects().length > 0)'), false)
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
   await shot('04-mobile-layout')
   assert.equal(errors.length, 0, errors.join('\n'))
   await finish(true)
-  log('PASS unified navigation, template validation/import/persistence, legacy redirect, history, refresh, saved layout, four builtins, apply, preview isolation, mobile tabs and overflow')
+  log('PASS customization navigation, template imports, persisted layout, theme apply/preview, mobile theme menu and round swatches, mobile layout chips and overflow')
 } catch (error) {
   log('FAIL ' + (error instanceof Error ? error.message : String(error)))
   await finish(false, { error: error instanceof Error ? error.stack : String(error) }).catch(() => undefined)

@@ -231,11 +231,18 @@ try {
   await scenario('color-popover', async () => {
     await navigate(base + '/customize/theme')
     await pause(900)
-    await evaluate('(() => { const d = document.querySelectorAll("details.color-choice"); d[d.length - 1].open = true })()')
-    await pause(200)
-    const fit = await evaluate(fits('details.color-choice[open] .color-popover'))
+    // Each color row opens the color sheet (a modal dialog); it and its picker must fit the phone screen.
+    const opened = await evaluate('(() => { const rows = document.querySelectorAll(".te-color-row"); if (!rows.length) return false; rows[rows.length - 1].click(); return true })()')
+    if (!opened) return 'color rows missing'
+    for (let i = 0; i < 30 && !(await evaluate('Boolean(document.querySelector("dialog[open].customization-sheet .color-picker"))')); i++) await pause(100)
+    const fit = await evaluate(fits('dialog[open].customization-sheet'))
     await shot('scenario-color-popover')
-    return fit
+    if (fit !== 'ok') return fit
+    const inner = await evaluate('(() => { const sheet = document.querySelector("dialog[open].customization-sheet"); const picker = sheet.querySelector(".color-picker"); if (!picker) return "picker missing"; const r = picker.getBoundingClientRect(); return sheet.scrollWidth <= sheet.clientWidth + 1 && r.left >= -1 && r.right <= innerWidth + 1 ? "ok" : "picker overflows " + JSON.stringify({ left: r.left, right: r.right, scrollWidth: sheet.scrollWidth, clientWidth: sheet.clientWidth }) })()')
+    if (inner !== 'ok') return inner
+    await evaluate('document.querySelector("dialog[open].customization-sheet .te-done").click()')
+    await pause(200)
+    return (await evaluate('Boolean(document.querySelector("dialog[open].customization-sheet"))')) ? 'sheet did not close' : 'ok'
   })
   await scenario('touch-area', async () => {
     await navigate(base + '/schedule')
