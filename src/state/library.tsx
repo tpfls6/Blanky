@@ -694,6 +694,20 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  const setMemoFavorite = useCallback((ids: readonly string[], favorite: boolean) => {
+    const targets = new Set(ids)
+    setData((current) => ({
+      ...current,
+      memos: current.memos.map((memo) => {
+        if (!targets.has(memo.id)) return memo
+        const next = { ...memo }
+        if (favorite) next.favorite = true
+        else delete next.favorite
+        return next
+      }),
+    }))
+  }, [])
+
   const removeMemo = useCallback((id: string) => {
     setData((current) => {
       const memo = current.memos.find((item) => item.id === id)
@@ -1537,6 +1551,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     addMemo,
     updateMemo,
     removeMemo,
+    setMemoFavorite,
     addBook,
     updateBook,
     removeBook,

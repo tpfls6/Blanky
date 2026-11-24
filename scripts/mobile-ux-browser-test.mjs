@@ -118,6 +118,16 @@ async function tap(selector) {
   await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await pause(250)
 }
+async function longPress(selector) {
+  const point = await center(selector)
+  if (!point) throw new Error('missing ' + selector)
+  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: point.x, y: point.y }] })
+  await pause(650)
+  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await pause(250)
+}
+// The selection bar sits over the bottom nav, which `tap` treats as the lower edge: click its buttons instead.
+const clickAction = (label) => evaluate(`(() => { const b = [...document.querySelectorAll('.memo-phone-actions button')].find((b) => b.textContent.trim() === ${JSON.stringify(label)}); b?.click(); return Boolean(b) })()`)
 async function swipe(selector, dx) {
   const point = await center(selector)
   if (!point) throw new Error('missing ' + selector)
@@ -356,25 +366,68 @@ try {
   })
 
   // ---------- Memo ----------
-  await scenario('memo-row-delete-icon', async () => {
+  // Right margin and gap above the bottom nav of a FAB, in CSS pixels.
+  const fabSpot = (selector) => evaluate(`(() => {
+    const fab = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect()
+    const nav = document.querySelector('.mobile-nav')?.getBoundingClientRect()
+    return fab && nav ? { size: Math.round(fab.width) + 'x' + Math.round(fab.height), right: innerWidth - fab.right, gap: nav.top - fab.bottom } : null
+  })()`)
+  await scenario('memo-phone-list', async () => {
+    // The memo + must sit exactly where the schedule home's + does.
+    await navigate(base + '/schedule')
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector(".mcal-fab"))')); i++) await pause(100)
+    const scheduleFab = await fabSpot('.mcal-fab')
     await navigate(base + '/memo')
-    await pause(900)
-    // Phones open the first memo; go back to the list.
-    await evaluate('[...document.querySelectorAll("main button")].find((b) => b.textContent.trim() === "목록보기")?.click()')
+    // Phones open the memo tab on its list, not on the first memo.
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-memo-row]"))')); i++) await pause(100)
     await pause(300)
-    const sizes = await evaluate('[...document.querySelectorAll("[data-memo-row] .memo-row-actions button")].map((b) => { const r = b.getBoundingClientRect(); return Math.round(Math.min(r.width, r.height)) + ":" + getComputedStyle(b.parentElement).opacity })')
+    if (await evaluate('Boolean(document.querySelector(".memo-phone-editor, [data-tour=memo-back]"))')) return 'memo tab opened a memo instead of the list'
     await shot('memo-list-phone')
-    if (sizes.length !== 6 || sizes.some((value) => Number(value.split(':')[0]) < 40 || value.split(':')[1] !== '1')) return 'icons ' + sizes.join(',')
-    return 'ok'
+    const memoFab = await fabSpot('.memo-fab[data-tour=new-memo]')
+    const layout = await evaluate(`({ rows: document.querySelectorAll('[data-memo-row]').length, icons: document.querySelectorAll('.memo-row-actions, .memo-browse, .memo-pick-toggle').length })`)
+    if (layout.rows !== 3 || layout.icons !== 0) return 'layout ' + JSON.stringify(layout)
+    if (!scheduleFab || !memoFab || memoFab.size !== '56x56' || memoFab.size !== scheduleFab.size || Math.abs(memoFab.right - scheduleFab.right) > 1 || Math.abs(memoFab.gap - scheduleFab.gap) > 1) return 'fab memo ' + JSON.stringify(memoFab) + ' schedule ' + JSON.stringify(scheduleFab)
+    await tap('[data-tour=memo-folders]')
+    const folders = await evaluate('[document.querySelector("[data-tour=memo-folders]").getAttribute("aria-expanded"), ...[...document.querySelectorAll(".memo-phone-folders[data-open] .memo-phone-folder-item span")].map((s) => s.textContent)].join(",")')
+    await shot('memo-folders-phone')
+    if (!folders.startsWith('true,전체 메모,즐겨찾기,미분류,학교')) return 'folders ' + folders
+    await evaluate('document.querySelector(".memo-phone-dim").click()')
+    await pause(300)
+    await tap('[data-tour=memo-search]')
+    const focused = await evaluate('document.activeElement?.classList.contains("memo-phone-search")')
+    await typeInto('.memo-phone-search', '둘째')
+    await pause(200)
+    const found = await evaluate('[...document.querySelectorAll("[data-memo-row]")].map((r) => r.dataset.memoRow).join(",") + "|" + Boolean(document.querySelector(".memo-fab"))')
+    await shot('memo-search-phone')
+    await tap('[aria-label="검색 닫기"]')
+    const back = await evaluate('document.querySelectorAll("[data-memo-row]").length + "|" + Boolean(document.querySelector("[data-tour=memo-folders]"))')
+    return focused && found === 'm1|false' && back === '3|true' ? 'ok' : `search focused=${focused} found=${found} back=${back}`
+  })
+  await scenario('memo-long-press-actions', async () => {
+    await longPress('[data-memo-row=m0] button')
+    await tap('[data-memo-row=m2] button')
+    const count = await evaluate('document.querySelector(".memo-phone-picked").textContent + "|" + Boolean(document.querySelector(".memo-phone-actions")) + "|" + Boolean(document.querySelector(".memo-fab"))')
+    await shot('memo-picking')
+    if (count !== '2개 선택됨|true|false') return 'picking ' + count
+    if (!await clickAction('즐겨찾기')) return 'favorite button missing'
+    await pause(300)
+    const stars = await stored('d.memos.filter((m) => m.favorite).map((m) => m.id).sort().join(",")')
+    if (stars !== 'm0,m2' || await evaluate('Boolean(document.querySelector(".memo-phone-actions"))')) return 'favorite ' + stars
+    await longPress('[data-memo-row=m1] button')
+    if (!await clickAction('이동')) return 'move button missing'
+    await pause(400)
+    await shot('memo-move-sheet')
+    await evaluate('[...document.querySelectorAll(".memo-move-option")].find((b) => b.textContent.trim() === "학교")?.click()')
+    await pause(300)
+    const moved = await stored('d.memos.find((m) => m.id === "m1").categoryId')
+    return moved === 'school' ? 'ok' : 'moved ' + moved
   })
   await scenario('memo-bulk-delete', async () => {
-    await tap('.memo-pick-toggle')
-    await tap('[data-memo-row=m0] .memo-row-check')
+    await longPress('[data-memo-row=m0] button')
     await tap('[data-memo-row=m2] button')
-    const count = await evaluate('document.querySelector(".memo-pick-count").textContent')
+    const count = await evaluate('document.querySelector(".memo-phone-picked").textContent')
     if (count !== '2개 선택됨') return 'count ' + count
-    await shot('memo-picking')
-    await tap('.memo-pick-delete')
+    await clickAction('삭제')
     await pause(300)
     const dialog = await evaluate('document.querySelector("dialog[open]")?.innerText ?? ""')
     await shot('memo-confirm')
@@ -384,7 +437,7 @@ try {
     await pause(300)
     const kept = await stored('d.memos.length')
     if (kept !== 3) return 'cancel removed memos: ' + kept
-    await tap('.memo-pick-delete')
+    await clickAction('삭제')
     // Wait for the dialog itself: a fixed pause flaked under load (the confirm button was not there yet).
     let confirmed = false
     for (let i = 0; i < 30 && !confirmed; i++) {
@@ -394,8 +447,101 @@ try {
     if (!confirmed) return 'second confirm did not open'
     await pause(500)
     const data = await stored('d.memos.map((m) => m.id).join(",") + "|" + (d.trash ?? []).length')
-    const picking = await evaluate('Boolean(document.querySelector(".memo-pick-bar"))')
+    const picking = await evaluate('Boolean(document.querySelector(".memo-phone-actions"))')
     return data === 'm1|2' && !picking ? 'ok' : 'after delete ' + data + ' picking=' + picking
+  })
+
+  // Phone editor: back arrow, title and menu in the top bar, no save/list buttons, autosave, category sheet, menu.
+  const editorReady = async () => { for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector(".memo-phone-editor .memo-rich-content"))')); i++) await pause(100) }
+  const typeBody = async (text) => {
+    await evaluate('(() => { const el = document.querySelector(".memo-phone-editor .memo-rich-content"); el.focus(); const s = getSelection(); s.selectAllChildren(el); s.collapseToEnd() })()')
+    await send('Input.insertText', { text })
+  }
+  await scenario('memo-phone-editor', async () => {
+    await tap('[data-memo-row=m1] button')
+    await editorReady()
+    const shape = await evaluate(`(() => {
+      const top = document.querySelector('.memo-pe-top')
+      const tools = document.querySelector('.memo-pe-tools')?.getBoundingClientRect()
+      const nav = document.querySelector('.mobile-nav')?.getBoundingClientRect()
+      const words = [...document.querySelectorAll('main button')].map((b) => b.textContent.trim())
+      return { back: Boolean(top?.querySelector('[data-tour=memo-back][aria-label="목록으로"]')), title: top?.querySelector('input.memo-title')?.value,
+        more: top?.querySelector('[aria-haspopup=menu]')?.getAttribute('aria-expanded'), oldButtons: words.filter((w) => w === '저장' || w === '목록보기' || w === '삭제').length,
+        chip: document.querySelector('.memo-pe-chip')?.textContent.trim(), status: document.querySelector('.memo-pe-meta [role=status]') !== null,
+        toolsOnNav: tools && nav ? Math.abs(nav.top - tools.bottom) <= 1 : false, overflow: document.querySelector('main').scrollHeight - document.querySelector('main').clientHeight }
+    })()`)
+    await shot('memo-editor-phone')
+    if (!shape.back || shape.title !== '둘째 메모' || shape.more !== 'false' || shape.oldButtons !== 0 || shape.chip !== '학교' || !shape.status || !shape.toolsOnNav || shape.overflow > 1) return 'shape ' + JSON.stringify(shape)
+    // Typing saves by itself after a pause.
+    await typeInto('.memo-pe-title', '둘째 메모 수정')
+    const saving = await evaluate('document.querySelector(".memo-pe-status").textContent')
+    await pause(1300)
+    const autosaved = await stored('d.memos.find((m) => m.id === "m1").title')
+    const done = await evaluate('document.querySelector(".memo-pe-status").textContent')
+    if (saving !== '저장 중…' || autosaved !== '둘째 메모 수정' || done !== '저장됨') return `autosave saving=${saving} stored=${autosaved} done=${done}`
+    // The back arrow right after typing still saves (flush), then shows the list.
+    await typeBody(' 추가')
+    await tap('[data-tour=memo-back]')
+    const flushed = await stored('d.memos.find((m) => m.id === "m1").body')
+    const listed = await evaluate('Boolean(document.querySelector("[data-memo-row=m1]")) && !document.querySelector(".memo-phone-editor")')
+    if (!flushed.includes('추가') || !listed) return 'flush body=' + flushed.slice(-40) + ' listed=' + listed
+    // The checklist button turns the current line into a task; tapping its checkbox checks it (faded + struck) and saves.
+    await tap('[data-memo-row=m1] button')
+    await editorReady()
+    await typeBody('')
+    // The icon row scrolls sideways; bring the button on screen before tapping it.
+    await evaluate('document.querySelector(".memo-pe-tools [aria-label=\\"체크리스트\\"]").scrollIntoView({ inline: "center", block: "nearest" })')
+    await tap('.memo-pe-tools [aria-label="체크리스트"]')
+    const checklistOn = await evaluate('document.querySelector(".memo-pe-tools [aria-label=\\"체크리스트\\"]").getAttribute("aria-pressed")')
+    const box = await evaluate(`(() => { const r = document.querySelector('.memo-rich-content ul[data-type=taskList] > li input')?.getBoundingClientRect(); return r ? Math.round(r.width) : 0 })()`)
+    if (box === 0) return `checklist pressed=${checklistOn} no task item`
+    await tap('.memo-rich-content ul[data-type=taskList] > li input')
+    const checked = await evaluate(`(() => { const p = document.querySelector('.memo-rich-content ul[data-type=taskList] > li[data-checked=true] p'); return p ? getComputedStyle(p).textDecorationLine : 'none' })()`)
+    await shot('memo-editor-checklist')
+    await pause(1300)
+    const taskSaved = await stored('d.memos.find((m) => m.id === "m1").body.includes(\'"type":"taskItem","attrs":{"checked":true}\')')
+    if (checklistOn !== 'true' || box < 18 || checked !== 'line-through' || !taskSaved) return `checklist pressed=${checklistOn} box=${box} checked=${checked} saved=${taskSaved}`
+    // The category sheet applies at once; the menu stars the memo.
+    await tap('.memo-pe-chip')
+    await pause(300)
+    await shot('memo-editor-category')
+    await evaluate('[...document.querySelectorAll(".memo-move-option")].find((b) => b.textContent.trim() === "미분류")?.click()')
+    await pause(300)
+    const category = await stored('d.memos.find((m) => m.id === "m1").categoryId')
+    await tap('.memo-pe-top [aria-haspopup=menu]')
+    const menu = await evaluate('document.querySelector(".memo-pe-top [aria-haspopup=menu]").getAttribute("aria-expanded") + "|" + [...document.querySelectorAll(".memo-pe-menu [role=menuitem]")].map((b) => b.textContent.trim()).join(",")')
+    await shot('memo-editor-menu')
+    await evaluate('[...document.querySelectorAll(".memo-pe-menu [role=menuitem]")].find((b) => b.textContent.trim() === "즐겨찾기")?.click()')
+    await pause(300)
+    const star = await stored('d.memos.find((m) => m.id === "m1").favorite === true')
+    if (category !== null || menu !== 'true|즐겨찾기,공유,삭제' || !star) return `category=${category} menu=${menu} star=${star}`
+    // The system Back leaves the editor for the list too.
+    await evaluate('history.back()')
+    await pause(500)
+    return await evaluate('Boolean(document.querySelector("[data-memo-row=m1]")) && !document.querySelector(".memo-phone-editor")') ? 'ok' : 'back did not return to the list'
+  })
+  await scenario('memo-phone-editor-new-and-delete', async () => {
+    await tap('.memo-fab')
+    await editorReady()
+    const empty = await evaluate('document.querySelector(".memo-pe-title").value')
+    await typeBody('장보기 목록')
+    await tap('[data-tour=memo-back]')
+    const titles = await stored('d.memos.map((m) => m.title).join(",")')
+    if (empty !== '' || !titles.split(',').includes('장보기 목록')) return `new memo title=${empty} stored=${titles}`
+    const id = await stored('d.memos.find((m) => m.title === "장보기 목록").id')
+    await tap(`[data-memo-row="${id}"] button`)
+    await editorReady()
+    await tap('.memo-pe-top [aria-haspopup=menu]')
+    await evaluate('[...document.querySelectorAll(".memo-pe-menu [role=menuitem]")].find((b) => b.textContent.trim() === "삭제")?.click()')
+    let confirmed = false
+    for (let i = 0; i < 30 && !confirmed; i++) {
+      confirmed = await evaluate('(() => { const b = [...document.querySelectorAll("dialog[open] button")].find((b) => b.textContent.includes("삭제")); b?.click(); return Boolean(b) })()')
+      if (!confirmed) await pause(100)
+    }
+    await pause(500)
+    const after = await stored(`d.memos.some((m) => m.id === ${JSON.stringify(id)}) + "|" + (d.trash ?? []).some((t) => JSON.stringify(t).includes(${JSON.stringify(id)}))`)
+    const listed = await evaluate('!document.querySelector(".memo-phone-editor") && Boolean(document.querySelector(".memo-phone-list"))')
+    return confirmed && after === 'false|true' && listed ? 'ok' : `delete confirmed=${confirmed} after=${after} listed=${listed}`
   })
 
   // ---------- Reading ----------

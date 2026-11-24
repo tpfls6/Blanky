@@ -50,6 +50,8 @@ export type Memo = {
   body: string
   categoryId: string | null
   tags: string[]
+  /** Starred from the phone memo list; absent on memos saved before favorites existed. */
+  favorite?: boolean
   createdAt: string
   updatedAt: string
 }

@@ -22,8 +22,8 @@ const TOURS: Record<PageTourId, TourStep[]> = {
   ],
   memo: [
     { target: '[data-tour="new-memo"]', prepare: 'memo-list', title: '떠오른 생각을 바로 적어요', body: '메모 작성으로 새 메모를 열어요. 제목과 본문은 쓰는 대로 저장돼요.' },
-    { target: '.memo-browse > input', title: '검색으로 찾아요', body: '제목·본문·카테고리를 함께 검색해 필요한 메모를 찾아요.' },
-    { target: '.memo-folders', title: '카테고리로 모아요', body: '메모에 카테고리를 지정하면 같은 폴더에서 모아 볼 수 있어요.' },
+    { target: '.memo-browse > input, [data-tour="memo-search"]', title: '검색으로 찾아요', body: '제목·본문·카테고리를 함께 검색해 필요한 메모를 찾아요.' },
+    { target: '.memo-folders, [data-tour="memo-folders"]', title: '카테고리로 모아요', body: '메모에 카테고리를 지정하면 같은 폴더에서 모아 볼 수 있어요.' },
   ],
   store: [
     { target: '[data-tour="store-tabs"]', title: '테마와 템플릿을 둘러봐요', body: '테마는 앱의 모습을, 템플릿은 페이지 구성을 바꿔요. 이 메뉴로 오갈 수 있어요.' },

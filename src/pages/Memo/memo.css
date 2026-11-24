@@ -38,6 +38,15 @@
 .memo-rich-content h3 { font-size: 19px; font-weight: 600; line-height: 1.5; margin: 16px 0 8px; }
 .memo-rich-content ul { list-style: disc; padding-left: 24px; }
 .memo-rich-content ol { list-style: decimal; padding-left: 24px; }
+/* Checklist (TaskList): a 20px checkbox inside the line height; checked items fade with a strike. */
+.memo-rich-content ul[data-type=taskList] { list-style: none; padding-left: 2px; }
+.memo-rich-content ul[data-type=taskList] ul[data-type=taskList] { padding-left: 26px; }
+.memo-rich-content ul[data-type=taskList] > li { display: flex; align-items: flex-start; gap: 8px; }
+.memo-rich-content ul[data-type=taskList] > li > label { display: flex; flex: none; align-items: center; height: 1.9em; cursor: pointer; user-select: none; }
+.memo-rich-content ul[data-type=taskList] > li > label input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent-color); cursor: pointer; }
+.memo-rich-content ul[data-type=taskList] > li > div { flex: 1; min-width: 0; }
+.memo-rich-content ul[data-type=taskList] > li > div > p { margin-bottom: 0; }
+.memo-rich-content ul[data-type=taskList] > li[data-checked=true] > div > p { color: var(--muted); text-decoration: line-through; }
 .memo-rich-content blockquote { border-left: 3px solid var(--accent-color); padding-left: 16px; margin: 12px 0; color: var(--muted); }
 .memo-rich-content hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
 .memo-rich-content code { background: var(--hover); border-radius: 4px; padding: 2px 4px; font-family: monospace; }
@@ -67,3 +76,120 @@
   .memo-pick-delete { min-height: 36px; }
   .memo-pick-bar input[type=checkbox], .memo-row-check { width: 20px; height: 20px; }
 }
+/* Phone memo list (MemoPhoneList): no box, full-width rows, folder dropdown, + button and a selection bar over the bottom nav. */
+.memo-layout > .memo-phone-column { max-height: none; overflow: visible; }
+.memo-phone { --memo-phone-head: 56px; display: flex; flex-direction: column; margin-inline: -16px; }
+.memo-phone button { -webkit-tap-highlight-color: transparent; }
+.memo-phone-head { position: sticky; top: 0; z-index: 26; display: flex; align-items: center; gap: 4px; height: var(--memo-phone-head); margin-top: -8px; padding: 0 8px 0 16px; background: var(--bg); }
+.memo-phone-icon { display: grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--fg); touch-action: manipulation; }
+.memo-phone-icon:active, .memo-phone-folder:active, .memo-phone-all:active { background: var(--press, var(--hover)); }
+.memo-phone-head > .memo-phone-icon:first-child { margin-left: -8px; }
+.memo-phone-folder { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; height: 44px; margin-left: -8px; padding: 0 8px; border-radius: 12px; color: var(--fg); font-size: 19px; font-weight: 700; text-align: left; }
+.memo-phone-folder > span:not(.memo-phone-dot) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memo-phone-folder small { flex: none; color: var(--muted); font-size: 13px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.memo-phone-folder svg { flex: none; color: var(--muted); transition: transform .2s; }
+.memo-phone-folder[aria-expanded='true'] svg { transform: rotate(180deg); }
+.memo-phone-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.memo-phone-search { flex: 1; min-width: 0; height: 40px; border: 0; outline: none; background: transparent; color: var(--fg); font-size: 16px; }
+.memo-phone-search::placeholder { color: var(--faint); }
+.memo-phone-search::-webkit-search-cancel-button { display: none; }
+.memo-phone-picked { flex: 1; min-width: 0; font-size: 17px; font-weight: 600; }
+.memo-phone-all { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px; border-radius: 12px; color: var(--muted); font-size: 13px; }
+.memo-phone-all:disabled { opacity: .4; }
+.memo-phone-folders { position: absolute; inset-inline: 0; top: 100%; max-height: min(70vh, calc(var(--mobile-viewport-height, 100dvh) - 200px)); overflow-y: auto; overscroll-behavior: contain; padding: 4px 8px 12px; border-radius: 0 0 18px 18px; background: var(--surface); box-shadow: 0 12px 30px rgb(0 0 0 / 15%); opacity: 0; pointer-events: none; transform: translateY(-10px); transition: opacity .2s, transform .2s; }
+.memo-phone-folders[data-open] { opacity: 1; pointer-events: auto; transform: none; }
+.memo-phone-folder-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 0 12px; border-radius: 10px; color: var(--fg); font-size: 15px; text-align: left; }
+.memo-phone-folder-item > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memo-phone-folder-item small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.memo-phone-folder-item:active { background: var(--hover); }
+.memo-phone-folder-item[aria-current=page] { background: var(--accent-light); color: var(--accent-text); font-weight: 500; }
+.memo-phone-folder-sub { padding-left: 40px; font-size: 14px; }
+.memo-phone-sep { height: 1px; margin: 6px 12px; background: var(--line); }
+.memo-phone-dim { position: fixed; inset: 0; z-index: 25; background: rgb(0 0 0 / 30%); opacity: 0; pointer-events: none; transition: opacity .2s; }
+.memo-phone-dim[data-open] { opacity: 1; pointer-events: auto; }
+.memo-phone-star { flex: none; color: var(--accent-color); fill: currentColor; }
+.memo-phone-folder-item .memo-phone-star { fill: none; }
+.memo-phone-count { padding: 4px 16px 6px; color: var(--muted); font-size: 12px; }
+.memo-phone > .mt-3, .memo-phone > [data-theme-slot]:not(.memo-fab) { margin-inline: 16px; }
+.memo-phone-list { padding-bottom: 88px; }
+.memo-phone-row { position: relative; }
+.memo-phone-row + .memo-phone-row::before { content: ''; position: absolute; top: 0; inset-inline: 16px; border-top: 1px solid var(--line); }
+.memo-phone-row[data-picked]::before, .memo-phone-row[data-picked] + .memo-phone-row::before { border-color: transparent; }
+.memo-phone-item { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 12px 16px; text-align: left; color: var(--fg); -webkit-touch-callout: none; user-select: none; touch-action: manipulation; transition: background .15s; }
+.memo-phone-item:active { background: var(--hover); }
+.memo-phone-item:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+.memo-phone-row[data-picked] .memo-phone-item { background: var(--accent-light); }
+.memo-phone-item[aria-current='true'] .memo-phone-title { color: var(--accent-text); }
+.memo-phone-check { display: grid; flex: none; place-items: center; width: 24px; height: 24px; border: 1.7px solid var(--faint); border-radius: 50%; color: var(--accent-on); }
+.memo-phone-row[data-picked] .memo-phone-check, .memo-phone-all[aria-pressed='true'] .memo-phone-check { border-color: var(--accent-color); background: var(--accent-color); }
+.memo-phone-body { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.memo-phone-title { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; }
+.memo-phone-title > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memo-phone-preview { margin-top: 3px; overflow: hidden; color: var(--muted); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.memo-phone-meta { display: flex; gap: 8px; margin-top: 5px; color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.memo-phone-meta > span { display: inline-flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memo-phone-meta .memo-phone-dot { width: 6px; height: 6px; }
+/* Same spot, size and color as the schedule home's + (.mcal-fab): 16px from the right edge and 16px above main's
+   bottom padding (4.25rem + safe area, see AppLayout), where .mcal ends. */
+.memo-fab { position: fixed; right: 16px; bottom: calc(4.25rem + env(safe-area-inset-bottom) + 16px); z-index: 32; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent-color); color: var(--accent-on); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent-color) 45%, transparent); touch-action: manipulation; }
+.memo-fab:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 3px; }
+.theme-app-layout[data-keyboard-open='true'] .memo-fab { visibility: hidden; }
+/* Covers the bottom navigation (z-30) while picking; the nav itself is untouched underneath. */
+.memo-phone-actions { position: fixed; inset-inline: 0; bottom: 0; z-index: 35; display: flex; min-height: calc(3.5rem + 1px); padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); border-top: 1px solid var(--line); background: var(--surface); animation: memo-actions-up .22s ease-out; }
+@keyframes memo-actions-up { from { transform: translateY(100%); } }
+.memo-phone-actions button { display: flex; flex: 1; min-width: 0; min-height: 3.5rem; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--fg); font-size: 11px; line-height: 1.1; touch-action: manipulation; }
+.memo-phone-actions button:active { background: var(--press, var(--hover)); }
+.memo-phone-actions button:disabled { opacity: .35; }
+.memo-phone-actions .memo-phone-delete { color: var(--danger); }
+.memo-move-list { padding: 0 0 8px; }
+.memo-move-option { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 0 20px; color: var(--fg); font-size: 15px; text-align: left; }
+.memo-move-option:active { background: var(--hover); }
+.memo-move-sub { padding-left: 48px; }
+@media (prefers-reduced-motion: reduce) { .memo-phone-folders, .memo-phone-dim, .memo-phone-folder svg, .memo-phone-item { transition: none; } .memo-phone-actions { animation: none; } }
+/* Phone memo editor (MemoPhoneEditor): ← · title · ⋮ bar, category chip and dates, full-width body, format row at the bottom.
+   Its height is set from the visible viewport, so the format row sits on the bottom navigation or the keyboard;
+   the negative margins cancel the page padding (PageCanvas px-4 py-4) so nothing scrolls under it. */
+.memo-phone-editor { display: flex; flex-direction: column; min-height: 0; margin: -8px -16px -16px; background: var(--bg); }
+.memo-phone-editor button { -webkit-tap-highlight-color: transparent; }
+.memo-pe-top { position: relative; z-index: 26; display: flex; flex: none; align-items: center; gap: 2px; height: 56px; padding: 0 4px; }
+.memo-pe-top .memo-phone-icon:active { background: var(--press, var(--hover)); }
+.memo-phone-editor .memo-pe-title { flex: 1; min-width: 0; height: 44px; padding: 0 4px; border: 0; border-radius: 8px; outline: none; box-shadow: none; background: transparent; color: var(--fg); font-size: 19px; font-weight: 700; }
+.memo-pe-title::placeholder { color: var(--faint); font-weight: 500; }
+.memo-pe-title:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+.memo-pe-menu-dim { position: fixed; inset: 0; z-index: 1; }
+.memo-pe-menu { position: absolute; top: calc(100% - 4px); right: 8px; z-index: 2; min-width: 184px; padding: 6px 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 10px 30px rgb(0 0 0 / 15%); animation: memo-pe-menu .16s ease-out; transform-origin: top right; }
+@keyframes memo-pe-menu { from { opacity: 0; transform: scale(.96); } }
+.memo-pe-menu button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 16px; color: var(--fg); font-size: 14px; text-align: left; }
+.memo-pe-menu button:active, .memo-pe-menu button:focus-visible { background: var(--hover); outline: none; }
+.memo-pe-menu .memo-pe-danger { color: var(--danger); }
+.memo-pe-meta { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 0 16px 10px; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.memo-pe-chip { display: inline-flex; max-width: 100%; min-width: 0; align-items: center; gap: 6px; height: 32px; padding: 0 10px 0 12px; border-radius: 999px; background: var(--hover); color: var(--fg); font-size: 13px; touch-action: manipulation; }
+.memo-pe-chip > span:not(.memo-phone-dot) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memo-pe-chip svg { flex: none; color: var(--muted); }
+.memo-pe-chip:active { background: var(--press, var(--line)); }
+.memo-pe-date { white-space: nowrap; }
+.memo-pe-status { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; white-space: nowrap; }
+.memo-pe-status svg { color: var(--accent-color); }
+.memo-pe-status[data-state='failed'] { color: var(--danger); }
+.memo-pe-retry { min-height: 32px; padding: 0 10px; border-radius: 999px; background: var(--hover); color: var(--fg); font-size: 12px; }
+.memo-pe-option-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memo-pe-tick { flex: none; color: var(--accent-color); }
+.memo-rich-phone { border-top: 0; }
+.memo-rich-phone .memo-rich-scroll { padding: 2px 16px 0; }
+.memo-rich-phone .memo-rich-content, .theme-app-layout .memo-rich-phone .memo-rich-content { padding: 4px 0 24px; font-size: 16px; line-height: 1.85; }
+.memo-pe-styles { display: flex; flex: none; gap: 6px; padding: 8px 10px; overflow-x: auto; border-top: 1px solid var(--line); scrollbar-width: none; }
+.memo-pe-styles button { flex: none; min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--fg); font-size: 13px; }
+.memo-pe-styles button[aria-pressed='true'] { border-color: transparent; background: var(--accent-light); color: var(--accent-text); }
+.memo-pe-tools { display: flex; flex: none; align-items: center; gap: 2px; height: 48px; padding: 0 6px; overflow-x: auto; overscroll-behavior-x: contain; border-top: 1px solid var(--line); background: var(--bg); scrollbar-width: none; }
+.memo-pe-tools::-webkit-scrollbar, .memo-pe-styles::-webkit-scrollbar { display: none; }
+.memo-pe-tools button { display: grid; flex: none; place-items: center; min-width: 40px; height: 40px; padding: 0 8px; border-radius: 10px; color: var(--fg); font-size: 15px; font-weight: 500; touch-action: manipulation; }
+.memo-pe-tools button:active { background: var(--hover); }
+.memo-pe-tools button[aria-pressed='true'], .memo-pe-tools button[aria-expanded='true'] { background: var(--accent-light); color: var(--accent-text); }
+.memo-pe-tools button:focus-visible, .memo-pe-styles button:focus-visible, .memo-pe-chip:focus-visible, .memo-pe-retry:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
+.memo-pe-sep { flex: none; width: 1px; height: 22px; margin: 0 4px; background: var(--line); }
+/* While the editor is open main's bottom padding is just the navigation (none with the keyboard open), so the format row sits directly on it. */
+@media (max-width: 767px) {
+  .theme-app-layout > main:has(.memo-phone-editor) { padding-bottom: calc(3.5rem + 1px + env(safe-area-inset-bottom)); }
+  .theme-app-layout[data-keyboard-open='true'] > main:has(.memo-phone-editor) { padding-bottom: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .memo-pe-menu { animation: none; } }

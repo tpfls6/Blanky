@@ -3,8 +3,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import './memo.css'
 import { MemoRichEditor } from './MemoRichEditor.tsx'
+import { MemoPhoneList } from './MemoPhoneList.tsx'
+import { MemoPhoneEditor } from './MemoPhoneEditor.tsx'
 import { memoPlainText } from './memoContent.ts'
-import { ChevronRight, Folder, FolderOpen, List, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Folder, FolderOpen, ListChecks, Pencil, Plus, Trash2 } from 'lucide-react'
 import { CategoryPicker } from '../../components/schedule/CategoryPicker.tsx'
 import { PageCanvas } from '../../features/pages/PageCanvas.tsx'
 import { resolveLayout } from '../../features/pages/layout.ts'
@@ -41,17 +43,26 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
   const [createError, setCreateError] = useState('')
   const [folder, setFolder] = useState('all')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const activeFolder = folder === 'all' || folder === 'none' || library.categories.some(category => category.id === folder) ? folder : 'all'
+  // Phones search every memo from the top row; the folder filter waits until the search closes.
+  const [searching, setSearching] = useState(false)
+  // 'star' (즐겨찾기) is a phone folder for library memos only.
+  const activeFolder = folder === 'all' || folder === 'none' || (folder === 'star' && !source) || library.categories.some(category => category.id === folder) ? folder : 'all'
   const folderIds = (id: string): string[] => [id, ...library.categories.filter(category => category.parentId === id).map(category => category.id)]
-  const belongsTo = (categoryId: string | null, id: string) => id === 'all' || (id === 'none' ? !categoryId || !library.categories.some(category => category.id === categoryId) : categoryId !== null && folderIds(id).includes(categoryId))
-  const count = (id: string) => memos.filter(memo => belongsTo(memo.categoryId, id)).length
+  const belongsTo = (memo: (typeof memos)[number], id: string) => id === 'all' || (id === 'star' ? memo.favorite === true : id === 'none' ? !memo.categoryId || !library.categories.some(category => category.id === memo.categoryId) : memo.categoryId !== null && folderIds(id).includes(memo.categoryId))
+  const count = (id: string) => memos.filter(memo => belongsTo(memo, id)).length
+  const folderLabel = activeFolder === 'all' ? '전체 메모' : activeFolder === 'star' ? '즐겨찾기' : activeFolder === 'none' ? '미분류' : categoryPath(activeFolder, library.categories) ?? '전체 메모'
   const chooseFolder = (id: string) => {
     setFolder(id)
     setSelectedId(null)
   }
-  // Home's 보기 names one memo in the router state; otherwise the newest is selected.
+  // Home's 보기 names one memo in the router state; otherwise the newest is selected,
+  // except on a phone, where the memo tab opens on its list.
   const openId = (useLocation().state as { openId?: unknown } | null)?.openId
-  const [selectedId, setSelectedId] = useState<string | null>(() => !source && typeof openId === 'string' && memos.some(memo => memo.id === openId) ? openId : memos[0]?.id ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (!source && typeof openId === 'string' && memos.some(memo => memo.id === openId)) return openId
+    if (!source && window.matchMedia?.(PHONE_QUERY).matches) return null
+    return memos[0]?.id ?? null
+  })
   // On a phone the memo tour starts by going back to the list, which would close the memo 보기 opened;
   // it waits until you leave that memo instead.
   const phone = useMediaQuery(PHONE_QUERY)
@@ -60,37 +71,47 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
   const [picking, setPicking] = useState(false)
   const [picked, setPicked] = useState<ReadonlySet<string>>(() => new Set())
   const [removing, setRemoving] = useState(false)
+  // The memo 메모 작성 just made: the phone editor starts its title empty so the first body line can name it.
+  const [freshId, setFreshId] = useState<string | null>(null)
   const selected = memos.find((memo) => memo.id === selectedId) ?? null
 
   const visible = useMemo(() => {
     const text = query.trim().toLocaleLowerCase('ko')
-    const ids = new Set([activeFolder, ...library.categories.filter(category => category.parentId === activeFolder).map(category => category.id)])
+    const scope = phone && searching ? 'all' : activeFolder
+    const ids = new Set([scope, ...library.categories.filter(category => category.parentId === scope).map(category => category.id)])
     return memos.filter((memo) => {
       if (hideFolders) return !text || [memo.title, memoPlainText(memo.body)].join(' ').toLocaleLowerCase('ko').includes(text)
-      if (activeFolder === 'none' && memo.categoryId && library.categories.some(category => category.id === memo.categoryId)) return false
-      if (activeFolder !== 'all' && activeFolder !== 'none' && !ids.has(memo.categoryId ?? '')) return false
+      if (scope === 'star' && memo.favorite !== true) return false
+      if (scope === 'none' && memo.categoryId && library.categories.some(category => category.id === memo.categoryId)) return false
+      if (scope !== 'all' && scope !== 'none' && scope !== 'star' && !ids.has(memo.categoryId ?? '')) return false
       if (!text) return true
       const path = categoryPath(memo.categoryId, library.categories) ?? ''
       return [memo.title, memoPlainText(memo.body), path].join(' ').toLocaleLowerCase('ko').includes(text)
     })
-  }, [library.categories, memos, query, activeFolder, hideFolders])
+  }, [library.categories, memos, query, activeFolder, hideFolders, phone, searching])
 
   const createMemo = async () => {
     setCreateError('')
     try {
     const id = source
-      ? await source.add({ title: t('custom.unnamed'), body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' ? null : activeFolder })
-        : library.addMemo({ title: '새 메모', body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' ? null : activeFolder, tags: [] })
+      ? await source.add({ title: t('custom.unnamed'), body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' || activeFolder === 'star' ? null : activeFolder })
+        : library.addMemo({ title: '새 메모', body: '', categoryId: activeFolder === 'all' || activeFolder === 'none' || activeFolder === 'star' ? null : activeFolder, tags: [] })
     setSelectedId(id)
+    setFreshId(id)
     } catch (error) { setCreateError(error instanceof Error ? error.message : t('custom.saveFailed')) }
   }
+  // Resolves to whether the memo went to the trash.
   const deleteMemo = async (memo: (typeof memos)[number]) => {
-    if (!await confirm(`${memo.title} 메모를 삭제할까요? 휴지통에서 복구할 수 있습니다.`)) return
+    if (!await confirm(`${memo.title} 메모를 삭제할까요? 휴지통에서 복구할 수 있습니다.`)) return false
     try {
       if (source) await source.remove(memo.id)
       else library.removeMemo(memo.id)
       if (selectedId === memo.id) setSelectedId(null)
-    } catch (error) { setCreateError(error instanceof Error ? error.message : t('custom.saveFailed')) }
+      return true
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : t('custom.saveFailed'))
+      return false
+    }
   }
 
   const visibleIds = visible.map(memo => memo.id)
@@ -103,11 +124,11 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
     return next
   })
   const stopPicking = () => { setPicking(false); setPicked(new Set()) }
-  const deletePicked = async () => {
-    const targets = memos.filter(memo => pickedVisible.includes(memo.id))
-    if (!targets.length || removing) return
-    if (!await confirm(`선택한 메모 ${targets.length}개를 삭제할까요? 휴지통에서 복구할 수 있습니다.`, { title: '메모 일괄 삭제', confirmLabel: `${targets.length}개 삭제` })) return
-    setRemoving(true)
+  // Confirms, then moves the memos to the trash one by one; resolves to the ids that failed (null when cancelled).
+  const removeMemos = async (ids: readonly string[]): Promise<string[] | null> => {
+    const targets = memos.filter(memo => ids.includes(memo.id))
+    if (!targets.length) return null
+    if (!await confirm(`선택한 메모 ${targets.length}개를 삭제할까요? 휴지통에서 복구할 수 있습니다.`, { title: '메모 일괄 삭제', confirmLabel: `${targets.length}개 삭제` })) return null
     const failed: string[] = []
     for (const memo of targets) {
       try {
@@ -115,17 +136,67 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
         else library.removeMemo(memo.id)
       } catch { failed.push(memo.id) }
     }
-    setRemoving(false)
     if (selectedId && targets.some(memo => memo.id === selectedId && !failed.includes(memo.id))) setSelectedId(null)
-    if (failed.length) {
-      setPicked(new Set(failed))
-      setCreateError(`${failed.length}개 메모를 삭제하지 못했어요. 다시 시도해 주세요.`)
-    } else stopPicking()
+    setCreateError(failed.length ? `${failed.length}개 메모를 삭제하지 못했어요. 다시 시도해 주세요.` : '')
+    return failed
+  }
+  const deletePicked = async () => {
+    if (!pickedVisible.length || removing) return
+    setRemoving(true)
+    const failed = await removeMemos(pickedVisible)
+    setRemoving(false)
+    if (!failed) return
+    if (failed.length) setPicked(new Set(failed))
+    else stopPicking()
+  }
+  // Phone selection bar: a move keeps title and body, so a custom page's own save path takes it too.
+  const moveMemos = async (ids: readonly string[], categoryId: string | null) => {
+    setCreateError('')
+    try {
+      for (const memo of memos.filter(item => ids.includes(item.id))) {
+        if (source) await source.save(memo.id, { title: memo.title, body: memo.body, categoryId })
+        else library.updateMemo(memo.id, { title: memo.title, body: memo.body, categoryId, tags: memo.tags })
+      }
+      return true
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : t('custom.saveFailed'))
+      return false
+    }
   }
 
   const page = (
     <div className="memo-layout grid w-full gap-8 md:grid-cols-[260px_minmax(0,1fr)]">
-      <div className={selected ? 'hidden min-h-0 md:flex md:flex-col' : 'flex min-h-0 flex-col'}>
+      <div className={selected ? 'hidden min-h-0 md:flex md:flex-col' : phone ? 'memo-phone-column flex min-h-0 flex-col' : 'flex min-h-0 flex-col'}>
+        {phone ? <>
+          {createError ? <p role="alert" className="text-sm text-red-500">{createError}</p> : null}
+          <MemoPhoneList
+            heading={heading}
+            memos={visible}
+            categories={library.categories}
+            folder={activeFolder}
+            folderLabel={hideFolders ? heading : folderLabel}
+            folderCount={hideFolders ? visible.length : count(activeFolder)}
+            count={count}
+            onFolder={chooseFolder}
+            hideFolders={hideFolders}
+            canFavorite={!source}
+            query={query}
+            onQuery={setQuery}
+            searching={searching}
+            onSearching={setSearching}
+            selectedId={selectedId}
+            onOpen={setSelectedId}
+            onCreate={() => void createMemo()}
+            onDelete={removeMemos}
+            onMove={moveMemos}
+            onFavorite={library.setMemoFavorite}
+            empty={!memos.length && !query.trim() ? (
+              <div className="mt-3">
+                <ExampleCard title="회의에서 나온 아이디어" meta="미분류 · 방금" body="온보딩은 짧게, 예시는 화면에서만 보여 주기" action="첫 메모 작성" onStart={createMemo} />
+              </div>
+            ) : visible.length === 0 ? <EmptyState>{query.trim() ? t('memo.empty') : activeFolder === 'star' ? '즐겨찾기한 메모가 없어요. 메모를 길게 눌러 추가해 보세요.' : t('memo.empty')}</EmptyState> : null}
+          />
+        </> : <>
         <div data-theme-slot="page-header" className="flex items-center justify-between">
           <h1 className="text-2xl font-medium tracking-tight">{heading}</h1>
           <button data-tour="new-memo" data-theme-slot="button-primary"
@@ -212,9 +283,26 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
           ))}
         </ul>
         </div>
+        </>}
       </div>
       <div className={selected ? 'memo-editor-column block' : 'memo-editor-column hidden md:block'}>
-        {selected ? (
+        {selected && phone ? <>
+          {createError ? <p role="alert" className="mb-2 text-sm text-red-500">{createError}</p> : null}
+          <MemoPhoneEditor
+            key={selected.id}
+            memo={selected}
+            categories={library.categories}
+            hideCategory={hideFolders}
+            canFavorite={!source}
+            fresh={selected.id === freshId}
+            defaultTitle={source ? t('custom.unnamed') : '새 메모'}
+            backToList={!viewing}
+            save={patch => source ? source.save(selected.id, patch) : library.updateMemo(selected.id, { ...patch, tags: selected.tags })}
+            onBack={() => setSelectedId(null)}
+            onDelete={() => deleteMemo(selected)}
+            onFavorite={favorite => library.setMemoFavorite([selected.id], favorite)}
+          />
+        </> : selected ? (
           <MemoEditor
             key={selected.id}
             id={selected.id}
@@ -338,14 +426,6 @@ function MemoEditor({
         작성 {memo.createdAt.slice(0, 10)} · 수정 {memo.updatedAt.slice(0, 10)}
       </p>
       <p className="text-xs text-neutral-500" role="status">{saved}</p>
-      </div>
-      {/* The wrapper hides it on desktop: .btn sets display and would override md:hidden on the button itself.
-          Hidden, it has no client rects, so the memo tour does not click it and close an opened memo. */}
-      <div className="md:hidden">
-        <button data-tour="memo-back" data-theme-slot="button" type="button" disabled={busy} onClick={onBack} className="btn btn-ghost w-full">
-          <List className="size-4" strokeWidth={1.5} aria-hidden="true" />
-          목록보기
-        </button>
       </div>
     </form>
   )

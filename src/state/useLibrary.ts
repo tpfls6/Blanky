@@ -36,6 +36,8 @@ export type LibraryValue = LibraryData & {
   addMemo: (memo: Pick<Memo, 'title' | 'body' | 'categoryId' | 'tags'>) => string
   updateMemo: (id: string, patch: Pick<Memo, 'title' | 'body' | 'categoryId' | 'tags'>) => void
   removeMemo: (id: string) => void
+  /** Stars or unstars several memos at once; leaves updatedAt alone (a star is not an edit). */
+  setMemoFavorite: (ids: readonly string[], favorite: boolean) => void
   addBook: (book: Omit<Book, 'id' | 'createdAt'>) => string
   updateBook: (id: string, patch: Partial<Omit<Book, 'id' | 'createdAt'>>) => void
   removeBook: (id: string) => void
