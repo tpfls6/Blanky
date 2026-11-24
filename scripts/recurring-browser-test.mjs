@@ -70,7 +70,9 @@ const setValue = (finder, value, proto = 'HTMLInputElement', event = 'input') =>
 const setSelect = (label, value) => setValue(`document.querySelector('select[aria-label=${q(label)}]')`, value, 'HTMLSelectElement', 'change')
 const field = label => `[...document.querySelectorAll('label')].find(l=>l.firstChild?.textContent===${q(label)})?.querySelector('input')`
 const setField = (label, value) => setValue(field(label), value)
-const scope = label => evaluate(`[...document.querySelectorAll('[role=radiogroup][aria-label="수정 범위"] button')].find(b=>b.textContent===${q(label)}).click()`)
+const scope = label => evaluate(`[...document.querySelectorAll('[role=radiogroup][aria-label="수정 범위"] button')].find(b=>b.querySelector('b').textContent===${q(label)}).click()`)
+// Filter buttons read "진행 중3": the label, then the count.
+const filter = label => evaluate(`[...document.querySelectorAll('[role=group][aria-label="반복 일정 필터"] button')].find(b=>b.firstChild.textContent===${q(label)}).click()`)
 const save = () => evaluate(`document.querySelector('section[aria-label="반복 일정 수정"] button[type=submit]').click()`)
 const confirmDelete = async label => {
   await button('삭제'); await wait(`document.querySelector('dialog[open]')`, 'confirm ' + label)
@@ -118,21 +120,26 @@ try {
   await evaluate(`[...document.querySelectorAll('a')].find(a=>a.textContent==='반복 일정').click()`)
   await wait(`location.pathname==='/schedule/recurring' && ${listRows}.length===3`, 'list')
   const list = await evaluate(`${listRows}.map(li=>li.innerText.replace(/\\s+/g,' ').trim())`)
-  assert.match(list[1], /^스탠드업 다음 11\/4 \(수\) 매일 · 09:00–09:15 2026-10-01 ~ 종료일 없음 · 미분류$/, list[1])
-  assert.match(list[0], /^헬스 다음 11\/4 \(수\) 매주 월·수 · 07:00–08:00 2026-11-02 ~ 종료일 없음 · 건강$/, list[0])
-  assert.match(list[2], /^월세 다음 11\/25 \(수\) 매월 25일 · 종일/, list[2])
+  // Two lines per row (title / repeat · time · category) and the next date on the right.
+  assert.match(list[1], /^스탠드업 매일 · 09:00–09:15 오늘 수$/, list[1])
+  assert.match(list[0], /^헬스 매주 월·수 · 07:00–08:00 · 건강 오늘 수$/, list[0])
+  assert.match(list[2], /^월세 매월 25일 · 종일 11\/25 수$/, list[2])
   assert.equal(list.some(text => text.includes('병원')), false, 'one-off item is not listed')
-  await button('종료'); await wait(`${listRows}.length===1`, 'ended filter')
-  assert.match(await evaluate(`${listRows}[0].innerText`), /지난 스터디[\s\S]*종료됨[\s\S]*2026-09-01 ~ 2026-10-01/)
-  await button('진행 중'); await wait(`${listRows}.length===3`, 'active filter')
+  // Running series group into this week (through Sunday 11/8) and later; the segment shows counts.
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('section[aria-label="반복 일정 목록"] h2')].map(h=>h.innerText.replace(/\\s+/g,' '))`), ['이번 주 2', '이후 1'])
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('[aria-label="반복 일정 필터"] button')].map(b=>b.textContent)`), ['진행 중3', '종료1', '전체4'])
+  await filter('종료'); await wait(`${listRows}.length===1`, 'ended filter')
+  assert.match(await evaluate(`${listRows}[0].innerText.replace(/\\s+/g,' ')`), /^지난 스터디 매주 화 · 20:00–21:00 · 10\/1까지 종료됨$/)
+  await filter('진행 중'); await wait(`${listRows}.length===3`, 'active filter')
 
   // 1) This occurrence only: 11/9 gym moves to 18:00, everything else untouched.
   await evaluate(`${listRows}.find(li=>li.innerText.trim().startsWith('헬스')).querySelector('button').click()`)
   await wait(`new URLSearchParams(location.search).get('id')==='gym' && document.querySelector('section[aria-label="반복 일정 수정"] h2')?.textContent==='헬스'`, 'select gym')
-  await scope('이번 일정만'); await setSelect('기준 일정', '2026-11-09')
+  await scope('이 날짜만'); await setSelect('기준 일정', '2026-11-09')
   assert.equal(await evaluate(`document.querySelector('section[aria-label="반복 일정 수정"] fieldset').disabled`), true, 'rule locked for a single occurrence')
   await setField('시작', '18:00'); await setField('종료', '19:00')
   await wait(`document.querySelector('[data-status=changed]')`, 'preview')
+  assert.equal(await evaluate(`document.querySelector('section[aria-label="반복 일정 수정"] button[type=submit]').textContent`), '저장 · 일정 1개')
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('section[aria-label="적용 미리보기"] li')].slice(0,3).map(li=>li.dataset.status+':'+li.firstChild.textContent)`), ['changed:11/9 (월)', 'same:11/11 (수)', 'same:11/16 (월)'])
   await shoot('desktop-this.png')
   await save()
@@ -154,12 +161,13 @@ try {
 
   // 2) From this occurrence on: standup from 11/10 becomes Mon/Wed/Fri 10:00 and ends 11/30.
   await openSeries('standup')
-  await scope('이번 일정부터 이후'); await setSelect('기준 일정', '2026-11-10')
+  await scope('이 날짜부터 이후 모두'); await setSelect('기준 일정', '2026-11-10')
   await setSelect('반복', 'weekly'); await wait(`document.querySelector('[role=group][aria-label="반복 요일"]')`, 'weekday chips')
   for (const day of ['월', '수', '금']) await evaluate(`document.querySelector('[aria-label="${day}요일 반복"][aria-pressed=false]')?.click()`)
   await evaluate(`document.querySelector('[aria-label="화요일 반복"][aria-pressed=true]')?.click()`)
   await setField('시작', '10:00'); await setField('종료', '10:15')
-  await evaluate(`[...document.querySelectorAll('label')].find(l=>l.textContent==='종료일 없음').querySelector('input').click()`)
+  await evaluate(`document.querySelector('[data-end-toggle][aria-checked=false]').click()`)
+  await wait(`document.querySelector('input[aria-label=종료일]')`, 'end date field')
   await setValue(`document.querySelector('input[aria-label=종료일]')`, '2026-11-30')
   await wait(`document.querySelector('[data-status=removed]')`, 'future preview')
   await shoot('desktop-future.png')
@@ -170,30 +178,30 @@ try {
     { date: '2026-11-10', startTime: '10:00', repeat: 'weekly', repeatDays: [1, 3, 5], repeatUntil: '2026-11-30', endDate: null },
   ])
   await wait(`${listRows}.filter(li=>li.innerText.includes('스탠드업')).length===1`, 'standup grouped')
-  assert.match(await evaluate(`${listRows}.find(li=>li.innerText.includes('스탠드업')).innerText`), /2026-10-01 ~ 2026-11-30[\s\S]*규칙 변경 1회/)
+  assert.match(await evaluate(`${listRows}.find(li=>li.innerText.includes('스탠드업')).innerText`), /· 11\/30까지 · 규칙 변경 1회\n/)
 
   // Whole-series edit on a split series reaches both periods.
-  await openSeries('standup'); await scope('전체 반복 일정'); await setField('제목', '데일리')
+  await openSeries('standup'); await scope('전체'); await setField('제목', '데일리')
   await wait(`document.querySelectorAll('section[aria-label="적용 미리보기"] [data-status=changed]').length>0`, 'group preview')
   await save(); await wait(`${items}.filter(i=>i.title==='데일리').length===2`, 'group all saved')
   assert.deepEqual((await series('데일리')).map(row => row.startTime), ['09:00', '10:00'], 'each period keeps its own time')
 
   // 3) Whole series: rename the rent in place, same row id.
   await openSeries('rent')
-  await scope('전체 반복 일정'); await setField('제목', '관리비')
+  await scope('전체'); await setField('제목', '관리비')
   await save(); await wait(`${items}.find(i=>i.id==='rent')?.title==='관리비'`, 'all saved')
   assert.equal((await row('rent')).date, '2026-10-25')
 
   // 4) Deletes by scope. Opening with a date (the daily-board link) starts on "this occurrence".
   const continuation = await evaluate(`${items}.find(i=>i.title==='헬스'&&i.date==='2026-11-11').id`)
   await openSeries(continuation, '2026-11-11')
-  assert.equal(await evaluate(`document.querySelector('[role=radiogroup][aria-label="수정 범위"] [aria-checked=true]').textContent`), '이번 일정만')
+  assert.equal(await evaluate(`document.querySelector('[role=radiogroup][aria-label="수정 범위"] [aria-checked=true] b').textContent`), '이 날짜만')
   await confirmDelete('this')
   await wait(`${items}.find(i=>i.id===${q(continuation)})?.date==='2026-11-16'`, 'this deleted (start moved)')
   await openSeries(continuation, '2026-11-23')
-  await scope('이번 일정부터 이후'); await confirmDelete('future')
+  await scope('이 날짜부터 이후 모두'); await confirmDelete('future')
   await wait(`${items}.find(i=>i.id===${q(continuation)})?.repeatUntil==='2026-11-22'`, 'future deleted')
-  await openSeries('old'); await scope('전체 반복 일정'); await confirmDelete('all')
+  await openSeries('old'); await scope('전체'); await confirmDelete('all')
   await wait(`!${items}.some(i=>i.id==='old') && JSON.parse(localStorage.getItem(${q(library)})).trash?.some(t=>t.title==='지난 스터디')`, 'all deleted to trash')
 
   // The untouched one-off row keeps its exact data.
@@ -203,22 +211,47 @@ try {
   assert.deepEqual(single, { description: '', priority: 'medium', status: 'todo', dueDate: null, endDate: null, allDay: false, categoryId: null, kind: 'event', duration: null, repeatDays: [], id: 'single', title: '병원', date: '2026-11-09', startTime: '07:00', endTime: '08:00', repeat: 'none' })
 
   // Mobile: list → editor → back, no horizontal overflow.
+  // Tablet touch (768): the editor stands alone and every control is at least 44px tall.
+  await send('Emulation.setDeviceMetricsOverride', { width: 768, height: 1024, deviceScaleFactor: 2, mobile: true })
+  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 })
+  await openSeries('gym'); await setSelect('반복', 'weekly')
+  await wait(`document.querySelector('[role=group][aria-label="반복 요일"]')`, 'tablet weekday chips')
+  const tablet = await evaluate(`[...document.querySelectorAll('section[aria-label="반복 일정 수정"] :is(button, select, input)')].filter(el=>{const r=el.getBoundingClientRect(); return r.width && getComputedStyle(el).opacity!=='0' && (r.height<43.5 || (el.matches('.rec-head .btn') && r.width<43.5))}).map(el=>el.outerHTML.slice(0,80))`)
+  assert.deepEqual(tablet, [], 'tablet touch targets')
+  await shoot('tablet-editor.png', false)
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true })
   await navigate(base + '/schedule/recurring')
   await wait(`${listRows}.length>0`, 'mobile list')
   assert.equal(await evaluate('document.documentElement.scrollWidth<=window.innerWidth+1'), true, 'mobile list fits')
+  // Own 56px app bar replaces the shared top bar; search opens from its icon.
+  assert.equal(await evaluate(`!!document.querySelector('section[aria-label="반복 일정 목록"] .more-bar') && !document.querySelector('input[aria-label="반복 일정 검색"]')`), true, 'mobile app bar, search folded')
+  await click('.more-bar button[aria-label="검색"]'); await wait(`document.querySelector('input[aria-label="반복 일정 검색"]')`, 'search opens')
+  await fill('input[aria-label="반복 일정 검색"]', '관리비'); await wait(`${listRows}.length===1`, 'mobile search')
+  await click('.more-bar button[aria-label="검색 닫기"]'); await wait(`${listRows}.length===3 && !document.querySelector('input[aria-label="반복 일정 검색"]')`, 'search closes and clears')
   await shoot('mobile-list.png', false)
   await evaluate(`${listRows}[0].querySelector('button').click()`)
   await wait(`document.querySelector('section[aria-label="반복 일정 수정"] form') && getComputedStyle(document.querySelector('section[aria-label="반복 일정 목록"]')).display==='none'`, 'mobile editor only')
-  await scope('이번 일정부터 이후'); await setField('시작', '06:30')
+  await scope('이 날짜부터 이후 모두'); await setField('시작', '06:30')
   await wait(`document.querySelector('[data-status=changed]')`, 'mobile preview')
   assert.equal(await evaluate('document.documentElement.scrollWidth<=window.innerWidth+1'), true, 'mobile editor fits')
+  // Visible controls in the editor are at least 44px tall.
+  const small = await evaluate(`[...document.querySelectorAll('section[aria-label="반복 일정 수정"] :is(button, select, input)')].filter(el=>{const r=el.getBoundingClientRect(); return r.width && getComputedStyle(el).opacity!=='0' && r.height<43.5}).map(el=>el.outerHTML.slice(0,80))`)
+  assert.deepEqual(small, [], 'mobile touch targets')
+  // Weekday chips keep their size but each takes a 44px-wide tap area without overlapping the next one.
+  await setSelect('반복', 'weekly'); await wait(`document.querySelector('[role=group][aria-label="반복 요일"]')`, 'mobile weekday chips')
+  const chips = await evaluate(`[...document.querySelectorAll('[role=group][aria-label="반복 요일"] .chip')].map(b=>{const r=b.getBoundingClientRect(),s=getComputedStyle(b,'::before');return {w:r.width-parseFloat(s.left||0)-parseFloat(s.right||0),h:r.height,gap:parseFloat(getComputedStyle(b.parentElement).columnGap)}})`)
+  for (const chip of chips) assert.ok(chip.w >= 44 && chip.h >= 44 && chip.gap >= 16, JSON.stringify(chip))
+  // The pinned save bar sits above the tab bar and never covers the end of the form.
+  await evaluate(`document.querySelector('main').scrollTop=1e6`); await pause(100)
+  const bar = await evaluate(`(()=>{const bar=document.querySelector('.rec-actionbar').getBoundingClientRect(); const actions=document.querySelector('.rec-actions').getBoundingClientRect(); const nav=document.querySelector('.mobile-nav')?.getBoundingClientRect(); const last=document.querySelector('.rec-form').lastElementChild.getBoundingClientRect(); return { lastBottom: last.bottom, barTop: bar.top, barBottom: bar.bottom, actionsBottom: actions.bottom, navTop: nav?.top ?? innerHeight }})()`)
+  // The buttons sit above the tab bar and the bar's background runs under it, so no gap shows content.
+  assert.ok(bar.lastBottom <= bar.barTop + 1 && bar.actionsBottom <= bar.navTop + 1 && bar.barBottom >= bar.navTop, JSON.stringify(bar))
   await shoot('mobile-editor.png')
   await evaluate(`document.querySelector('button[aria-label="목록으로"]').click()`)
   await wait(`getComputedStyle(document.querySelector('section[aria-label="반복 일정 목록"]')).display!=='none'`, 'back to list')
 
   assert.equal(errors.length, 0, errors.join('\n'))
-  console.log('PASS: recurring list/filters, this/future/all edits and deletes with preview, untouched one-off rows, schedule entry link, mobile list/editor.')
+  console.log('PASS: recurring list/filters/groups, this/future/all edits and deletes with preview, untouched one-off rows, schedule entry link, mobile list/editor.')
 } finally {
   ws.close(); server.kill()
   const stopped = new Promise(resolve => browser.once('exit', resolve)); browser.kill(); await stopped
