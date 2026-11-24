@@ -14,7 +14,9 @@ import { useConfirm } from '../../state/useConfirm.ts'
 import { calendarPanel, errorCode, errorHint, errorLine, lastSyncLine, syncProblem } from './calendarPanel.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { Choice, SwitchRow } from './bits.tsx'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, RefreshCw } from 'lucide-react'
+import { SETTINGS_COMPACT_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
+import { MCard, MLabel, MRow, MSheet, MSwitch } from './mobileRows.tsx'
 
 function ImportDirection({ label }: { label: string }) {
   const [from, to] = label.split(' → ')
@@ -80,6 +82,8 @@ export function GoogleCalendarSection() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const inFlight = useRef(false)
+  const compact = useMediaQuery(SETTINGS_COMPACT_QUERY)
+  const [picking, setPicking] = useState(false)
 
   useEffect(() => {
     if (!isSupabaseConfigured) return
@@ -120,6 +124,91 @@ export function GoogleCalendarSection() {
     }
   }
 
+  const connect = () => void run(async () => {
+    const { authUrl } = await getCalendarSyncClient().startConnect()
+    window.location.assign(authUrl)
+  })
+  const pick = async (googleCalendarId: GoogleCalendarId, firstImport: FirstImport) => {
+    await run(async () => {
+      setView(await getCalendarSyncClient().selectCalendar({ googleCalendarId, firstImport }))
+      await refreshWork()
+    })
+  }
+  const toggleAutoSync = () => {
+    if (busy || view.status !== 'ready') return
+    void run(async () => {
+      setView(await getCalendarSyncClient().setAutoSync(!view.autoSync))
+      window.dispatchEvent(new Event('blanky:work-saved'))
+    })
+  }
+  const syncNow = () => void run(async () => {
+    const report = await synchronizeCalendars(user!.id, refreshWork, { force: true })
+    setMessage(t('calendar.synced', { imported: report.imported, exported: report.exported }))
+    setView(await getCalendarSyncClient().status())
+  })
+  const disconnect = () => void run(async () => {
+    const leave = await confirm(t('calendar.disconnectConfirm'), {
+      title: t('calendar.disconnectTitle'),
+      confirmLabel: t('calendar.disconnectAction'),
+    })
+    if (!leave) return
+    const dropImported = await confirm(t('calendar.dropImported'), {
+      title: t('calendar.dropImportedTitle'),
+      confirmLabel: t('delete'),
+    })
+    const disposition: DisconnectDisposition = {
+      importedRows: dropImported ? 'delete' : 'keep',
+    }
+    setView(await getCalendarSyncClient().disconnect(disposition))
+    await refreshWork()
+  })
+
+  // Phones: one card with the G mark, account, status and actions; disconnect is a red row at the bottom.
+  if (compact) {
+    const on = view.status === 'ready' || view.status === 'connected'
+    const lines = [
+      panel.calendarSummary ? t('calendar.calendarName', { name: panel.calendarSummary }) : null,
+      panel.lastSync ? lastSyncLine(panel.lastSync, locale) : null,
+      panel.errorText,
+      panel.hint,
+      view.status === 'ready' && problem ? problem.line : null,
+      message || null,
+    ].filter(Boolean)
+    return (
+      <div>
+        <MLabel>{t('settings.googleCalendar.label')}</MLabel>
+        <MCard>
+          <div className="more-blk">
+            <div className="more-gcal">
+              <span className="more-gcal-g" aria-hidden="true">G</span>
+              <span className="more-rt">
+                {panel.accountEmail ?? t('settings.googleCalendar.label')}
+                <small><span className="more-state" data-on={on ? '' : undefined} role="status">{panel.statusLabel}</span></small>
+              </span>
+            </div>
+            {panel.intro ? <p className="more-gcal-line">{panel.intro}</p> : null}
+            {lines.map((line, index) => <p key={index} className="more-gcal-line" role={line === message ? 'status' : undefined}>{line}</p>)}
+            {view.status === 'ready' && problem?.details.length ? <ul className="more-gcal-line list-disc pl-5">{problem.details.map((line, index) => <li key={index}>{line}</li>)}</ul> : null}
+            {panel.canConnect || view.status === 'ready' || view.status === 'connected' ? (
+              <div className="more-gcal-actions">
+                {panel.canConnect ? <button type="button" className="btn btn-primary" disabled={busy} onClick={connect}>{panel.connectLabel}</button> : null}
+                {view.status === 'ready' ? <button type="button" className="btn btn-line" disabled={busy} onClick={syncNow}><RefreshCw size={16} strokeWidth={1.6} aria-hidden="true" />{t('calendar.syncNow')}</button> : null}
+                {view.status === 'connected' ? <button type="button" className="btn btn-line" disabled={busy} onClick={() => setPicking(true)}>{t('settings.mobile.pickCalendar')}</button> : null}
+              </div>
+            ) : null}
+          </div>
+          {view.status === 'ready' ? <MSwitch label={t('calendar.autoSync')} hint={t('calendar.autoSyncHint')} checked={view.autoSync} onChange={toggleAutoSync} disabled={busy} /> : null}
+          {view.status === 'ready' ? <MRow label={t('calendar.disconnect')} danger onPress={busy ? undefined : disconnect} data-settings-row="google-disconnect" /> : null}
+        </MCard>
+        {picking && view.status === 'connected' ? (
+          <MSheet title={t('settings.mobile.pickCalendar')} onClose={() => setPicking(false)}>
+            <CalendarPick calendars={calendars} busy={busy} onPick={async (id, firstImport) => { await pick(id, firstImport); setPicking(false) }} />
+          </MSheet>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div>
       {panel.intro ? <p className="text-sm text-neutral-500">{panel.intro}</p> : null}
@@ -147,10 +236,7 @@ export function GoogleCalendarSection() {
           type="button"
           className="btn btn-line mt-3"
           disabled={busy}
-          onClick={() => void run(async () => {
-            const { authUrl } = await getCalendarSyncClient().startConnect()
-            window.location.assign(authUrl)
-          })}
+          onClick={connect}
         >
           {panel.connectLabel}
         </button>
@@ -160,12 +246,7 @@ export function GoogleCalendarSection() {
         <CalendarPick
           calendars={calendars}
           busy={busy}
-          onPick={async (googleCalendarId, firstImport) => {
-            await run(async () => {
-              setView(await getCalendarSyncClient().selectCalendar({ googleCalendarId, firstImport }))
-              await refreshWork()
-            })
-          }}
+          onPick={pick}
         />
       ) : null}
 
@@ -176,24 +257,14 @@ export function GoogleCalendarSection() {
               label={t('calendar.autoSync')}
               hint={t('calendar.autoSyncHint')}
               checked={view.autoSync}
-              onChange={() => {
-                if (busy) return
-                void run(async () => {
-                  setView(await getCalendarSyncClient().setAutoSync(!view.autoSync))
-                  window.dispatchEvent(new Event('blanky:work-saved'))
-                })
-              }}
+              onChange={toggleAutoSync}
             />
           </div>
           <button
             type="button"
             className="btn btn-line mt-3"
             disabled={busy}
-            onClick={() => void run(async () => {
-              const report = await synchronizeCalendars(user!.id, refreshWork, { force: true })
-              setMessage(t('calendar.synced', { imported: report.imported, exported: report.exported }))
-              setView(await getCalendarSyncClient().status())
-            })}
+            onClick={syncNow}
           >
             {t('calendar.syncNow')}
           </button>
@@ -201,22 +272,7 @@ export function GoogleCalendarSection() {
             type="button"
             className="btn btn-ghost mt-3"
             disabled={busy}
-            onClick={() => void run(async () => {
-              const leave = await confirm(t('calendar.disconnectConfirm'), {
-                title: t('calendar.disconnectTitle'),
-                confirmLabel: t('calendar.disconnectAction'),
-              })
-              if (!leave) return
-              const dropImported = await confirm(t('calendar.dropImported'), {
-                title: t('calendar.dropImportedTitle'),
-                confirmLabel: t('delete'),
-              })
-              const disposition: DisconnectDisposition = {
-                importedRows: dropImported ? 'delete' : 'keep',
-              }
-              setView(await getCalendarSyncClient().disconnect(disposition))
-              await refreshWork()
-            })}
+            onClick={disconnect}
           >
             {t('calendar.disconnect')}
           </button>

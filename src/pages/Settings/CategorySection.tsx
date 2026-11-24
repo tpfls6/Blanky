@@ -1,21 +1,26 @@
 import { useConfirm } from '../../state/useConfirm.ts'
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { GripVertical, Plus, X } from 'lucide-react'
+import { GripVertical, Plus, Trash2, X } from 'lucide-react'
 import { InlineName } from '../../components/common/InlineName.tsx'
 import { CategoryPicker } from '../../components/schedule/CategoryPicker.tsx'
 import { IconPicker } from '../../components/common/IconPicker.tsx'
 import { Sortable } from '../../components/drag/Sortable.tsx'
 import { useLibrary } from '../../state/useLibrary.ts'
+import { SETTINGS_COMPACT_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
+import { useI18n } from '../../i18n/useI18n.ts'
+import { MCard, MHint, MLabel, MRow, MSheet } from './mobileRows.tsx'
 import type { WorkspaceCategory } from '../../types/work.ts'
 
 const DEFAULT_COLOR = '#3A62B0'
 
 const sameName = (a: string, b: string) => a.trim().toLocaleLowerCase('ko') === b.trim().toLocaleLowerCase('ko')
 
-function AddCategoryDialog({ categories, onCancel, onAdd }: {
+function AddCategoryDialog({ categories, onCancel, onAdd, compact = false }: {
   categories: WorkspaceCategory[]
   onCancel: () => void
+  /** Phones: the reading shelf dialog's look (title row, name field with the icon tile beside it, footer actions). */
+  compact?: boolean
   onAdd: (name: string, parentId: string | null, style: Pick<WorkspaceCategory, 'color' | 'icon'>) => void
 }) {
   const [name, setName] = useState('')
@@ -26,6 +31,7 @@ function AddCategoryDialog({ categories, onCancel, onAdd }: {
   const panelRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const errorId = useId()
+  const nameId = useId()
   const parents = categories.filter((category) => category.parentId === null)
   const shownIcon = icon ?? (parentId ? 'Tag' : 'Folder')
 
@@ -49,6 +55,48 @@ function AddCategoryDialog({ categories, onCancel, onAdd }: {
     onAdd(trimmed, parentId, { color, icon: shownIcon })
   }
 
+  const escape = (event: ReactKeyboardEvent) => {
+    // Pickers render in portals; only an Escape from inside this panel closes the dialog.
+    if (event.key === 'Escape' && panelRef.current?.contains(event.target as Node)) onCancel()
+  }
+
+  if (compact) {
+    return createPortal(
+      <div className="cat-modal-backdrop fixed inset-0 z-50" onPointerDown={(event) => { if (event.target === event.currentTarget) onCancel() }}>
+        <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} data-theme-slot="modal" className="cat-modal" onKeyDown={escape}>
+          <header>
+            <h2 id={titleId}>카테고리 추가</h2>
+            <button data-theme-slot="button" type="button" className="icon-btn" aria-label="닫기" onClick={onCancel}><X aria-hidden="true" size={18} /></button>
+          </header>
+          <form className="cat-modal-form" onSubmit={submit} noValidate>
+            <div className="cat-modal-field">
+              <label htmlFor={nameId}>이름</label>
+              <div className="cat-modal-name-row">
+                <input data-theme-slot="input" id={nameId} autoFocus value={name} placeholder="새 카테고리" className="field"
+                  onChange={(event) => { setName(event.target.value); setError('') }}
+                  aria-invalid={error ? true : undefined} aria-describedby={error ? errorId : undefined} />
+                <IconPicker value={shownIcon} color={color} onChange={setIcon} onColor={setColor} />
+              </div>
+              {error ? <p id={errorId} role="alert" className="text-xs text-red-500">{error}</p> : null}
+            </div>
+            <div className="cat-modal-field">
+              <span>상위 카테고리 <small>(선택)</small></span>
+              <CategoryPicker categories={parents} value={parentId} onChange={(id) => { setParentId(id); setError('') }} />
+              <p className="cat-modal-hint">없음이면 새 상위 카테고리가 됩니다.</p>
+            </div>
+            <footer className="cat-modal-actions">
+              <div>
+                <button data-theme-slot="button-secondary" type="button" className="btn btn-ghost" onClick={onCancel}>취소</button>
+                <button data-theme-slot="button-primary" type="submit" className="btn btn-primary" disabled={!name.trim()}>추가</button>
+              </div>
+            </footer>
+          </form>
+        </div>
+      </div>,
+      document.body,
+    )
+  }
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
@@ -61,10 +109,7 @@ function AddCategoryDialog({ categories, onCancel, onAdd }: {
         aria-labelledby={titleId}
         data-theme-slot="modal"
         className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border border-line bg-surface p-5 shadow-xl"
-        onKeyDown={(event) => {
-          // Pickers render in portals; only an Escape from inside this panel closes the dialog.
-          if (event.key === 'Escape' && panelRef.current?.contains(event.target as Node)) onCancel()
-        }}
+        onKeyDown={escape}
       >
         <div className="flex items-center justify-between gap-4">
           <h2 id={titleId} className="text-base font-medium">카테고리 추가</h2>
@@ -108,11 +153,17 @@ function AddCategoryDialog({ categories, onCancel, onAdd }: {
   )
 }
 
-export function CategorySection() {
+/** `adding` / `onAdding` let the phone app bar's + button open the add dialog. */
+export function CategorySection({ adding: addingProp, onAdding }: { adding?: boolean; onAdding?: (open: boolean) => void } = {}) {
   const confirm = useConfirm()
+  const { t } = useI18n()
+  const compact = useMediaQuery(SETTINGS_COMPACT_QUERY)
 
   const { categories, addCategory, updateCategory, reorderCategories, removeCategory } = useLibrary()
-  const [adding, setAdding] = useState(false)
+  const [addingState, setAddingState] = useState(false)
+  const adding = addingProp ?? addingState
+  const setAdding = (open: boolean) => { setAddingState(open); onAdding?.(open) }
+  const [editing, setEditing] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const parents = categories.filter((category) => category.parentId === null)
 
@@ -121,6 +172,11 @@ export function CategorySection() {
     const timer = window.setTimeout(() => setNotice(''), 3000)
     return () => window.clearTimeout(timer)
   }, [notice])
+
+  const askRemove = async (category: WorkspaceCategory) => {
+    if (!await confirm(`${category.name}을 삭제할까요? 일정과 메모는 남고, 분류만 풀립니다.`)) return
+    removeCategory(category.id)
+  }
 
   const fields = (category: WorkspaceCategory) => (
     <div className="category-row-fields py-3">
@@ -142,16 +198,72 @@ export function CategorySection() {
         <button
           type="button"
           className="text-xs text-neutral-400 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100"
-          onClick={async () => {
-            if (!await confirm(`${category.name}을 삭제할까요? 일정과 메모는 남고, 분류만 풀립니다.`)) return
-            removeCategory(category.id)
-          }}
+          onClick={() => void askRemove(category)}
         >
           삭제
         </button>
       </div>
     </div>
   )
+
+  const addDialog = adding ? (
+    <AddCategoryDialog
+      compact={compact}
+      categories={categories}
+      onCancel={() => setAdding(false)}
+      onAdd={(name, parentId, style) => {
+        addCategory(name, parentId, style)
+        setAdding(false)
+        const parent = parentId ? categories.find((category) => category.id === parentId) : null
+        setNotice(parent ? `${parent.name} 아래에 '${name}'을 추가했습니다.` : `'${name}' 카테고리를 추가했습니다.`)
+      }}
+    />
+  ) : null
+
+  // Phones: one row per top-level category (dot, name, subcategory summary, count); the row opens the same
+  // inline editors (icon and color, name, delete, subcategory order) in a sheet.
+  if (compact) {
+    const open = parents.find((category) => category.id === editing)
+    const kids = (id: string) => categories.filter((category) => category.parentId === id)
+    return (
+      <div>
+        <MHint>{t('settings.mobile.categoriesHint')}</MHint>
+        <MLabel aside={t('settings.mobile.categoryCount', { count: parents.length })}>{t('settings.mobile.categoriesTitle')}</MLabel>
+        <MCard>
+          {parents.map((parent) => {
+            const children = kids(parent.id)
+            return (
+              <MRow key={parent.id} icon={<span className="more-dot" style={{ ['--c' as string]: parent.color }} aria-hidden="true" />} label={parent.name}
+                hint={children.length ? children.map((child) => child.name).join(' · ') : undefined}
+                value={children.length ? String(children.length) : undefined} onPress={() => setEditing(parent.id)} data-settings-row={`category-${parent.id}`} />
+            )
+          })}
+        </MCard>
+        <p role="status" aria-live="polite" className="more-hint more-hint-accent">{notice}</p>
+        {open ? (
+          <MSheet title={open.name} onClose={() => setEditing(null)}>
+            <div className="cat-edit">
+              <div className="cat-edit-main">{fields(open)}</div>
+              <p className="more-sheet-sub">{t('settings.mobile.children')}</p>
+              {kids(open.id).length ? (
+                <Sortable
+                  items={kids(open.id)}
+                  itemClassName={() => 'border-t border-line'}
+                  onReorder={(next) => reorderCategories(open.id, next.map((category) => category.id))}
+                  render={(child) => fields(child)}
+                />
+              ) : <p className="text-xs text-neutral-400">{t('settings.mobile.noChildren')}</p>}
+              <footer className="cat-modal-actions">
+                <button type="button" className="btn btn-ghost cat-modal-delete" onClick={() => void askRemove(open)}><Trash2 size={15} aria-hidden="true" />{t('delete')}</button>
+                <div><button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>{t('close')}</button></div>
+              </footer>
+            </div>
+          </MSheet>
+        ) : null}
+        {addDialog}
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -180,18 +292,7 @@ export function CategorySection() {
           </div>
         )}
       />
-      {adding ? (
-        <AddCategoryDialog
-          categories={categories}
-          onCancel={() => setAdding(false)}
-          onAdd={(name, parentId, style) => {
-            addCategory(name, parentId, style)
-            setAdding(false)
-            const parent = parentId ? categories.find((category) => category.id === parentId) : null
-            setNotice(parent ? `${parent.name} 아래에 '${name}'을 추가했습니다.` : `'${name}' 카테고리를 추가했습니다.`)
-          }}
-        />
-      ) : null}
+      {addDialog}
     </div>
   )
 }

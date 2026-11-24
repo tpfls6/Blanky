@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 export function Section({ children }: { children: ReactNode }) {
-  return <div className="space-y-8 [&>*+*]:border-t [&>*+*]:border-line [&>*+*]:pt-8">{children}</div>
+  return <div className="settings-section space-y-8 [&>*+*]:border-t [&>*+*]:border-line [&>*+*]:pt-8">{children}</div>
 }
 
 export function Group({
@@ -16,10 +16,10 @@ export function Group({
   children: ReactNode
 }) {
   return (
-    <section id={id} className="scroll-mt-8">
-      <h2 className="text-sm font-medium tracking-tight">{title}</h2>
-      {description ? <p className="mt-1 text-xs text-neutral-400">{description}</p> : null}
-      <div className="mt-4 space-y-6">{children}</div>
+    <section id={id} className="settings-group scroll-mt-8">
+      <h2 className="settings-group-title text-sm font-medium tracking-tight">{title}</h2>
+      {description ? <p className="settings-group-hint mt-1 text-xs text-neutral-400">{description}</p> : null}
+      <div className="settings-group-body mt-4 space-y-6">{children}</div>
     </section>
   )
 }

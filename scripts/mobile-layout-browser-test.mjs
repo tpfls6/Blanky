@@ -213,7 +213,7 @@ try {
     const fit = await evaluate('document.documentElement.scrollWidth <= innerWidth + 1 ? "ok" : "menu overflows"')
     await shot('scenario-more-page')
     if (fit !== 'ok') return fit
-    await evaluate('document.querySelector("[data-more-link=settings]").click()')
+    await evaluate('document.querySelector("[data-more-link=general]").click()')
     await pause(700)
     const state = await evaluate('location.pathname + "|" + Boolean(document.querySelector("dialog[open]")) + "|" + document.querySelector("[data-mobile-tab=more]").getAttribute("aria-current")')
     return state === '/settings/general|false|page' ? 'ok' : state
@@ -221,7 +221,10 @@ try {
   await scenario('confirm-dialog', async () => {
     await navigate(base + '/settings/categories')
     await pause(900)
-    const opened = await evaluate(`(() => { const el = [...document.querySelectorAll('main button')].find((b) => b.textContent.trim() === '삭제'); if (!el) return false; el.click(); return true })()`)
+    // Phones edit a category in its sheet; delete sits there.
+    await evaluate('document.querySelector("[data-settings-row^=category-]")?.click()')
+    await pause(500)
+    const opened = await evaluate(`(() => { const el = [...document.querySelectorAll('[data-mobile-sheet] button')].find((b) => b.textContent.trim() === '삭제'); if (!el) return false; el.click(); return true })()`)
     if (!opened) return 'delete button missing'
     await pause(400)
     const fit = await evaluate(fits('dialog[open], [role=dialog]'))

@@ -14,6 +14,7 @@ const DiaryPage = lazy(()=>import('./pages/Diary/DiaryPage.tsx').then(module=>({
 const ActivityPage = lazy(()=>import('./pages/Activity/ActivityPage.tsx').then(module=>({default:module.ActivityPage})))
 const MemoPage = lazy(()=>import('./pages/Memo/MemoPage.tsx').then(module=>({default:module.MemoPage})))
 const MorePage = lazy(()=>import('./pages/More/MorePage.tsx').then(module=>({default:module.MorePage})))
+const MenuLayoutPage = lazy(()=>import('./pages/More/MenuLayoutPage.tsx').then(module=>({default:module.MenuLayoutPage})))
 const ReadingPage = lazy(()=>import('./pages/Reading/ReadingPage.tsx').then(module=>({default:module.ReadingPage})))
 const RecordPage = lazy(()=>import('./pages/Records/RecordPage.tsx').then(module=>({default:module.RecordPage})))
 const SchedulePage = lazy(()=>import('./pages/Schedule/SchedulePage.tsx').then(module=>({default:module.SchedulePage})))
@@ -90,6 +91,7 @@ function AppRoutes() {
           {/* Home was folded into the schedule screen; its composer opens from the + button there. */}
           <Route path={ROUTES.home} element={<Navigate to={ROUTES.start} replace />} />
           <Route path={ROUTES.more} element={<MorePage />} />
+          <Route path={ROUTES.menuLayout} element={<MenuLayoutPage />} />
           <Route path={ROUTES.activity} element={<ActivityPage />} />
           <Route path={ROUTES.schedule} element={<SchedulePage />} />
           <Route path={ROUTES.recurring} element={<RecurringPage />} />

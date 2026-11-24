@@ -5,6 +5,8 @@ export const ROUTES = {
   /** The schedule screen with the quick-add composer (the former home input) open. */
   quickAdd: '/schedule?add=quick',
   more: '/more',
+  /** Phone bottom bar, More shortcuts and hidden menus in one drag-and-drop screen. */
+  menuLayout: '/more/menu',
   activity: '/activity',
   schedule: '/schedule',
   recurring: '/schedule/recurring',
