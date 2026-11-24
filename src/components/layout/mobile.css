@@ -1,7 +1,9 @@
 /* Phone ergonomics only. Calendar chips and date cells retain their compact sizing. */
 @media (max-width: 767px) {
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), textarea, select { font-size: 16px; }
-  .theme-app-layout { height: var(--mobile-viewport-height, 100dvh); }
+  .theme-app-layout { --mobile-tab-header-height: 56px; height: var(--mobile-viewport-height, 100dvh); }
+  .theme-app-layout .mobile-tab-header { display: flex; flex: none; align-items: center; justify-content: flex-start; gap: 2px; height: var(--mobile-tab-header-height); padding: 0 6px 0 4px; }
+  .mobile-tab-header .mobile-tab-title { display: flex; flex: 0 1 auto; min-width: 0; height: 44px; align-items: center; gap: 6px; margin-inline: 0 auto; padding: 0 6px; font-size: 19px; line-height: 1.25; font-weight: 700; letter-spacing: -.2px; }
   .theme-app-layout[data-keyboard-open='true'] > .mobile-nav { display: none; }
   .theme-app-layout[data-keyboard-open='true'] > main { padding-bottom: 16px; }
   .theme-app-layout :is(.btn, .chip, .settings-chip) { min-height: 44px; touch-action: manipulation; }
@@ -41,8 +43,7 @@
   .theme-app-layout .diary-back { min-height: 44px; }
   .theme-app-layout .reading-status-filters .reading-nav { min-height: 44px; }
   .theme-app-layout .reading-shelves .reading-nav { min-height: 44px; }
-  .theme-app-layout .reading-layout { grid-template-columns: minmax(0, 1fr); }
-  .theme-app-layout .reading-content { padding: 16px; }
+  .theme-app-layout .reading-content[data-book-detail] { padding: 16px; }
   .reading-modal-backdrop { align-items: flex-end; padding: 0; }
   .reading-modal-backdrop .reading-modal { width: 100%; max-height: calc(100dvh - env(safe-area-inset-top) - 12px); border-radius: 20px 20px 0 0; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
   .reading-modal :is(.btn, .icon-btn, .field) { min-height: 44px; }

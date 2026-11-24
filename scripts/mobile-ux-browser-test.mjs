@@ -1,5 +1,5 @@
 // Mobile UX E2E: phone tabs, schedule pager, chat day filter, memo bulk delete,
-// reading chips/drag, settings chips and category creation, plus a desktop
+// reading folders/drag, settings chips and category creation, plus a desktop
 // regression pass. Runs against a local Vite server in local-storage mode.
 import { mkdir, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
@@ -226,7 +226,7 @@ try {
     // ---------- Mobile nav ----------
     await scenario(`${width} nav-core-tabs`, async () => {
       await navigate(base + '/schedule?add=quick')
-      await pause(900)
+      for (let retry = 0; retry < 60 && !(await evaluate('Boolean(document.querySelector(".mobile-nav [data-mobile-tab]") && document.querySelector("[data-mobile-tab=more]"))')); retry++) await pause(100)
       const tabs = await evaluate('[...document.querySelectorAll(".mobile-nav > ul [data-mobile-tab]")].map((el) => el.dataset.mobileTab).join(",")')
       if (tabs !== 'schedule,memo,reading,diary') return 'tabs ' + tabs
       // More sits top-left: in the top bar, or in the schedule screen's own one-line header.
@@ -234,6 +234,31 @@ try {
       if (!top) return 'more icon not top-left'
       const sizes = await evaluate('[...document.querySelectorAll(".mobile-nav > ul .mobile-link")].map((el) => { const r = el.getBoundingClientRect(); return Math.round(Math.min(r.width, r.height)) })')
       if (sizes.some((size) => size < 44)) return 'small tab ' + sizes.join(',')
+      return 'ok'
+    })
+    await scenario(`${width} tab-header-alignment`, async () => {
+      const headers = {}
+      for (const route of ['memo', 'schedule', 'reading', 'diary']) {
+        await navigate(base + '/' + route)
+        for (let retry = 0; retry < 60 && !(await evaluate('Boolean(document.querySelector(".mobile-tab-header .mobile-tab-title"))')); retry++) await pause(100)
+        headers[route] = await evaluate(`(() => {
+          const header = document.querySelector('.mobile-tab-header');
+          const menu = header?.querySelector('[data-mobile-tab=more]');
+          const text = header?.querySelector('.mobile-tab-title > span');
+          if (!menu || !text) return null;
+          const box = element => { const r = element.getBoundingClientRect(); return [r.x, r.y, r.width, r.height] };
+          return { header: box(header), menu: box(menu), icon: box(menu.querySelector('svg')), title: box(text).filter((_, index) => index !== 2), content: text.textContent.trim(), href: menu.getAttribute('href') };
+        })()`)
+        if (width === 390 && headers[route]) await shot('header-' + route)
+      }
+      const memo = headers.memo
+      if (!memo || memo.header[3] !== 56 || memo.menu[2] !== 44 || memo.menu[3] !== 44) return 'invalid memo reference ' + JSON.stringify(memo)
+      for (const [route, header] of Object.entries(headers)) {
+        if (!header?.content || header.href !== '/more') return 'invalid header ' + route + ' ' + JSON.stringify(header)
+        for (const part of ['header', 'menu', 'icon', 'title']) {
+          if (header[part].some((value, index) => Math.abs(value - memo[part][index]) > 0.05)) return route + ' ' + part + ' mismatch ' + JSON.stringify(headers)
+        }
+      }
       return 'ok'
     })
     await scenario(`${width} nav-more-current`, async () => {
@@ -616,19 +641,41 @@ try {
   })
 
   // ---------- Reading ----------
-  await scenario('reading-chips-and-add', async () => {
+  await scenario('reading-folders-and-add', async () => {
     await navigate(base + '/reading')
     await pause(1000)
-    const chips = await evaluate(`(() => { const row = document.querySelector('.reading-status-filters'); const buttons = [...row.querySelectorAll('button')]; const tops = new Set(buttons.map((b) => Math.round(b.getBoundingClientRect().top))); const s = getComputedStyle(row); return { count: buttons.length, rows: tops.size, overflowX: s.overflowX, onScreen: buttons.every((b) => { const r = b.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth }), height: Math.round(buttons[0].getBoundingClientRect().height), radius: getComputedStyle(buttons[0]).borderRadius } })()`)
-    const add = await evaluate(`(() => { const b = document.querySelector('[data-tour=add-book]'); const r = b.getBoundingClientRect(), c = b.closest('header').getBoundingClientRect(); const s = getComputedStyle(b); return { offset: Math.round((r.left + r.width / 2) - (c.left + c.width / 2)), justify: s.justifyContent } })()`)
+    // A cold Vite compile of the reading chunk can take longer than the pause.
+    for (let i = 0; i < 100 && !(await evaluate('Boolean(document.querySelector(".reading-folders-disclosure") && document.querySelector(".reading-book-card"))')); i++) await pause(100)
+    const collapsed = await evaluate('document.querySelector(".reading-folders-disclosure").inert && !document.querySelector(".reading-filter-button, .reading-library-filters, .reading-list-heading")')
+    const listTop = () => evaluate('document.querySelector(".reading-book-card").getBoundingClientRect().top')
+    const foldedTop = await listTop()
+    const addAvailable = await evaluate('document.querySelector("[data-tour=add-book]").getBoundingClientRect().height >= 44')
     await shot('reading-phone')
-    // The chips wrap instead of scrolling sideways, so 중단 is never hidden off screen.
-    if (chips.count !== 5 || chips.rows > 2 || chips.overflowX === 'auto' || !chips.onScreen || chips.height < 44 || chips.height > 52 || chips.radius === '0px') return 'chips ' + JSON.stringify(chips)
-    if (Math.abs(add.offset) > 1 || add.justify !== 'center') return 'add button ' + JSON.stringify(add)
-    // Chip filters still filter.
+    if (!collapsed || !addAvailable) return `collapsed=${collapsed} addAvailable=${addAvailable}`
+    await tap('[data-tour=reading-folders]')
+    const unfoldedTop = await listTop()
+    const overlay = await evaluate(`(() => {
+      const menu = document.querySelector('.reading-folders-disclosure').getBoundingClientRect();
+      const header = document.querySelector('.reading-heading').getBoundingClientRect();
+      const dim = document.querySelector('.reading-folders-dim');
+      const point = { x: innerWidth / 2, y: menu.bottom + 15 };
+      return menu.height > 100 && Math.abs(menu.top - header.bottom) <= 1 && getComputedStyle(dim).opacity === '1' && document.elementFromPoint(point.x, point.y) === dim;
+    })()`)
+    if (!overlay || Math.abs(unfoldedTop - foldedTop) > 1) return `overlay=${overlay} list top folded=${foldedTop} unfolded=${unfoldedTop}`
+    await shot('reading-folders-open')
+    const outsideY = await evaluate('document.querySelector(".reading-folders-disclosure").getBoundingClientRect().bottom + 15')
+    await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 100, y: outsideY }] })
+    await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await pause(250)
+    if (!(await evaluate('document.querySelector(".reading-folders-disclosure").inert'))) return 'scrim did not close the menu'
+    await tap('[data-tour=reading-folders]')
+    const folders = await evaluate(`(() => { const buttons = [...document.querySelectorAll('.reading-status-filters button')]; return { count: buttons.length, rows: new Set(buttons.map(b => Math.round(b.getBoundingClientRect().top))).size, onScreen: buttons.every(b => { const r = b.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.height >= 44 }) } })()`)
+    if (folders.count !== 5 || folders.rows !== 5 || !folders.onScreen) return 'folders ' + JSON.stringify(folders)
     await tap('.reading-status-filters button:nth-child(3)')
     const listed = await evaluate('document.querySelectorAll(".reading-book-card").length')
-    return listed === 4 ? 'ok' : 'filtered ' + listed
+    const closed = await evaluate('document.querySelector(".reading-folders-disclosure").inert')
+    const filteredTop = await listTop()
+    return listed === 4 && closed && Math.abs(filteredTop - foldedTop) <= 1 ? 'ok' : `filtered=${listed} closed=${closed} closedTop=${filteredTop}`
   })
   await scenario('reading-drag-autoscroll', async () => {
     await navigate(base + '/reading')
@@ -641,6 +688,7 @@ try {
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: handle.x, y: handle.y, button: 'left', buttons: 1, clickCount: 1 })
     for (let step = 1; step <= 6; step++) await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: handle.x, y: handle.y + (navTop - 20 - handle.y) * step / 6, button: 'left', buttons: 1 })
     await pause(600)
+    const opened = await evaluate('!document.querySelector(".reading-folders-disclosure").inert')
     const down = await evaluate('document.querySelector("main").scrollTop')
     for (let step = 1; step <= 6; step++) await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: handle.x, y: (navTop - 20) - (navTop - 30) * step / 6, button: 'left', buttons: 1 })
     await pause(600)
@@ -649,13 +697,32 @@ try {
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: handle.x, y: 15, button: 'left', buttons: 0, clickCount: 1 })
     await pause(300)
     const max = await evaluate('(() => { const m = document.querySelector("main"); return m.scrollHeight - m.clientHeight })()')
-    return down > before + 20 && up < down - 20 ? 'ok' : `scrollTop before=${before} down=${down} up=${up} max=${max}`
+    return opened && down > before + 20 && up < down - 20 ? 'ok' : `opened=${opened} scrollTop before=${before} down=${down} up=${up} max=${max}`
   })
   await scenario('reading-icon-picker-toggle', async () => {
     await navigate(base + '/reading')
     await pause(900)
+    await tap('[data-tour=reading-folders]')
+    await tap('.reading-shelf-heading button')
+    const layout = await evaluate(`(() => {
+      const dialog = document.querySelector('dialog.reading-shelf-dialog[open]');
+      if (!dialog?.matches(':modal')) return false;
+      const rect = dialog.getBoundingClientRect();
+      const field = dialog.querySelector('.reading-shelf-name-row input');
+      const tile = dialog.querySelector('.reading-icon-picker > button');
+      const input = field.getBoundingClientRect();
+      const button = tile.getBoundingClientRect();
+      return Math.abs(rect.x + rect.width / 2 - innerWidth / 2) <= 1 &&
+        Math.abs(rect.y + rect.height / 2 - innerHeight / 2) <= 1 &&
+        button.left > input.right && button.top === input.top && button.width === input.height && button.height === input.height &&
+        field.labels.length === 1 && !tile.textContent.trim() && tile.hasAttribute('aria-label') && Boolean(tile.querySelector('.lucide-book-open'));
+    })()`)
+    if (!layout) return 'new shelf modal or icon button layout is incorrect'
+    await shot('reading-shelf-create')
+    await tap('.reading-shelf-dialog header button')
     await tap('.reading-edit')
     await pause(300)
+    await shot('reading-shelf-edit')
     await tap('.reading-icon-picker > button')
     const opened = await evaluate('Boolean(document.querySelector(".reading-icon-panel:popover-open"))')
     await shot('reading-icon-open')
@@ -665,7 +732,251 @@ try {
     const closed = await evaluate('!document.querySelector(".reading-icon-panel")')
     await tap('.reading-icon-picker > button')
     const reopened = await evaluate('Boolean(document.querySelector(".reading-icon-panel:popover-open"))')
-    return opened && closed && reopened ? 'ok' : `open=${opened} closedAfterSecondTap=${closed} reopen=${reopened}`
+    if (!opened || !closed || !reopened) return `open=${opened} closedAfterSecondTap=${closed} reopen=${reopened}`
+    const escape = async () => {
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
+      await pause(100)
+    }
+    await escape()
+    if (!(await evaluate('!document.querySelector(".reading-icon-panel") && Boolean(document.querySelector(".reading-shelf-dialog[open]"))'))) return 'Escape did not close just the icon picker'
+    await escape()
+    return await evaluate('!document.querySelector(".reading-shelf-dialog") && document.activeElement?.matches(".reading-edit")') ? 'ok' : 'Escape did not close the shelf editor and restore focus'
+  })
+
+  await scenario('reading-book-detail', async () => {
+    const reading = (expression) => evaluate(`(() => { const d = JSON.parse(localStorage.getItem('blanky.reading.v1.${owner}')); const b = d.books.find((x) => x.id === 'ub0'); return ${expression} })()`)
+    const until = async (expression) => { for (let i = 0; i < 50 && !(await evaluate(expression)); i++) await pause(100); return evaluate(expression) }
+    const setText = (selector, value, proto = 'HTMLTextAreaElement') => evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(${proto}.prototype, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })) })()`)
+    const clickText = (selector, text) => evaluate(`[...document.querySelectorAll(${JSON.stringify(selector)})].find((b) => b.textContent.includes(${JSON.stringify(text)}))?.click()`)
+    await navigate(base + '/reading')
+    await until('Boolean(document.querySelector(".reading-book-card a[href=\\"/reading/ub0\\"]"))')
+    await tap('.reading-book-card a[href="/reading/ub0"]')
+    if (!(await until('Boolean(document.querySelector(".reading-pd-top"))'))) return 'phone detail did not open'
+    // ← · title · ⋮ takes the top edge (no MobileTopBar); old back link, delete button and the open metadata form are gone.
+    const shape = await evaluate(`(() => {
+      const top = document.querySelector('.reading-pd-top').getBoundingClientRect()
+      const pad = (selector) => getComputedStyle(document.querySelector(selector)).paddingLeft
+      const tabs = [...document.querySelectorAll('.reading-pd-tabs [role=tab]')].map((t) => t.getBoundingClientRect().width)
+      return { bar: Math.round(top.top) + ',' + Math.round(top.height), topbar: Boolean(document.querySelector('[data-mobile-topbar]')), title: document.querySelector('.reading-pd-title').textContent,
+        old: Boolean(document.querySelector('.reading-back, .reading-remove, [aria-label="책 종류 편집"]')), chip: document.querySelector('.reading-pd-meta .memo-pe-chip')?.textContent.trim(),
+        gutters: [pad('.reading-pd-meta'), pad('.reading-pd-hero'), pad('.reading-pd-tabs'), pad('.reading-pd-row'), pad('.reading-pd-review')].join(','),
+        tabSpread: Math.round(Math.max(...tabs) - Math.min(...tabs)), chips: [...new Set([...document.querySelectorAll('.reading-pd-chip, .reading-pd-date')].map((c) => Math.round(c.getBoundingClientRect().height)))].join(','),
+        stars: [...new Set([...document.querySelectorAll('.reading-pd-info .reading-rating-half')].map((b) => { const r = b.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) }))].join(','),
+        starSize: Math.round(document.querySelector('.reading-pd-info .reading-rating-star').getBoundingClientRect().width),
+        fab: Boolean(document.querySelector('.add-fab')), overflow: document.documentElement.scrollWidth > innerWidth }
+    })()`)
+    await shot('reading-detail-phone')
+    if (shape.bar !== '0,56' || shape.topbar || shape.title !== '테스트 책 1' || shape.old || shape.chip !== '책장 없음' || shape.gutters !== '16px,16px,16px,16px,16px' || shape.tabSpread > 1 || shape.chips !== '32' || shape.stars !== '16x44' || shape.starSize !== 22 || shape.fab || shape.overflow) return 'shape ' + JSON.stringify(shape)
+    // Record fields save by themselves: chips and stars at once, the review after typing stops, tags on Enter.
+    await clickText('.reading-pd-chip', '읽는 중')
+    await pause(400)
+    await evaluate('document.querySelector(".reading-pd-info [aria-label=\\"4점 선택\\"]").click()')
+    await setText('.reading-pd-review', '자동 저장 감상')
+    const saving = await evaluate('document.querySelector(".reading-pd-meta [role=status]").textContent')
+    await pause(1300)
+    await tap('.reading-pd-tag-add')
+    await until('document.activeElement?.matches(".reading-pd-tag-input")')
+    await setText('.reading-pd-tag-input', '여름', 'HTMLInputElement')
+    await evaluate('document.querySelector(".reading-pd-tag-input").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }))')
+    await pause(600)
+    const record = await reading('[b.reading_status, Boolean(b.started_at), b.rating, b.review, b.tags.join(",")].join("|")')
+    const saved = await evaluate('document.querySelector(".reading-pd-meta [role=status]").textContent')
+    if (saving !== '저장 중…' || record !== 'reading|true|4|자동 저장 감상|여름' || saved !== '저장됨') return `autosave saving=${saving} record=${record} status=${saved}`
+    // Tag row: chips and ＋ 태그 추가 are 32px on one line, labels sit on the first chip's center in every row,
+    // and a tag chip's visual side gaps (text on the left, the × glyph on the right) match.
+    const tagRow = await evaluate(`(() => {
+      const rows = [...document.querySelectorAll('.reading-pd-row')].map((row) => { const label = row.querySelector('.reading-pd-label').getBoundingClientRect(); const first = row.querySelector('.reading-pd-chip, .reading-pd-date, .reading-pd-tag').getBoundingClientRect(); return Math.abs((label.top + label.height / 2) - (first.top + first.height / 2)) <= 1 })
+      const tag = document.querySelector('.reading-pd-tag:not(.reading-pd-tag-add)'), add = document.querySelector('.reading-pd-tag-add')
+      const box = tag.getBoundingClientRect(), range = document.createRange(); range.selectNodeContents(tag.firstChild)
+      const left = range.getBoundingClientRect().left - box.left, right = box.right - tag.querySelector('svg path, svg line, svg *:not(svg)').closest('svg').getBoundingClientRect().right + 3
+      const a = add.getBoundingClientRect()
+      return { rows: rows.join(','), sides: Math.abs(left - right) <= 1.5, add: Math.round(a.height) + '|' + (Math.abs((a.top + a.height / 2) - (box.top + box.height / 2)) <= 1) }
+    })()`)
+    await shot('reading-detail-tags')
+    if (tagRow.rows !== 'true,true,true' || !tagRow.sides || tagRow.add !== '32|true') return 'tag row ' + JSON.stringify(tagRow)
+    // The shelf chip opens a sheet; tapping a shelf puts the book on it.
+    await tap('.reading-pd-meta .memo-pe-chip')
+    await until('Boolean(document.querySelector("[data-mobile-sheet] .memo-move-option"))')
+    await shot('reading-detail-shelf')
+    await clickText('[data-mobile-sheet] .memo-move-option', '인생책')
+    await pause(500)
+    const shelved = await reading('d.memberships.some((m) => m.user_book_id === "ub0" && m.shelf_id === "sh1")')
+    // ＋ 새 책장 creates a shelf by name and puts this book on it (checked in the list).
+    await tap('[data-mobile-sheet] .reading-pd-new-shelf')
+    await until('Boolean(document.querySelector(".reading-pd-new-shelf-form input"))')
+    await setText('.reading-pd-new-shelf-form input', '여행', 'HTMLInputElement')
+    await evaluate('document.querySelector(".reading-pd-new-shelf-form .btn").click()')
+    await until('[...document.querySelectorAll("[data-mobile-sheet] .memo-move-option")].some((b) => b.textContent.includes("여행") && b.getAttribute("aria-checked") === "true")')
+    await shot('reading-detail-new-shelf')
+    const created = await reading('(() => { const s = d.shelves.find((x) => x.name === "여행"); return Boolean(s) && d.memberships.some((m) => m.user_book_id === "ub0" && m.shelf_id === s.id) })()')
+    if (!created) return 'new shelf not created with the book on it'
+    await evaluate('window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))')
+    await pause(400)
+    const chip = await evaluate('document.querySelector(".reading-pd-meta .memo-pe-chip").textContent.trim()')
+    if (!shelved || chip !== '인생책 +1') return `shelf stored=${shelved} chip=${chip}`
+    // ⋮ menu: 책 정보 수정 / 책장 이동 / 공유 / 서재에서 빼기 (red); 책 정보 수정 is a sheet that saves.
+    await tap('.reading-pd-top [aria-haspopup=menu]')
+    const menu = await evaluate('[...document.querySelectorAll(".memo-pe-menu [role=menuitem]")].map((b) => b.textContent.trim()).join(",") + "|" + Boolean(document.querySelector(".memo-pe-menu .memo-pe-danger"))')
+    await shot('reading-detail-menu')
+    await clickText('.memo-pe-menu [role=menuitem]', '책 정보 수정')
+    if (!(await until('Boolean(document.querySelector("[data-mobile-sheet] [aria-label=\\"책 종류 편집\\"]"))'))) return 'metadata sheet did not open'
+    await shot('reading-detail-info-sheet')
+    await setText('[data-mobile-sheet] [aria-label="책 종류 편집"]', '소설', 'HTMLInputElement')
+    await evaluate('document.querySelector("[data-mobile-sheet] form").requestSubmit()')
+    await until('!document.querySelector("[data-mobile-sheet]")')
+    const category = await reading('(b.book.categories ?? []).join(",")')
+    if (menu !== '책 정보 수정,책장 이동,공유,서재에서 빼기|true' || category !== '소설') return `menu=${menu} category=${category}`
+    // 문장 tab: + adds through a sheet, a row opens the edit sheet with 삭제.
+    await clickText('.reading-pd-tabs [role=tab]', '문장')
+    await pause(200)
+    if (!(await evaluate('Boolean(document.querySelector(".add-fab"))'))) return 'no + on the quotes tab'
+    await tap('.add-fab')
+    await pause(300)
+    await tap('[data-add=manual]')
+    await until('Boolean(document.querySelector("[data-mobile-sheet] textarea"))')
+    await setText('[data-mobile-sheet] textarea', '어떤 계절은 끝나고 나서야 시작된다.')
+    await evaluate('document.querySelector("[data-mobile-sheet] form").requestSubmit()')
+    await until('Boolean(document.querySelector(".reading-pd-entry"))')
+    await shot('reading-detail-quotes')
+    const tabCount = await evaluate('[...document.querySelectorAll(".reading-pd-tabs [role=tab]")].find((t) => t.textContent.startsWith("문장")).textContent')
+    await tap('.reading-pd-entry')
+    await until('Boolean(document.querySelector("[data-mobile-sheet] .reading-pd-delete"))')
+    await evaluate('document.querySelector("[data-mobile-sheet] .reading-pd-delete").click()')
+    await until('Boolean(document.querySelector(".reading-modal .btn-primary"))')
+    await evaluate('document.querySelector(".reading-modal .btn-primary").click()')
+    await until('!document.querySelector(".reading-pd-entry")')
+    const quotes = await reading('d.highlights.filter((h) => h.user_book_id === "ub0").length')
+    if (tabCount !== '문장1' || quotes !== 0) return `tab=${tabCount} quotes=${quotes}`
+    // ← returns to the library.
+    await tap('.reading-pd-top button[aria-label]')
+    return await until('location.pathname === "/reading" && Boolean(document.querySelector(".reading-book-card"))') ? 'ok' : 'back did not return to the library'
+  })
+
+  await scenario('reading-book-detail-fit', async () => {
+    const libKey = `blanky.library.${owner}`, readKey = `blanky.reading.v1.${owner}`, localeKey = `blanky.locale.${owner}`, prefKey = `blanky.preferences.${owner}`
+    const until = async (expression) => { for (let i = 0; i < 60 && !(await evaluate(expression)); i++) await pause(100); return evaluate(expression) }
+    // Storage is edited on a static file of the same origin, so the running app cannot write its own state back over it.
+    const offApp = () => navigate(base + '/favicon.svg')
+    const saved = await evaluate(`[localStorage.getItem('${libKey}'), localStorage.getItem('${readKey}'), localStorage.getItem('${localeKey}'), localStorage.getItem('${prefKey}')]`)
+    const now = '2026-09-01T00:00:00.000Z'
+    try {
+      // The star row (stars · score · ×) stays one line at 360 and 390, Korean and English, with a 4.5 rating.
+      await offApp()
+      await evaluate(`(() => { const d = JSON.parse(localStorage.getItem('${readKey}')); d.books.find((b) => b.id === 'ub0').rating = 4.5; localStorage.setItem('${readKey}', JSON.stringify(d)) })()`)
+      const rows = []
+      for (const locale of ['ko', 'en']) {
+        await offApp()
+        await evaluate(`(() => { const d = JSON.parse(localStorage.getItem('${libKey}')); d.settings.locale = '${locale}'; localStorage.setItem('${libKey}', JSON.stringify(d)); localStorage.setItem('${localeKey}', JSON.stringify({ locale: '${locale}', updatedAt: new Date().toISOString() })); const p = JSON.parse(localStorage.getItem('${prefKey}') ?? 'null'); if (p) localStorage.setItem('${prefKey}', JSON.stringify({ ...p, locale: '${locale}' })) })()`)
+        for (const width of [360, 390]) {
+          await setViewport(width, 800, true)
+          await navigate(base + '/reading/ub0')
+          await until('Boolean(document.querySelector(".reading-pd-info .reading-rating .btn"))')
+          const row = await evaluate(`(() => { const rating = document.querySelector('.reading-pd-info .reading-rating').getBoundingClientRect(), clear = document.querySelector('.reading-pd-info .reading-rating .btn').getBoundingClientRect(), info = document.querySelector('.reading-pd-info').getBoundingClientRect()
+            return document.querySelector('.reading-pd-tabs [role=tab]').textContent + '|' + Math.round(rating.height) + '|' + Math.round(clear.width) + '|' + (clear.right <= info.right + 0.5) })()`)
+          rows.push(`${locale}${width}:${row}`)
+          if (width === 360) await shot(`reading-detail-stars-${locale}-360`)
+        }
+      }
+      if (rows.some((row) => !row.endsWith('|44|32|true')) || rows.filter((row) => row.includes(':Log|')).length !== 2) return 'star rows ' + rows.join(' ')
+      // A custom reading page's ?book= detail hides MobileTopBar too, so its app bar takes the top edge.
+      await offApp()
+      await evaluate(`(() => { const d = JSON.parse(localStorage.getItem('${libKey}')); d.settings.locale = 'ko'; localStorage.setItem('${localeKey}', JSON.stringify({ locale: 'ko', updatedAt: new Date().toISOString() })); const p = JSON.parse(localStorage.getItem('${prefKey}') ?? 'null'); if (p) localStorage.setItem('${prefKey}', JSON.stringify({ ...p, locale: 'ko' }))
+        const book = { id: 'pb-1', user_id: '${owner}', book_id: 'pb-1', reading_status: 'reading', rating: null, current_page: 0, total_pages: null, progress: 0, started_at: null, finished_at: null, review: '', tags: [], created_at: '${now}', updated_at: '${now}', book: { id: 'pb-1', external_source: 'blanky-page', external_id: 'pb-1', title: '커스텀 책', author: '작가', cover_url: null, isbn10: null, isbn13: null, publisher: null, published_date: null, description: null, page_count: null, created_at: '${now}' } }
+        d.customPages = [{ id: 'pg-read', name: '내 독서', icon: 'Library', description: '', sort: 0, schemaVersion: 1, blocks: [], template: 'reading', fieldLabels: {}, createdAt: '${now}', updatedAt: '${now}' }]
+        d.records = [{ id: 'pb-1', typeId: 'pg-read', title: '커스텀 책', values: { readingBook: JSON.stringify(book) }, templateVersion: 1, createdAt: '${now}', updatedAt: '${now}' }]
+        localStorage.setItem('${libKey}', JSON.stringify(d)) })()`)
+      await setViewport(390, 800, true)
+      await navigate(base + '/pages/pg-read')
+      const listBar = await until('Boolean(document.querySelector("[data-mobile-topbar]")) && Boolean(document.querySelector(".reading-book-card"))')
+      await navigate(base + '/pages/pg-read?book=pb-1')
+      await until('Boolean(document.querySelector(".reading-pd-top"))')
+      const custom = await evaluate(`(() => { const top = document.querySelector('.reading-pd-top').getBoundingClientRect(); return Math.round(top.top) + ',' + Math.round(top.height) + '|' + Boolean(document.querySelector('[data-mobile-topbar]')) + '|' + getComputedStyle(document.querySelector('.reading-pd-top')).position })()`)
+      await shot('reading-detail-custom-page')
+      if (!listBar || custom !== '0,56|false|sticky') return `custom page list bar=${listBar} detail=${custom}`
+      return 'ok'
+    } finally {
+      await offApp()
+      await evaluate(`(([lib, read, locale, pref]) => { localStorage.setItem('${libKey}', lib); localStorage.setItem('${readKey}', read); if (locale) localStorage.setItem('${localeKey}', locale); else localStorage.removeItem('${localeKey}'); if (pref) localStorage.setItem('${prefKey}', pref); else localStorage.removeItem('${prefKey}') })(${JSON.stringify(saved)})`)
+      await setViewport(390, 800, true)
+    }
+  })
+  await scenario('reading-add', async () => {
+    const store = (expression) => evaluate(`(() => { const d = JSON.parse(localStorage.getItem('blanky.reading.v1.${owner}')); return ${expression} })()`)
+    const until = async (expression) => { for (let i = 0; i < 60 && !(await evaluate(expression)); i++) await pause(100); return evaluate(expression) }
+    const setValue = (selector, value) => evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })) })()`)
+    const clickText = (selector, text) => evaluate(`[...document.querySelectorAll(${JSON.stringify(selector)})].find((b) => b.textContent.includes(${JSON.stringify(text)}))?.click()`)
+    const open = async () => {
+      await tap('.add-fab')
+      await pause(300)
+      await tap('[data-add=manual]')
+      return until('Boolean(document.querySelector(".reading-add-search input")) && document.activeElement === document.querySelector(".reading-add-search input")')
+    }
+    const search = async (query) => {
+      await setValue('.reading-add-search input', query)
+      await evaluate('document.querySelector(".reading-add-search").requestSubmit()')
+    }
+    await navigate(base + '/reading')
+    await until('Boolean(document.querySelector(".reading-book-card"))')
+    // Google Books answers from a stub: two books, none for "없는".
+    await evaluate(`(() => { const real = window.fetch; window.fetch = async (url, init) => { const u = String(url); if (!u.includes('googleapis.com/books')) return real(url, init); const q = new URL(u).searchParams.get('q');
+      const items = q.includes('없는') ? [] : [{ id: 'g1', volumeInfo: { title: '바람이 머무는 곳', authors: ['박서연'], publisher: '문학동네', publishedDate: '2023-05-01' } }, { id: 'g2', volumeInfo: { title: '숲의 시간', authors: ['이도윤'], publishedDate: '2021' } }];
+      await new Promise((r) => setTimeout(r, 400)); return new Response(JSON.stringify({ items }), { status: 200, headers: { 'content-type': 'application/json' } }) } })()`)
+    if (!(await open())) return 'add sheet did not open with the search field focused'
+    const shape = await evaluate(`(() => {
+      const sheet = document.querySelector('[data-mobile-sheet]').getBoundingClientRect(), field = document.querySelector('.reading-add-search').getBoundingClientRect()
+      return { tall: sheet.height >= innerHeight - 44 - 40, field: Math.round(field.left) + ',' + Math.round(field.height), modes: [...document.querySelectorAll('.reading-add-mode button')].map((b) => Math.round(b.getBoundingClientRect().height) + b.getAttribute('aria-pressed')).join(','),
+        details: Boolean(document.querySelector('[data-mobile-sheet] details')), searchButton: [...document.querySelectorAll('[data-mobile-sheet] button')].some((b) => b.textContent.trim() === '검색' && !b.closest('.reading-add-mode')) }
+    })()`)
+    await shot('reading-add-idle')
+    if (!shape.tall || shape.field !== '16,44' || shape.modes !== '32true,32false' || shape.details || shape.searchButton) return 'shape ' + JSON.stringify(shape)
+    // 검색 → skeleton → results; a result opens the confirm step (status and shelf chips, ＋ 새 책장).
+    await search('바람')
+    const skeleton = await until('Boolean(document.querySelector(".reading-add-skeleton"))')
+    await until('document.querySelectorAll(".reading-add-result").length === 2')
+    await shot('reading-add-results')
+    await tap('.reading-add-result')
+    if (!(await until('Boolean(document.querySelector(".reading-add-book"))'))) return 'confirm step did not open'
+    // The system Back returns to the results first.
+    await evaluate('history.back()')
+    const backToResults = await until('!document.querySelector(".reading-add-book") && document.querySelectorAll(".reading-add-result").length === 2')
+    await tap('.reading-add-result')
+    await until('Boolean(document.querySelector(".reading-add-book"))')
+    await clickText('.reading-add-group .reading-pd-chip', '완독')
+    await clickText('.reading-add-group .reading-pd-chip', '인생책')
+    await tap('.reading-add .reading-pd-new-shelf')
+    await until('Boolean(document.querySelector(".reading-add .reading-pd-new-shelf-form input"))')
+    await setValue('.reading-add .reading-pd-new-shelf-form input', '추가책장')
+    await evaluate('document.querySelector(".reading-add .reading-pd-new-shelf-form input").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }))')
+    const made = await until('[...document.querySelectorAll(".reading-add-group .reading-pd-chip")].some((b) => b.textContent.includes("추가책장") && b.getAttribute("aria-pressed") === "true")')
+    const chips = await evaluate('[...new Set([...document.querySelectorAll(".reading-add-group .reading-pd-chip, .reading-add-group .reading-pd-new-shelf")].map((b) => Math.round(b.getBoundingClientRect().height)))].join(",")')
+    await shot('reading-add-confirm')
+    await tap('.reading-add-foot .btn')
+    await until('!document.querySelector("[data-mobile-sheet]")')
+    const added = await store('(() => { const b = d.books.find((x) => x.book.external_id === "g1"); const s = d.shelves.find((x) => x.name === "추가책장"); return Boolean(b && s) && b.reading_status === "done" && ["sh1", s.id].every((id) => d.memberships.some((m) => m.user_book_id === b.id && m.shelf_id === id)) })()')
+    const toast = await evaluate('document.body.textContent.includes("서재에 추가했어요.")')
+    if (!skeleton || !backToResults || !made || chips !== '32' || !added || !toast) return JSON.stringify({ skeleton, backToResults, made, chips, added, toast })
+    // Reopened: the recent search runs again, and the added book is greyed out and disabled.
+    await open()
+    const recent = await evaluate('[...document.querySelectorAll(".reading-add-recent .reading-pd-chip")].map((b) => b.textContent).join(",")')
+    await clickText('.reading-add-recent .reading-pd-chip', '바람')
+    await until('document.querySelectorAll(".reading-add-result").length === 2')
+    const owned = await evaluate('(() => { const r = [...document.querySelectorAll(".reading-add-result")].find((b) => b.textContent.includes("바람이 머무는 곳")); return r.disabled + "|" + r.textContent.includes("서재에 있음") })()')
+    // No results → 직접 입력하기 carries the query into the title; status chips apply.
+    await search('없는책')
+    await until('Boolean(document.querySelector(".reading-add-state .reading-pd-chip"))')
+    await shot('reading-add-empty')
+    await tap('.reading-add-state .reading-pd-chip')
+    await until('Boolean(document.querySelector(".reading-add-manual"))')
+    const prefilled = await evaluate('document.querySelector(".reading-add-manual input").value')
+    await setValue('.reading-add-manual .reading-add-field:nth-of-type(2) input', '직접 저자')
+    await clickText('.reading-add-group .reading-pd-chip', '읽는 중')
+    await shot('reading-add-manual')
+    await evaluate('document.querySelector(".reading-add-manual").requestSubmit()')
+    await until('!document.querySelector("[data-mobile-sheet]")')
+    const manual = await store('(() => { const b = d.books.find((x) => x.book.title === "없는책"); return b ? b.book.author + "|" + b.reading_status + "|" + Boolean(b.started_at) : "missing" })()')
+    if (recent !== '바람' || owned !== 'true|true' || prefilled !== '없는책' || manual !== '직접 저자|reading|true') return JSON.stringify({ recent, owned, prefilled, manual })
+    return 'ok'
   })
 
   // ---------- Settings ----------

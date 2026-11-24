@@ -1525,6 +1525,22 @@ html { -webkit-tap-highlight-color: transparent; }
   outline-offset: 2px;
 }
 .calendar-sheet[open] { display: block; }
+.mcal-ib, .notification-trigger {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--muted);
+  touch-action: manipulation;
+}
+.mcal-ib:active, .notification-trigger:active { background: var(--press); }
+.mcal-ib:focus-visible, .notification-trigger:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: -2px;
+}
 .notification-count {
   position: absolute;
   top: -0.25rem;
