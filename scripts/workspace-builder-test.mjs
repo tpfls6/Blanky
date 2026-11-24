@@ -213,7 +213,7 @@ try {
   await clickText('새 기록')
   await wait('document.querySelector(".diary-title-input")', 'diary editor')
   await wait('![...document.querySelectorAll("summary")].some(el => el.textContent.includes("페이지 설정"))', 'no in-page settings')
-  await wait('[...document.querySelectorAll("legend")].some(el => el.textContent.trim()==="운동 컨디션")', 'renamed mood')
+  await wait('[...document.querySelectorAll(".diary-toolbar .diary-chip")].some(el => el.textContent.includes("운동 컨디션"))', 'renamed mood')
   await setInput('.diary-title-input', '스쿼트')
   await setInput('.diary-body-input', '하체')
   await wait(titlesOf('운동') + '.includes("스쿼트")', 'workout record')

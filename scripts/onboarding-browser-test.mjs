@@ -131,7 +131,7 @@ try {
   await click('[data-example]'); await wait('!!document.querySelector(".diary-body-input")', 'diary editor from example')
   assert.deepEqual((await stored()).diaries, [], 'opening the example writes nothing')
   await fill('.diary-body-input', '처음 남기는 진짜 기록')
-  await wait('document.querySelector(".diary-save-footer [role=status]")?.textContent === "저장됨"', 'diary autosave')
+  await wait('document.querySelector(".diary-save-status")?.textContent === "저장됨"', 'diary autosave')
   await wait('document.querySelectorAll("[data-example]").length === 0', 'diary example hidden')
   assert.equal((await stored()).diaries.length, 1)
   checks.push('Diary guide skip; example starts a real entry and hides once it exists')
