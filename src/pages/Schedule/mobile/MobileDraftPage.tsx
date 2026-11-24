@@ -79,6 +79,7 @@ export function MobileDraftPage({ draft, categories, busy, error, seriesHref, on
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus()
     }
   }, [])
+  // A text field taking focus closes the open wheel (onFocus below): the keyboard needs that room.
   useEffect(() => { if (target) wheelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }) }, [target])
   useEffect(() => {
     const memo = memoRef.current
@@ -205,7 +206,7 @@ export function MobileDraftPage({ draft, categories, busy, error, seriesHref, on
           <div className="mdraft-title">
             <button type="button" className="mdraft-dot" style={{ background: tint }} aria-label={t('schedule.mobile.category')} onClick={() => setSub('category')} />
             <input ref={titleRef} data-theme-slot="input" value={draft.title} aria-label={t('schedule.mobile.title')} enterKeyHint="done"
-              placeholder={t(task ? 'schedule.mobile.titleTask' : 'schedule.mobile.titleEvent')}
+              placeholder={t(task ? 'schedule.mobile.titleTask' : 'schedule.mobile.titleEvent')} onFocus={() => setTarget(null)}
               onChange={(event) => { set({ title: event.target.value }); if (localError) setLocalError('') }} />
           </div>
 
@@ -254,7 +255,7 @@ export function MobileDraftPage({ draft, categories, busy, error, seriesHref, on
           <Row icon={<Tag aria-hidden="true" />} label={t('schedule.mobile.category')} value={category ? (parent ? `${parent.name} › ${category.name}` : category.name) : t('schedule.mobile.none')} onClick={() => setSub('category')} />
           <div className="mdraft-row mdraft-memo">
             <span className="mdraft-ic"><NotebookText aria-hidden="true" /></span>
-            <textarea ref={memoRef} data-theme-slot="input" rows={1} value={draft.description} placeholder={t('schedule.mobile.memo')} aria-label={t('schedule.mobile.memo')} onChange={(event) => set({ description: event.target.value })} />
+            <textarea ref={memoRef} data-theme-slot="input" rows={1} value={draft.description} placeholder={t('schedule.mobile.memo')} aria-label={t('schedule.mobile.memo')} onFocus={() => setTarget(null)} onChange={(event) => set({ description: event.target.value })} />
           </div>
 
           {draft.occurrence ? (

@@ -1385,8 +1385,8 @@ html { -webkit-tap-highlight-color: transparent; }
 .app-status-notice {
   position: fixed;
   inset-inline: 1rem;
-  /* --toast-lift: height of an open phone bottom sheet, so the toast sits above it. */
-  bottom: max(calc(5rem + env(safe-area-inset-bottom)), calc(var(--toast-lift, 0px) + 12px));
+  /* --toast-lift: height of an open phone bottom sheet, so the toast sits above it; --kb-inset: the phone keyboard. */
+  bottom: max(calc(5rem + env(safe-area-inset-bottom) + var(--kb-inset, 0px)), calc(var(--toast-lift, 0px) + 12px));
   z-index: 60;
   display: grid;
   gap: 0.5rem;

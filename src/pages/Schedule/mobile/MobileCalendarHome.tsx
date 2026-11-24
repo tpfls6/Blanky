@@ -78,14 +78,17 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
   const cells = useMemo(() => {
     const [year, monthIndex] = month.split('-').map(Number)
     const first = new Date(year, monthIndex - 1, 1)
-    const start = addDays(first, -((first.getDay() - weekStartsOn + 7) % 7))
-    return Array.from({ length: 42 }, (_, index) => {
+    const lead = (first.getDay() - weekStartsOn + 7) % 7
+    const start = addDays(first, -lead)
+    // Only the weeks the month touches (4–6): no extra trailing week of the next month.
+    const days = new Date(year, monthIndex, 0).getDate()
+    return Array.from({ length: Math.ceil((lead + days) / 7) * 7 }, (_, index) => {
       const date = addDays(start, index)
       return { iso: formatISODate(date), inMonth: date.getMonth() === monthIndex - 1, day: date.getDate() }
     })
   }, [month, weekStartsOn])
   // A December/January grid spans two years.
-  const holidays = useHolidays([Number(cells[0].iso.slice(0, 4)), Number(cells[41].iso.slice(0, 4))])
+  const holidays = useHolidays([Number(cells[0].iso.slice(0, 4)), Number(cells[cells.length - 1].iso.slice(0, 4))])
   const labels = Array.from({ length: 7 }, (_, index) => (index + weekStartsOn) % 7)
 
   const onDay = useMemo(() => items.filter((item) => occursOn(item, selected)), [items, selected])
@@ -225,7 +228,7 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
       </div>
       <div className="contents" onPointerDown={onGridDown} onPointerUp={onGridUp} onPointerCancel={() => { press.current = null }}
         onClickCapture={(event) => { if (swiped.current) { swiped.current = false; event.stopPropagation() } }}>
-        <MonthGrid key={slide?.key ?? 0} cells={cells} items={items} categories={categories} holidays={holidays} selected={selected} today={today} slide={slide?.dir ?? null} onPick={pick} />
+        <MonthGrid key={slide?.key ?? 0} cells={cells} items={items} categories={categories} holidays={holidays} selected={selected} today={today} slide={slide?.dir ?? null} rowHeight={avail / (cells.length / 7)} onPick={pick} />
       </div>
 
       <section ref={sheetRef} className="mcal-sheet" aria-label={sheetTitle} inert={snap === 'closed'} data-day-sheet>

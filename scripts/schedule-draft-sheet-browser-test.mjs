@@ -263,6 +263,31 @@ try {
   assert.equal(await evaluate(`(e=>e.scrollHeight>e.clientHeight)(document.querySelector(${q(sheet + ' .mdraft-body')}))`), true, 'body scrolls under header')
   await evaluate(`document.querySelector('.theme-app-layout').style.removeProperty('--mobile-viewport-height')`)
 
+  // A simulated keyboard (visual viewport 300px shorter): a text field closes the open wheel, the page
+  // shrinks to the visible area, and a small sheet with its search input sits right above the keyboard.
+  const keyboard = on => evaluate(on
+    ? `(()=>{Object.defineProperty(visualViewport,'height',{configurable:true,get:()=>innerHeight-300});visualViewport.dispatchEvent(new Event('resize'))})()`
+    : `(()=>{delete visualViewport.height;visualViewport.dispatchEvent(new Event('resize'))})()`)
+  const inset = `getComputedStyle(document.documentElement).getPropertyValue('--kb-inset').trim()`
+  await click(sheet + ' .mdraft-se-btn')
+  await wait('!!document.querySelector("[data-draft-wheel]")', 'wheel open')
+  await evaluate(`document.querySelector(${q(sheet + ' .mdraft-title input')}).focus()`)
+  await wait('!document.querySelector("[data-draft-wheel]")', 'title focus closes the wheel')
+  await keyboard(true)
+  await wait(`${inset} === '300px'`, 'keyboard inset set')
+  assert.equal(Math.round((await rect(sheet)).height), await evaluate('innerHeight - 300'), 'page fits above keyboard')
+  await phoneRow('카테고리')
+  await evaluate(`document.querySelector('[data-mobile-sheet] input').focus()`)
+  await wait(`${inset} === '300px'`, 'keyboard inset for sheet input')
+  await pause(400) // slide-in animation
+  const lifted = await evaluate(`(()=>{const s=document.querySelector('[data-mobile-sheet]').getBoundingClientRect(),i=document.querySelector('[data-mobile-sheet] input').getBoundingClientRect();return {sheet:s.bottom,top:s.top,input:i.bottom,limit:innerHeight-300}})()`)
+  assert.ok(Math.abs(lifted.sheet - lifted.limit) < 2 && lifted.input <= lifted.limit && lifted.top >= 0, 'sheet above keyboard ' + JSON.stringify(lifted))
+  await keyboard(false)
+  await escape()
+  await wait('!document.querySelector("[data-mobile-sheet]")', 'category sheet closed')
+  await evaluate('document.activeElement?.blur()')
+  await wait(`${inset} === ''`, 'keyboard inset cleared')
+
   // Header save: a daily task with a category (rows open small sheets), back on the schedule with it shown.
   await press('할 일')
   await setPhoneTitle('매일 스트레칭')

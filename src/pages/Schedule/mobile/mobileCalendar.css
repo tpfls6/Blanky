@@ -9,35 +9,35 @@
 .mcal-ib { position: relative; display: grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: var(--muted); touch-action: manipulation; }
 .mcal-ib:active { background: var(--press); }
 .mcal-ib:focus-visible, .mcal-ym:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: -2px; }
-.mcal-ym { display: flex; align-items: center; gap: 4px; height: 44px; margin-right: auto; padding: 0 6px; border-radius: 12px; font-size: 21px; font-weight: 700; letter-spacing: -.2px; font-variant-numeric: tabular-nums; }
+.mcal-ym { display: flex; align-items: center; gap: 4px; height: 44px; margin-right: auto; padding: 0 6px; border-radius: 12px; font-size: 19px; font-weight: 700; letter-spacing: -.2px; font-variant-numeric: tabular-nums; }
 .mcal-ym svg { color: var(--muted); transition: transform .25s; }
 .mcal-ym[aria-expanded='true'] svg { transform: rotate(180deg); }
 .mcal-badge { position: absolute; top: 5px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: var(--accent-on); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
 .mcal-head .notification-bell, .mcal-head [data-notification-bell] { flex: none; }
 
 /* Weekday labels and month grid */
-.mcal-week { display: grid; flex: none; grid-template-columns: repeat(7, 1fr); align-items: center; height: var(--mcal-week); color: var(--muted); font-size: 12px; text-align: center; }
+.mcal-week { display: grid; flex: none; grid-template-columns: repeat(7, 1fr); align-items: center; height: var(--mcal-week); color: var(--muted); font-size: 11px; text-align: center; }
 .mcal-sat { color: var(--cal-saturday); }
 .mcal-grid { display: flex; flex: 1; min-height: 0; flex-direction: column; margin-bottom: var(--mcal-sheet, 0px); touch-action: pan-y; transition: margin-bottom .34s var(--mcal-ease); }
 .mcal-row { display: grid; flex: 1 1 0; grid-template-columns: repeat(7, 1fr); min-height: 0; overflow: hidden; border-top: 1px solid var(--line); transition: flex-basis .32s ease, flex-grow .32s ease, opacity .2s; }
 .mcal-cell { position: relative; min-width: 0; padding: 4px 0 2px; overflow: hidden; cursor: pointer; outline: none; }
 .mcal-cell:focus-visible { box-shadow: inset 0 0 0 2px var(--accent-color); }
 .mcal-cell[aria-pressed='true'] { background: color-mix(in srgb, var(--accent-color) 9%, transparent); }
-.mcal-num { display: grid; place-items: center; width: 24px; height: 24px; margin: 0 auto 2px; border-radius: 50%; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.mcal-num { display: grid; place-items: center; width: 22px; height: 22px; margin: 0 auto 2px; border-radius: 50%; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .mcal-cell[data-other] > * { opacity: .55; }
 .mcal-cell[aria-current='date'] .mcal-num { background: var(--accent-color); color: var(--accent-on); }
 .mcal-items { display: flex; flex-direction: column; gap: 2px; }
-.mcal-it { height: 16px; margin: 0 2px; padding: 0 3px; overflow: hidden; border-radius: 3px; font-size: 10.5px; line-height: 16px; white-space: nowrap; }
-.mcal-ev { border-left: 2px solid var(--cal-color); background: color-mix(in srgb, var(--cal-color) 16%, transparent); color: var(--fg); }
-.mcal-ev[data-span] { margin: 0 -1px; padding-left: 4px; border-left: 0; border-radius: 0; background: var(--cal-color); color: var(--cal-ink, var(--accent-on)); }
+.mcal-it { height: 14px; margin: 0 2px; padding: 0 3px; overflow: hidden; border-radius: 3px; font-size: 9.5px; line-height: 14px; white-space: nowrap; }
+.mcal-ev { border-left: 2px solid var(--cal-color); background: color-mix(in srgb, var(--cal-color) 10%, transparent); color: var(--fg); }
+.mcal-ev[data-span] { margin: 0 -1px; padding-left: 4px; border-left: 0; border-radius: 0; background: color-mix(in srgb, var(--cal-color) 22%, transparent); color: var(--fg); }
 .mcal-ev[data-span~='start'] { margin-left: 2px; border-top-left-radius: 3px; border-bottom-left-radius: 3px; }
 .mcal-ev[data-span~='end'] { margin-right: 2px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; }
-.mcal-lane { height: 16px; }
+.mcal-lane { height: 14px; }
 .mcal-td { color: var(--muted); }
 .mcal-td::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 3px; border: 1.3px solid currentColor; border-radius: 2px; }
 .mcal-td[data-done] { opacity: .6; text-decoration: line-through; }
 .mcal-td[data-done]::before { background: currentColor; }
-.mcal-more { height: 14px; padding-left: 5px; color: var(--muted); font-size: 10px; line-height: 14px; }
+.mcal-more { height: 14px; padding-left: 5px; color: var(--muted); font-size: 9px; line-height: 14px; }
 .mcal-dots { display: none; justify-content: center; gap: 3px; height: 6px; }
 .mcal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--cal-color); }
 .mcal-dot[data-todo] { background: none; box-shadow: inset 0 0 0 1.2px var(--muted); }
@@ -46,7 +46,7 @@
 .mcal[data-snap='full'] .mcal-row:not([data-selected-week]) { flex: 0 0 0; border-top-width: 0; opacity: 0; }
 .mcal[data-snap='full'] .mcal-row[data-selected-week] { flex: 1 1 auto; }
 .mcal[data-snap='full'] .mcal-cell { padding-top: 3px; }
-.mcal[data-snap='full'] .mcal-num { width: 22px; height: 22px; margin-bottom: 1px; font-size: 12px; }
+.mcal[data-snap='full'] .mcal-num { width: 20px; height: 20px; margin-bottom: 1px; font-size: 11px; }
 @keyframes mcal-in-left { from { opacity: 0; transform: translateX(30%); } }
 @keyframes mcal-in-right { from { opacity: 0; transform: translateX(-30%); } }
 .mcal-grid[data-slide='left'] { animation: mcal-in-left .25s ease; }
@@ -121,6 +121,7 @@ html.dark .mcal-handle::before { background: var(--muted); }
 
 /* Add button and its dial */
 .mcal-fab { position: absolute; right: 16px; bottom: 16px; z-index: 32; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent-color); color: var(--accent-on); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent-color) 45%, transparent); }
+.theme-app-layout[data-keyboard-open='true'] .mcal-fab { visibility: hidden; }
 .mcal-fab svg { transition: transform .25s; }
 .mcal-fab[aria-expanded='true'] svg { transform: rotate(45deg); }
 .mcal-dim { position: absolute; inset: 0; background: rgb(0 0 0 / 35%); opacity: 0; pointer-events: none; transition: opacity .25s; }
@@ -157,7 +158,8 @@ html.dark .mcal-handle::before { background: var(--muted); }
 
 /* Shared bottom sheets (quick add, task actions, editor sub sheets) */
 .mcal-sub-dim { position: fixed; inset: 0; z-index: 54; background: rgb(0 0 0 / 35%); }
-.mcal-sub { position: fixed; inset-inline: 0; bottom: 0; z-index: 55; display: flex; max-height: 82%; flex-direction: column; padding-bottom: max(18px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--surface); color: var(--fg); box-shadow: 0 -10px 30px rgb(0 0 0 / 12%); animation: mcal-up .3s var(--mcal-ease, ease); }
+/* --kb-inset: the phone keyboard's height (useMobileViewport), so sheets and their inputs sit just above it. */
+.mcal-sub { position: fixed; inset-inline: 0; bottom: var(--kb-inset, 0px); z-index: 55; display: flex; max-height: min(82%, calc(var(--mobile-viewport-height, 100dvh) - env(safe-area-inset-top) - 8px)); flex-direction: column; padding-bottom: max(18px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--surface); color: var(--fg); box-shadow: 0 -10px 30px rgb(0 0 0 / 12%); animation: mcal-up .3s var(--mcal-ease, ease); }
 @keyframes mcal-up { from { transform: translateY(100%); } }
 .mcal-sub-head { display: flex; align-items: center; padding: 0 8px 4px 20px; }
 .mcal-sub-head h3 { flex: 1; margin: 0; font-size: 17px; font-weight: 700; }
@@ -221,7 +223,7 @@ html.dark .mcal-handle::before { background: var(--muted); }
 /* Quick add sheet (former home composer) */
 .quick-add-dim { position: fixed; inset: 0; z-index: 44; background: rgb(0 0 0 / 35%); opacity: 0; pointer-events: none; transition: opacity .25s; }
 .quick-add-dim[data-open] { opacity: 1; pointer-events: auto; }
-.quick-add-sheet { position: fixed; inset-inline: 0; bottom: 0; z-index: 45; display: flex; max-height: min(88dvh, calc(var(--mobile-viewport-height, 100dvh) - env(safe-area-inset-top) - 8px)); flex-direction: column; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--surface); color: var(--fg); box-shadow: 0 -10px 30px rgb(0 0 0 / 12%); transform: translateY(105%); transition: transform .32s cubic-bezier(.2, .8, .2, 1), visibility 0s .32s; visibility: hidden; }
+.quick-add-sheet { position: fixed; inset-inline: 0; bottom: var(--kb-inset, 0px); z-index: 45; display: flex; max-height: min(88dvh, calc(var(--mobile-viewport-height, 100dvh) - env(safe-area-inset-top) - 8px)); flex-direction: column; padding-bottom: max(12px, env(safe-area-inset-bottom)); border-radius: 20px 20px 0 0; background: var(--surface); color: var(--fg); box-shadow: 0 -10px 30px rgb(0 0 0 / 12%); transform: translateY(105%); transition: transform .32s cubic-bezier(.2, .8, .2, 1), visibility 0s .32s; visibility: hidden; }
 .quick-add-sheet[data-open] { transform: none; visibility: visible; transition: transform .32s cubic-bezier(.2, .8, .2, 1); }
 .quick-add-head { display: flex; flex: none; align-items: center; gap: 8px; padding: 0 8px 0 16px; }
 .quick-add-head h2 { flex: 1; margin: 0; font-size: 17px; font-weight: 700; }

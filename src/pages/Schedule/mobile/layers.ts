@@ -1,4 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react'
+import { KEYBOARD_CHANGE_EVENT } from '../../../hooks/useMobileViewport.ts'
 
 /** History-state key of an open overlay layer (sheet, page, picker) on the phone calendar. */
 const LAYER = 'blankyLayer'
@@ -69,10 +70,13 @@ export function useToastLift(ref: RefObject<HTMLElement | null>, active: boolean
     // The sheet slides in and resizes with CSS animations and transitions; settle once they end.
     element.addEventListener('transitionend', update)
     element.addEventListener('animationend', update)
+    // The keyboard lifts the sheet (`--kb-inset`) without resizing it.
+    window.addEventListener(KEYBOARD_CHANGE_EVENT, update)
     return () => {
       observer.disconnect()
       element.removeEventListener('transitionend', update)
       element.removeEventListener('animationend', update)
+      window.removeEventListener(KEYBOARD_CHANGE_EVENT, update)
       root.style.removeProperty('--toast-lift')
     }
   }, [ref, active])

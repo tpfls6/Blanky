@@ -117,7 +117,7 @@ html.dark .home-chat-scrim { background: rgb(0 0 0 / 50%); }
 .home-chat-panel[data-mode='sheet'] {
   position: fixed;
   inset-inline: 0;
-  bottom: 0;
+  bottom: var(--kb-inset, 0px);
   z-index: 50;
   height: min(60dvh, calc(var(--mobile-viewport-height, 100dvh) - env(safe-area-inset-top) - 8px));
   padding-bottom: max(16px, env(safe-area-inset-bottom));

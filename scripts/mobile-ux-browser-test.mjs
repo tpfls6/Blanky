@@ -261,8 +261,9 @@ try {
       await pause(1000)
       for (let i = 0; i < 100 && !(await evaluate('Boolean(document.querySelector("[data-schedule-mobile]"))')); i++) await pause(100)
       if (!(await evaluate('Boolean(document.querySelector("[data-schedule-mobile]"))'))) return 'phone layout missing'
-      const grid = await evaluate('(() => { const cells = [...document.querySelectorAll(".mcal-cell")]; const r = cells.map((c) => c.getBoundingClientRect()); return { count: cells.length, small: r.filter((x) => x.width < 44 || x.height < 44).length, today: Boolean(document.querySelector(".mcal-cell[aria-current=date]")) } })()')
-      if (grid.count !== 42 || grid.small || !grid.today) return 'grid ' + JSON.stringify(grid)
+      const grid = await evaluate('(() => { const cells = [...document.querySelectorAll(".mcal-cell")]; const r = cells.map((c) => c.getBoundingClientRect()); return { count: cells.length, small: r.filter((x) => x.width < 44 || x.height < 44).length, today: Boolean(document.querySelector(".mcal-cell[aria-current=date]")), lastWeekInMonth: cells.slice(-7).some((c) => !c.hasAttribute("data-other")) } })()')
+      // Only the weeks the month touches: 4-6 rows, the last one still holding days of this month.
+      if (![28, 35, 42].includes(grid.count) || !grid.lastWeekInMonth || grid.small || !grid.today) return 'grid ' + JSON.stringify(grid)
       if (width === 390) await shot('schedule-calendar')
       const month = await evaluate('document.querySelector(".mcal-ym").textContent')
       await swipe('.mcal-grid', -Math.round(width * 0.6))

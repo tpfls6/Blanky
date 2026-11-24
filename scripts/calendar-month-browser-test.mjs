@@ -226,6 +226,18 @@ try {
   for (const width of [390, 768, 1440]) {
     await send('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 700 }); await pause(200)
     assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), true, 'no page overflow ' + width)
+    if (width < 768) {
+      // Phones render the month calendar home (MobileCalendarHome), not the detailed grid.
+      await wait('!!document.querySelector("[data-schedule-mobile] .mcal-cell")', 'phone month grid')
+      assert.equal(await evaluate('(g => g.scrollWidth <= g.clientWidth + 1)(document.querySelector(".mcal-grid"))'), true, 'no phone grid overflow')
+      const grid = await evaluate('(() => { const cells = [...document.querySelectorAll(".mcal-cell")]; return { count: cells.length, lastWeekInMonth: cells.slice(-7).some(c => !c.hasAttribute("data-other")) } })()')
+      assert.ok([28, 35, 42].includes(grid.count) && grid.lastWeekInMonth, 'phone grid has only the month weeks ' + JSON.stringify(grid))
+      assert.equal(await evaluate(`[...document.querySelectorAll('.mcal-cell')].every(c => { const r = c.getBoundingClientRect(); return [...c.querySelectorAll('.mcal-it,.mcal-more')].every(e => { const b = e.getBoundingClientRect(); return b.left >= r.left - 2 && b.right <= r.right + 2 && b.bottom <= r.bottom + 1 }) })`), true, 'phone entries inside cells')
+      assert.equal(await evaluate(`[...document.querySelectorAll('.mcal-it')].every(e => getComputedStyle(e).overflow === 'hidden' && getComputedStyle(e).whiteSpace === 'nowrap')`), true, 'phone entries clip')
+      const shot = await send('Page.captureScreenshot', { format: 'png' })
+      await writeFile(join(shots, `phone-${width}.png`), Buffer.from(shot.data, 'base64'))
+      continue
+    }
     assert.equal(await evaluate('(() => { const g = document.querySelector("[data-calendar-view=detailed]"); return g.scrollWidth <= g.clientWidth + 1 })()'), true, 'no grid overflow ' + width)
     assert.equal(await evaluate(`[...document.querySelectorAll('[data-calendar-cell]')].every(c => { const r = c.getBoundingClientRect(); return [...c.querySelectorAll('[data-calendar-item],[data-calendar-more]')].every(e => e.getBoundingClientRect().right <= r.right + 1) })`), true, 'entries fit cells ' + width)
     const title = `${cell('2026-10-22')}.querySelector('[data-calendar-item=weekly] span:last-child')`
