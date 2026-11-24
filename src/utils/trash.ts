@@ -109,6 +109,7 @@ export function asMemo(value: unknown): Memo | null {
     body: row.body,
     categoryId: typeof row.categoryId === 'string' ? row.categoryId : null,
     tags: tags(row.tags),
+    ...(row.favorite === true ? { favorite: true } : {}),
     createdAt: text(row.createdAt, new Date().toISOString()),
     updatedAt: text(row.updatedAt, new Date().toISOString()),
   }

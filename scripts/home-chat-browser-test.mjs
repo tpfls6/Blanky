@@ -592,7 +592,8 @@ try {
   await pause(400) // let the 280ms slide-in settle before tapping by coordinates
   await tap('[...document.querySelectorAll("#home-chat-panel [data-saved-row][data-saved-state=saved]")].at(-1).querySelector(".home-saved-view")')
   await wait('location.pathname === "/memo" && document.querySelector(".memo-layout")', '보기 from the sheet')
-  assert.equal(await evaluate('Boolean(document.querySelector("[inert]"))'), false, 'nothing stays inert: ' + await evaluate('[...document.querySelectorAll("[inert]")].map(e=>e.tagName+"."+e.className).join(";")'))
+  // The closed phone folder menu is inert on purpose; nothing else may stay inert.
+  assert.equal(await evaluate('Boolean(document.querySelector("[inert]:not(.memo-phone-folders)"))'), false, 'nothing stays inert: ' + await evaluate('[...document.querySelectorAll("[inert]:not(.memo-phone-folders)")].map(e=>e.tagName+"."+e.className).join(";")'))
   await evaluate('history.back()')
   await wait('location.pathname === "/schedule" && document.querySelector("#home-entry")', 'Back returns to the schedule screen')
   assert.equal(await evaluate(panelOpen), false, 'the sheet stays closed')

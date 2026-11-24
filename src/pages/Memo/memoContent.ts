@@ -17,6 +17,8 @@ export function writeMemoContent(doc: JSONContent): string {
 }
 
 export function memoPlainText(body: string): string {
-  const text = (node: JSONContent): string => node.text ?? (node.content ?? []).map(text).join(['doc', 'bulletList', 'orderedList'].includes(node.type ?? '') ? '\n' : '')
+  // Checklist items read as "☐ 할 일" / "☑ 할 일" in previews, search and shared text.
+  const text = (node: JSONContent): string => node.text ?? (node.type === 'taskItem' ? (node.attrs?.checked ? '☑ ' : '☐ ') : '')
+    + (node.content ?? []).map(text).join(['doc', 'bulletList', 'orderedList', 'taskList', 'taskItem'].includes(node.type ?? '') ? '\n' : '')
   return text(readMemoContent(body))
 }

@@ -24,3 +24,14 @@ test('invalid serialized content remains readable', () => {
   const body = 'blanky-rich-memo:v1:{broken'
   assert.equal(memoPlainText(body), body)
 })
+
+test('checklists keep their checked state and read as ☐/☑ lines', () => {
+  const item = (text: string, checked: boolean, nested?: object) => ({ type: 'taskItem', attrs: { checked }, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }, ...(nested ? [nested] : [])] })
+  const doc = { type: 'doc', content: [
+    { type: 'paragraph', content: [{ type: 'text', text: '장보기' }] },
+    { type: 'taskList', content: [item('우유', true), item('빵', false, { type: 'taskList', content: [item('식빵', false)] })] },
+  ] }
+  const saved = writeMemoContent(doc)
+  assert.deepEqual(readMemoContent(saved), doc)
+  assert.equal(memoPlainText(saved), '장보기\n☑ 우유\n☐ 빵\n☐ 식빵')
+})
