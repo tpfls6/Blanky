@@ -90,7 +90,7 @@ export function AccountSection() {
           <button type="button" className="btn btn-ghost" onClick={async () => { try { await signOut(); navigate(ROUTES.login) } catch { setProfileMessage(t('settings.account.signOutFailed')) } }}>{t('settings.account.signOut')}</button>
           <button
             type="button"
-            className="text-neutral-400"
+            className="settings-danger text-neutral-400"
             onClick={async () => {
               if (!await confirm(t('settings.account.deleteAccountConfirm'))) return
               const message = await deleteAccount()

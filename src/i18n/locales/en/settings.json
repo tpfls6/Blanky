@@ -112,6 +112,7 @@
     "themeNote": "An applied custom theme overrides the colors below.",
     "manageThemes": "Manage my themes",
     "themeNoteAfter": " to return to these settings.",
+    "themeNoteMobile": "A custom theme applied in My Themes overrides these settings.",
     "theme": "Theme",
     "light": "Light",
     "dark": "Dark",

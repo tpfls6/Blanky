@@ -16,3 +16,6 @@ export function useMediaQuery(query: string): boolean {
 
 /** Matches the phone layout: the bottom tab bar is shown below Tailwind's `md` breakpoint. */
 export const PHONE_QUERY = '(max-width: 767px)'
+
+/** Settings and More use the phone-style app bar and cards below Tailwind's `lg` breakpoint. */
+export const SETTINGS_COMPACT_QUERY = '(max-width: 1023px)'

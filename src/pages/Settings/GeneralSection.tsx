@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { PAGE_TOURS, replayHref } from '../../features/onboarding/tourState.ts'
 import { Link, useLocation } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
+import { SETTINGS_COMPACT_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { APP_LOCALES, type AppLocale } from '../../i18n/locale.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -88,6 +89,8 @@ export function GeneralSection() {
   const { t, locale, setLocale } = useI18n()
   const { settings, updateSettings } = useLibrary()
   const patch = (next: Partial<typeof settings>) => updateSettings(next)
+  // Below lg, menus and help live on More (Menu layout, Help), so they are not repeated here.
+  const compact = useMediaQuery(SETTINGS_COMPACT_QUERY)
 
   return (
     <Section>
@@ -110,9 +113,11 @@ export function GeneralSection() {
         </div>
       </Group>
       <Group id="appearance" title={t('settings.general.appearanceSection')} description={t('settings.general.appearanceSectionHint')}>
-        <p className="text-sm text-neutral-500">
-          {t('settings.appearance.themeNote')} <Link className="text-accent-text" to="/settings/themes">{t('settings.appearance.manageThemes')}</Link>{t('settings.appearance.themeNoteAfter')}
-        </p>
+        {compact ? <p className="text-sm text-neutral-500">{t('settings.appearance.themeNoteMobile')}</p> : (
+          <p className="text-sm text-neutral-500">
+            {t('settings.appearance.themeNote')} <Link className="text-accent-text" to="/settings/themes">{t('settings.appearance.manageThemes')}</Link>{t('settings.appearance.themeNoteAfter')}
+          </p>
+        )}
         <div>
           <p className="text-sm">{t('settings.appearance.theme')}</p>
           <div className="mt-2 flex flex-wrap gap-1" role="radiogroup" aria-label={t('settings.appearance.theme')}>
@@ -151,10 +156,10 @@ export function GeneralSection() {
           />
         </div>
       </Group>
-      <Group id="navigation" title={t('settings.general.navigationSection')} description={t('settings.general.navigationSectionHint')}>
+      {compact ? null : <Group id="navigation" title={t('settings.general.navigationSection')} description={t('settings.general.navigationSectionHint')}>
         <NavSection />
-      </Group>
-      <Group id="help" title={t('settings.general.helpSection')} description={t('settings.general.helpSectionHint')}>
+      </Group>}
+      {compact ? null : <Group id="help" title={t('settings.general.helpSection')} description={t('settings.general.helpSectionHint')}>
         <div className="flex flex-wrap gap-2">
           <Link to={ROUTES.guide} className="btn btn-line">{t('settings.general.openGuide')}</Link>
           <Link to={replayHref('home')} className="btn btn-ghost">{t('settings.general.replayTour')}</Link>
@@ -163,7 +168,7 @@ export function GeneralSection() {
         <div className="mt-2 flex flex-wrap gap-1">
           {PAGE_TOURS.map((page) => <Link key={page} to={replayHref(page)} className="chip">{t(`nav.${page}`)}</Link>)}
         </div>
-      </Group>
+      </Group>}
     </Section>
   )
 }

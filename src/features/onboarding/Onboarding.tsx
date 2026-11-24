@@ -11,9 +11,9 @@ const TOURS: Record<PageTourId, TourStep[]> = {
     { target: '#home-chat-title', prepare: 'chat', title: '대화로 이어서 고쳐요', body: '오른쪽 대화 기록에서 저장 결과를 확인해요. “그거 오후 5시로 바꿔줘”처럼 입력창에서 이어서 말할 수 있어요.' },
   ],
   diary: [
-    { target: '.diary-new', title: '새 기록으로 시작해요', body: '새 기록을 누르고 제목과 본문을 적으면 자동으로 저장돼요. 기분·날씨·태그도 남길 수 있어요.' },
+    { target: '.diary-new, [data-tour="new-diary"]', title: '새 기록으로 시작해요', body: '새 기록을 누르고 제목과 본문을 적으면 자동으로 저장돼요. 기분·날씨·태그도 남길 수 있어요.' },
     { target: '.diary-view-toggle', title: '날짜별로 돌아봐요', body: '달력 보기와 목록 보기를 오가며 날짜별 기록을 찾아요.' },
-    { target: '.diary-tabs', title: '마음에 남는 기록을 모아요', body: '별을 누른 기록은 즐겨찾기에서 다시 볼 수 있어요.' },
+    { target: '.diary-tabs, [data-tour="diary-filter"]', title: '마음에 남는 기록을 모아요', body: '별을 누른 기록은 즐겨찾기에서 다시 볼 수 있어요.' },
   ],
   reading: [
     { target: '[data-tour="add-book"]', title: '책을 담아요', body: '책 추가 · 검색에서 읽고 싶은 책을 찾아 서재에 담아요.' },

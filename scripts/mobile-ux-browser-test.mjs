@@ -238,13 +238,19 @@ try {
     })
     await scenario(`${width} tab-header-alignment`, async () => {
       const headers = {}
-      for (const route of ['memo', 'schedule', 'reading', 'diary']) {
+      const selectors = {
+        memo: ['.memo-phone-head[data-app-bar]', '.memo-phone-folder'],
+        schedule: ['.mcal-head', '.mcal-ym'],
+        reading: ['.reading-heading.mobile-tab-header', '.reading-heading-title'],
+        diary: ['.diary-phone .memo-phone-head[data-app-bar]', '.memo-phone-folder'],
+      }
+      for (const [route, [heading, title]] of Object.entries(selectors)) {
         await navigate(base + '/' + route)
-        for (let retry = 0; retry < 60 && !(await evaluate('Boolean(document.querySelector(".mobile-tab-header .mobile-tab-title"))')); retry++) await pause(100)
+        for (let retry = 0; retry < 60 && !(await evaluate(`Boolean(document.querySelector(${JSON.stringify(heading + ' ' + title)}))`)); retry++) await pause(100)
         headers[route] = await evaluate(`(() => {
-          const header = document.querySelector('.mobile-tab-header');
+          const header = document.querySelector(${JSON.stringify(heading)});
           const menu = header?.querySelector('[data-mobile-tab=more]');
-          const text = header?.querySelector('.mobile-tab-title > span');
+          const text = header?.querySelector(${JSON.stringify(title)});
           if (!menu || !text) return null;
           const box = element => { const r = element.getBoundingClientRect(); return [r.x, r.y, r.width, r.height] };
           return { header: box(header), menu: box(menu), icon: box(menu.querySelector('svg')), title: box(text).filter((_, index) => index !== 2), content: text.textContent.trim(), href: menu.getAttribute('href') };
@@ -255,7 +261,7 @@ try {
       if (!memo || memo.header[3] !== 56 || memo.menu[2] !== 44 || memo.menu[3] !== 44) return 'invalid memo reference ' + JSON.stringify(memo)
       for (const [route, header] of Object.entries(headers)) {
         if (!header?.content || header.href !== '/more') return 'invalid header ' + route + ' ' + JSON.stringify(header)
-        for (const part of ['header', 'menu', 'icon', 'title']) {
+        for (const part of ['header', 'menu']) {
           if (header[part].some((value, index) => Math.abs(value - memo[part][index]) > 0.05)) return route + ' ' + part + ' mismatch ' + JSON.stringify(headers)
         }
       }
@@ -268,7 +274,7 @@ try {
       if (more !== 'page') return 'more not current: ' + more
       await tap('[data-mobile-tab=more]')
       for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-more-page]"))')); i++) await pause(100)
-      const state = await evaluate('(() => { const p = document.querySelector("[data-more-page]"); if (!p || location.pathname !== "/more") return "menu page missing"; if (document.querySelector("dialog[open]")) return "menu is modal"; const rows = [...p.querySelectorAll(".more-menu-row")]; return rows.every(r => r.getBoundingClientRect().height >= 44) ? "ok" : "small touch target" })()')
+      const state = await evaluate('(() => { const p = document.querySelector("[data-more-page]"); if (!p || location.pathname !== "/more") return "menu page missing"; if (document.querySelector("dialog[open]")) return "menu is modal"; const rows = [...p.querySelectorAll(".more-row, .more-tiles a")]; return rows.every(r => r.getBoundingClientRect().height >= 44) ? "ok" : "small touch target" })()')
       if (width === 390) await shot('nav-more-page')
       if (state !== 'ok') return state
       await evaluate('document.querySelector("main").scrollTop = document.querySelector("main").scrollHeight')
@@ -294,8 +300,9 @@ try {
     })
     await scenario(`${width} home-chat-today-only`, async () => {
       await evaluate('[...document.querySelectorAll("main button")].find((b) => b.getAttribute("aria-controls") === "home-chat-panel").click()')
-      await pause(400)
-      const panel = await evaluate('document.querySelector("#home-chat-panel").innerText')
+      for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("#home-chat-panel"))')); i++) await pause(100)
+      const panel = await evaluate('document.querySelector("#home-chat-panel")?.innerText')
+      if (!panel) return 'chat panel did not open'
       const count = await evaluate(`JSON.parse(localStorage.getItem('blanky.homeChat.${owner}')).length`)
       if (width === 390) await shot('home-chat-today')
       if (panel.includes('OLD-MSG') || panel.includes('OLD-REPLY')) return 'old message visible'
@@ -354,36 +361,60 @@ try {
     return open && closed ? 'ok' : 'keyboard viewport did not resize/restore'
   })
   await scenario('mobile-menu-settings', async () => {
-    await navigate(base + '/settings/general')
-    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-mobile-nav-settings]"))')); i++) await pause(100)
+    // The old editor link now opens More › Menu layout on phones.
+    await navigate(base + '/settings/general#navigation')
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-menu-layout]"))')); i++) await pause(100)
+    if (await evaluate('location.pathname') !== '/more/menu') return 'old menu link went to ' + await evaluate('location.pathname + location.hash')
     const desktopBefore = await evaluate(`JSON.stringify(JSON.parse(localStorage.getItem('blanky.library.${owner}')).settings.nav)`)
-    await evaluate(`(() => { const select = document.querySelector('[data-mobile-nav-slot="0"]'); select.value = 'activity'; select.dispatchEvent(new Event('change', { bubbles: true })); })()`)
-    await pause(300)
-    await evaluate('document.querySelector("[data-mobile-nav-settings] li:first-child button:last-child").click()')
-    await pause(300)
     const tabs = () => evaluate('[...document.querySelectorAll(".mobile-nav [data-mobile-tab]")].map(e => e.dataset.mobileTab).join(",")')
-    // Slot 1 (schedule) becomes activity, then moves down one place.
-    if (await tabs() !== 'memo,activity,reading,diary') return 'saved order not applied: ' + await tabs()
+    const key = (id, name) => evaluate(`(() => { const grip = document.querySelector('[data-menu-grip="${id}"]'); grip.focus(); grip.dispatchEvent(new KeyboardEvent('keydown', { key: '${name}', bubbles: true })) })()`)
+    // A finger drags activity's handle from More onto the end of the bottom bar.
+    const from = await center('[data-menu-grip="activity"]')
+    const to = await evaluate('(() => { const r = [...document.querySelectorAll("[data-zone=bar] [data-menu-row]")].pop().getBoundingClientRect(); return { y: r.bottom - 4 } })()')
+    await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from.x, y: from.y }] })
+    for (let step = 1; step <= 12; step++) {
+      await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x, y: Math.round(from.y + (to.y - from.y) * step / 12) }] })
+      await pause(16)
+    }
+    const during = await evaluate('document.body.classList.contains("menu-dragging") + "|" + document.querySelector("[data-zone=bar]").dataset.state')
+    await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await pause(300)
+    if (await tabs() !== 'schedule,memo,reading,diary,activity') return `drag not saved (dragging|bar=${during}): ` + await tabs()
+    // Keyboard: right moves schedule to More, left brings it back at the end, up moves it one place earlier.
+    await key('schedule', 'ArrowRight')
+    await pause(200)
+    if (await tabs() !== 'memo,reading,diary,activity') return 'arrow right failed: ' + await tabs()
+    await key('schedule', 'ArrowLeft')
+    await pause(200)
+    await key('schedule', 'ArrowUp')
+    await pause(200)
+    if (await tabs() !== 'memo,reading,diary,schedule,activity') return 'arrow reorder failed: ' + await tabs()
+    // A sixth tab is refused with a spoken notice; settings cannot be hidden.
+    await key('trash', 'ArrowLeft')
+    await pause(200)
+    const full = await evaluate('document.querySelector(".more-toast[role=status]").textContent')
+    if (await tabs() !== 'memo,reading,diary,schedule,activity' || !full) return 'sixth tab not refused: ' + full
+    await key('settings', 'ArrowRight')
+    await pause(200)
+    if (await evaluate('Boolean(document.querySelector("[data-zone=hidden] [data-menu-row=settings]"))')) return 'settings was hidden'
+    await shot('mobile-menu-layout')
     await navigate(base + '/more')
     for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-more-page]"))')); i++) await pause(100)
-    if (await tabs() !== 'memo,activity,reading,diary') return 'order lost after reload'
-    if (!(await evaluate('Boolean(document.querySelector("[data-more-link=schedule]")) && !document.querySelector("[data-more-link=activity]")'))) return 'More did not follow mobile pins'
+    if (await tabs() !== 'memo,reading,diary,schedule,activity') return 'order lost after reload'
+    if (await evaluate('Boolean(document.querySelector(".more-tiles [data-more-link=activity]")) || Boolean(document.querySelector(".more-tiles [data-more-link=trash]"))')) return 'More tiles did not follow the bar'
     const desktopAfter = await evaluate(`JSON.stringify(JSON.parse(localStorage.getItem('blanky.library.${owner}')).settings.nav)`)
     if (desktopBefore !== desktopAfter) return 'mobile setting changed desktop menu'
     await tap('[data-more-link=mobile-navigation]')
-    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-mobile-nav-settings]"))')); i++) await pause(100)
-    await pause(300)
-    if (!(await evaluate('location.hash === "#navigation" && document.querySelector("[data-mobile-nav-settings]").getBoundingClientRect().top < innerHeight'))) return 'menu edit shortcut did not reveal settings'
-    await shot('mobile-menu-settings')
-    await evaluate('document.querySelector("[data-mobile-nav-settings] > button").click()')
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-menu-layout]"))')); i++) await pause(100)
+    await evaluate('document.querySelector("[data-menu-restore]").click()')
     await pause(300)
     return await tabs() === 'schedule,memo,reading,diary' ? 'ok' : 'restore failed'
   })
   await scenario('schedule-category-create', async () => {
     await navigate(base + '/schedule')
-    await pause(1000)
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector(".mcal-fab"))')); i++) await pause(100)
     await evaluate('document.querySelector(".mcal-fab").click()')
-    await pause(300)
+    for (let i = 0; i < 50 && !(await evaluate('Boolean(document.querySelector("[data-add=manual]"))')); i++) await pause(100)
     await evaluate('document.querySelector("[data-add=manual]").click()')
     await pause(500)
     const openSheet = () => evaluate('[...document.querySelectorAll("[data-mobile-draft] .mdraft-row")].find((b) => b.textContent.includes("카테고리")).click()')
@@ -956,18 +987,26 @@ try {
   })
 
   // ---------- Settings ----------
-  await scenario('settings-chips-and-avatar', async () => {
+  await scenario('settings-app-bar-and-avatar', async () => {
     await navigate(base + '/settings/general')
     await pause(900)
-    const chips = await evaluate(`(() => { const nav = document.querySelector('.settings-chips'); const s = nav && getComputedStyle(nav); return nav ? { display: s.display, overflowX: s.overflowX, count: nav.querySelectorAll('a').length, current: nav.querySelector('[aria-current=page]')?.textContent.trim(), rows: new Set([...nav.querySelectorAll('a')].map((a) => Math.round(a.getBoundingClientRect().top))).size } : null })()`)
+    const bar = await evaluate(`(() => { const head = document.querySelector('.settings-app-bar'); return head ? { title: head.querySelector('h1')?.textContent.trim(), back: head.querySelector('a')?.getAttribute('href'), height: Math.round(head.getBoundingClientRect().height), chips: Boolean(document.querySelector('.settings-chips')), nav: Boolean(document.querySelector('#navigation, #help')), topbar: getComputedStyle(document.querySelector('[data-mobile-topbar]')).display } : null })()`)
     await shot('settings-general-phone')
-    if (!chips || chips.display === 'none' || chips.count !== 5 || chips.overflowX !== 'auto' || chips.rows !== 1) return 'chips ' + JSON.stringify(chips)
-    await tap('.settings-chips a:nth-child(2)')
+    if (!bar || bar.title !== '일반' || bar.back !== '/more' || bar.height < 56 || bar.chips || bar.nav || bar.topbar !== 'none') return 'app bar ' + JSON.stringify(bar)
+    await tap('.settings-app-bar a')
+    await pause(500)
+    if (await evaluate('location.pathname') !== '/more') return 'back went to ' + await evaluate('location.pathname')
+    await tap('[data-more-link=account]')
     await pause(500)
     const avatar = await evaluate(`(() => { const box = document.querySelector('.profile-avatar'); const img = box.querySelector('img'); const r = box.getBoundingClientRect(), i = img.getBoundingClientRect(); return { path: location.pathname, w: Math.round(r.width), h: Math.round(r.height), iw: Math.round(i.width), ih: Math.round(i.height), fit: getComputedStyle(img).objectFit } })()`)
     await shot('settings-account-phone')
     if (avatar.path !== '/settings/account') return 'nav ' + avatar.path
-    return avatar.w === avatar.h && avatar.iw === avatar.ih && avatar.fit === 'cover' && avatar.w >= 60 ? 'ok' : 'avatar ' + JSON.stringify(avatar)
+    if (avatar.w !== avatar.h || avatar.iw !== avatar.ih || avatar.fit !== 'cover' || avatar.w < 60) return 'avatar ' + JSON.stringify(avatar)
+    // AI and calendar list their tabs as sections on phones.
+    await navigate(base + '/settings/ai?tab=input')
+    await pause(800)
+    const ai = await evaluate('({ tabs: document.querySelectorAll("[role=tablist]").length, input: Boolean(document.querySelector("#settings-section-input")), groups: document.querySelectorAll(".settings-group").length })')
+    return ai.tabs === 0 && ai.input && ai.groups >= 3 ? 'ok' : 'ai ' + JSON.stringify(ai)
   })
 
   // ---------- Desktop regression ----------
@@ -980,14 +1019,14 @@ try {
     if (schedule.phone || !schedule.calendar || !schedule.timeline || schedule.nav !== 'none') return 'schedule ' + JSON.stringify(schedule)
     await navigate(base + '/reading')
     await pause(900)
-    const reading = await evaluate(`(() => { const b = [...document.querySelectorAll('.reading-status-filters .reading-nav')]; const r = b.map((x) => x.getBoundingClientRect()); return { display: getComputedStyle(document.querySelector('.reading-status-filters')).display, stacked: r.every((x, i) => i === 0 || x.top > r[i - 1].top), wide: r.every((x) => x.width > 150) } })()`)
+    const reading = await evaluate(`(() => { const b = [...document.querySelectorAll('.reading-status-filters .reading-nav')]; const r = b.map((x) => x.getBoundingClientRect()); return { count: r.length, stacked: r.every((x, i) => i === 0 || x.top > r[i - 1].top), wide: r.every((x) => x.width > 150) } })()`)
     await shot('desktop-reading')
-    if (reading.display !== 'contents' || !reading.stacked || !reading.wide) return 'reading ' + JSON.stringify(reading)
+    if (reading.count < 2 || !reading.stacked || !reading.wide) return 'reading ' + JSON.stringify(reading)
     await navigate(base + '/settings/general')
     await pause(800)
-    const settings = await evaluate('getComputedStyle(document.querySelector(".settings-chips")).display')
+    const settings = await evaluate('({ bar: Boolean(document.querySelector(".settings-app-bar")), nav: Boolean(document.querySelector("#navigation [data-mobile-nav-settings]")), side: getComputedStyle(document.querySelector("[data-tour=settings-nav]")).display })')
     await shot('desktop-settings')
-    if (settings !== 'none') return 'settings chips on desktop ' + settings
+    if (settings.bar || !settings.nav || settings.side === 'none') return 'desktop settings changed ' + JSON.stringify(settings)
     await navigate(base + '/memo')
     await pause(800)
     const memo = await evaluate('getComputedStyle(document.querySelector("[data-memo-row] .memo-row-actions")).opacity')
