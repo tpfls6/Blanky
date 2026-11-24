@@ -12,7 +12,7 @@ import { isSupabaseConfigured } from '../../../services/supabase/client.ts'
 import { useLibrary } from '../../../state/useLibrary.ts'
 import type { WorkItem, WorkspaceCategory } from '../../../types/work.ts'
 import { occursOn } from '../../../utils/calendarMonth.ts'
-import { addDays, formatISODate, parseISODate, shiftISO } from '../../../utils/date.ts'
+import { addDays, formatISODate, parseISODate } from '../../../utils/date.ts'
 import { useOpenQuickAdd } from '../quickAdd.ts'
 import { DaySheetBody, type DayView } from './DaySheet.tsx'
 import { MonthGrid } from './MonthGrid.tsx'
@@ -26,8 +26,8 @@ type Snap = 'closed' | 'half' | 'full'
 const ORDER: Snap[] = ['closed', 'half', 'full']
 const HEAD = 56
 const WEEK = 28
-/** Height of the single week row left above the sheet at the full snap. */
-const WEEK_ROW = 46
+/** Movement before a press on the sheet becomes a drag (or is left to scrolling / horizontal gestures). */
+const DRAG_LOCK = 8
 /** A flick faster than this (px/ms) moves one snap regardless of where the drag ends. */
 const FLICK = 0.45
 const SWIPE = 50
@@ -73,7 +73,8 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
     return () => observer.disconnect()
   }, [])
   const avail = Math.max(0, height - HEAD - WEEK)
-  const sizes: Record<Snap, number> = { closed: 0, half: Math.round(avail * 0.5), full: Math.max(0, avail - WEEK_ROW) }
+  // Full covers the weekday row and grid, up to just below the header.
+  const sizes: Record<Snap, number> = { closed: 0, half: Math.round(avail * 0.5), full: Math.max(0, height - HEAD) }
 
   const cells = useMemo(() => {
     const [year, monthIndex] = month.split('-').map(Number)
@@ -110,7 +111,6 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
     if (open && snap === 'closed') setSnap('half')
   }
   const go = (delta: number) => {
-    if (snap === 'full') { jump(shiftISO(selected, delta * 7), false); return }
     const [year, monthIndex] = month.split('-').map(Number)
     const next = new Date(year, monthIndex - 1 + delta, 1)
     animate(delta > 0 ? 'left' : 'right')
@@ -121,7 +121,7 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
     jump(iso, true)
   }
 
-  // Month swipe on the grid (week swipe at the full snap); the click a swipe ends with is ignored.
+  // Month swipe on the grid; the click a swipe ends with is ignored.
   const press = useRef<{ x: number; y: number } | null>(null)
   const swiped = useRef(false)
   const onGridDown = (event: ReactPointerEvent) => { press.current = { x: event.clientX, y: event.clientY }; swiped.current = false }
@@ -138,17 +138,36 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
     }
   }
 
-  // Sheet drag from the handle or header: follows the finger, then settles on the nearest snap (a flick moves one).
-  const drag = useRef<{ y: number; h: number; from: Snap; lastY: number; lastT: number; v: number } | null>(null)
+  // Sheet drag from anywhere on it: follows the finger, then settles on the nearest snap (a flick moves one).
+  // On the body, a vertical drag moves the sheet only down from the top of its scroll, or up from the half
+  // snap; otherwise the body scrolls. Nothing moves before DRAG_LOCK px, so taps and sideways gestures work.
+  const drag = useRef<{ x: number; y: number; h: number; from: Snap; lastY: number; lastT: number; v: number; body: HTMLElement | null; active: boolean } | null>(null)
+  const dragged = useRef(false)
+  /** Whether a vertical move by `dy` on the press in `drag` takes the sheet rather than scrolling the body. */
+  const takesSheet = (dy: number) => {
+    const state = drag.current
+    if (!state) return false
+    if (!state.body) return true
+    return dy > 0 ? state.body.scrollTop <= 0 : state.from === 'half'
+  }
   const onSheetDown = (event: ReactPointerEvent<HTMLElement>) => {
-    if ((event.target as HTMLElement).closest('button')) return
-    drag.current = { y: event.clientY, h: sizes[snap], from: snap, lastY: event.clientY, lastT: performance.now(), v: 0 }
-    root.current?.setAttribute('data-dragging', '')
-    event.currentTarget.setPointerCapture?.(event.pointerId)
+    if (snap === 'closed' || (event.pointerType === 'mouse' && event.button !== 0)) return
+    const body = (event.target as HTMLElement).closest<HTMLElement>('.mcal-sheet-body')
+    drag.current = { x: event.clientX, y: event.clientY, h: sizes[snap], from: snap, lastY: event.clientY, lastT: performance.now(), v: 0, body, active: false }
   }
   const onSheetMove = (event: ReactPointerEvent<HTMLElement>) => {
     const state = drag.current
     if (!state || !root.current) return
+    if (!state.active) {
+      const dx = event.clientX - state.x, dy = event.clientY - state.y
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_LOCK) return
+      if (Math.abs(dx) > Math.abs(dy) || !takesSheet(dy)) { drag.current = null; return }
+      state.active = true
+      state.y = event.clientY
+      dragged.current = true
+      root.current.setAttribute('data-dragging', '')
+      event.currentTarget.setPointerCapture?.(event.pointerId)
+    }
     const now = performance.now()
     state.v = (event.clientY - state.lastY) / Math.max(1, now - state.lastT)
     state.lastY = event.clientY
@@ -160,9 +179,10 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
   const onSheetUp = (event: ReactPointerEvent<HTMLElement>) => {
     const state = drag.current
     drag.current = null
+    if (!state?.active) return
     root.current?.removeAttribute('data-dragging')
-    if (!state) return
-    if (Math.abs(event.clientY - state.y) < 6) { setSnap(state.from); return }
+    // The click a drag ends with is dropped (onClickCapture below); a touch drag may end without one.
+    window.setTimeout(() => { dragged.current = false }, 400)
     const index = ORDER.indexOf(state.from)
     const current = Math.max(0, Math.min(sizes.full, state.h - (event.clientY - state.y)))
     const next = state.v < -FLICK ? ORDER[Math.min(2, index + 1)]
@@ -179,6 +199,25 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
   useBackLayer(page !== null, () => setPage(null))
   const sheetRef = useRef<HTMLElement>(null)
   useToastLift(sheetRef, snap !== 'closed' && page === null)
+  // Touch scrolling starts natively, which would cancel the pointer: block it while the press drags (or is
+  // about to drag) the sheet. Needs a non-passive listener, so not a React prop.
+  useEffect(() => {
+    const sheet = sheetRef.current
+    if (!sheet) return
+    let startY = 0
+    const onStart = (event: TouchEvent) => { startY = event.touches[0]?.clientY ?? 0 }
+    const onMove = (event: TouchEvent) => {
+      const state = drag.current
+      if (!state || !event.cancelable) return
+      if (state.active || takesSheet((event.touches[0]?.clientY ?? startY) - startY)) event.preventDefault()
+    }
+    sheet.addEventListener('touchstart', onStart, { passive: true })
+    sheet.addEventListener('touchmove', onMove, { passive: false })
+    return () => {
+      sheet.removeEventListener('touchstart', onStart)
+      sheet.removeEventListener('touchmove', onMove)
+    }
+  })
 
   const escape = useRef(() => {})
   useEffect(() => {
@@ -231,9 +270,11 @@ export function MobileCalendarHome({ items, categories, selected, today, weekSta
         <MonthGrid key={slide?.key ?? 0} cells={cells} items={items} categories={categories} holidays={holidays} selected={selected} today={today} slide={slide?.dir ?? null} rowHeight={avail / (cells.length / 7)} onPick={pick} />
       </div>
 
-      <section ref={sheetRef} className="mcal-sheet" aria-label={sheetTitle} inert={snap === 'closed'} data-day-sheet>
-        <div className="mcal-handle" aria-hidden="true" onPointerDown={onSheetDown} onPointerMove={onSheetMove} onPointerUp={onSheetUp} onPointerCancel={onSheetUp} />
-        <div className="mcal-sheet-head" onPointerDown={onSheetDown} onPointerMove={onSheetMove} onPointerUp={onSheetUp} onPointerCancel={onSheetUp}>
+      <section ref={sheetRef} className="mcal-sheet" aria-label={sheetTitle} inert={snap === 'closed'} data-day-sheet
+        onPointerDown={onSheetDown} onPointerMove={onSheetMove} onPointerUp={onSheetUp} onPointerCancel={onSheetUp}
+        onClickCapture={(event) => { if (dragged.current) { dragged.current = false; event.preventDefault(); event.stopPropagation() } }}>
+        <div className="mcal-handle" aria-hidden="true" />
+        <div className="mcal-sheet-head">
           <h2>{sheetTitle}{selected === today ? <span className="mcal-tag">{t('today')}</span> : null}</h2>
           <div className="mcal-seg" role="group" aria-label={t('schedule.mobile.viewMode')}>
             {(['list', 'timeline'] as const).map((mode) => <button key={mode} type="button" aria-pressed={view === mode} onClick={() => setView(mode)}>{t(`schedule.mobile.${mode}`)}</button>)}

@@ -15,7 +15,7 @@ const cellCapacity = (rowHeight: number) => Math.max(2, Math.min(6, Math.floor((
 /**
  * Phone month grid: the month's four to six week rows filling the screen. Full mode shows event bars (multi-day bars
  * joined across the week) and task lines; with the day sheet open the CSS swaps them for dots,
- * and at the full snap only the selected week row stays.
+ * and at the full snap the sheet covers the grid.
  */
 export function MonthGrid({ cells, items, categories, holidays, selected, today, slide, rowHeight, onPick }: {
   cells: Cell[]
@@ -51,7 +51,7 @@ export function MonthGrid({ cells, items, categories, holidays, selected, today,
   return (
     <div className="mcal-grid" data-theme-slot="calendar" data-slide={slide ?? undefined} role="group" aria-label={t('schedule.mobile.monthGrid')}>
       {weeks.map((week) => (
-        <div key={week[0].iso} className="mcal-row" data-selected-week={week.some((cell) => cell.iso === selected) || undefined}>
+        <div key={week[0].iso} className="mcal-row">
           {week.map((cell) => {
             const date = parseISODate(cell.iso)
             const dow = date.getDay()

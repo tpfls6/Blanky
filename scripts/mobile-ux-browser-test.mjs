@@ -118,6 +118,18 @@ async function tap(selector) {
   await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await pause(250)
 }
+/** A finger dragging vertically by `dy` from near the top of `selector`. */
+async function verticalDrag(selector, dy) {
+  const rect = await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect(); return r && { x: r.left + r.width * 0.6, y: r.top + 40 } })()`)
+  if (!rect) throw new Error('missing ' + selector)
+  const x = Math.round(rect.x), y0 = Math.round(rect.y)
+  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: y0 }] })
+  for (let step = 1; step <= 12; step++) {
+    await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: Math.round(y0 + dy * step / 12) }] })
+    await pause(16)
+  }
+  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+}
 async function swipe(selector, dx) {
   const point = await center(selector)
   if (!point) throw new Error('missing ' + selector)
@@ -274,6 +286,14 @@ try {
       await evaluate('document.querySelector(".mcal-cell[aria-current=date]").click()')
       await pause(500)
       if ((await evaluate('document.querySelector("[data-schedule-mobile]").dataset.snap')) !== 'half') return 'day sheet did not open'
+      // The sheet drags from its body too: up from half reaches full right under the header (no week row left), down from the top goes back.
+      await verticalDrag('.mcal-sheet-body', -260)
+      await pause(500)
+      const full = await evaluate('(() => ({ snap: document.querySelector("[data-schedule-mobile]").dataset.snap, top: Math.round(document.querySelector(".mcal-sheet").getBoundingClientRect().top), head: Math.round(document.querySelector(".mcal-head").getBoundingClientRect().bottom) }))()')
+      if (full.snap !== 'full' || Math.abs(full.top - full.head) > 1) return 'body drag up did not reach full ' + JSON.stringify(full)
+      await verticalDrag('.mcal-sheet-body', 260)
+      await pause(500)
+      if ((await evaluate('document.querySelector("[data-schedule-mobile]").dataset.snap')) !== 'half') return 'body drag down did not return to half'
       await evaluate('[...document.querySelectorAll(".mcal-seg button")].find((b) => b.textContent === "타임라인").click()')
       await pause(400)
       if (!(await evaluate('Boolean(document.querySelector(".mcal-tl-grid"))'))) return 'timeline missing'
