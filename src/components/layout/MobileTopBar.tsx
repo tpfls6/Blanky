@@ -7,22 +7,30 @@ import { isSupabaseConfigured } from '../../services/supabase/client.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { NotificationBell } from '../calendars/NotificationBell.tsx'
 
-/** Phones: "more" sits top-left so all five bottom tabs stay free; the bell sits top-right on every page. */
-export function MobileTopBar() {
+/** The phone ☰ "more" link; it reads as current on /more and on any page that is not in the bottom bar. */
+export function MobileMoreLink({ className, iconClassName, strokeWidth }: { className: string; iconClassName: string; strokeWidth: number }) {
   const { settings, customPages } = useLibrary()
   const { t } = useI18n()
   const { pathname } = useLocation()
   const { rest } = mobileTabs([...visibleNav(settings.nav), ...pageNav(customPages), CUSTOM_NAV, STORE_NAV, TRASH_NAV, SETTINGS_NAV], settings.mobileBarIds)
   const activeRest = rest.find((item) => matchPath({ path: new URL(item.to, 'http://x').pathname, end: item.end ?? false }, pathname))
   const moreActive = pathname === ROUTES.more || Boolean(activeRest)
-  // The schedule screen draws its own one-line header (menu, month, tasks, search, bell).
-  if (pathname === ROUTES.schedule) return null
+  return (
+    <Link to={ROUTES.more} data-mobile-tab="more" className={className} aria-current={moreActive ? 'page' : undefined} aria-label={t('nav.more')}>
+      <Menu className={iconClassName} strokeWidth={strokeWidth} aria-hidden="true" />
+    </Link>
+  )
+}
+
+/** Phones: "more" sits top-left so all five bottom tabs stay free; the bell sits top-right on every page. */
+export function MobileTopBar() {
+  const { pathname } = useLocation()
+  // The schedule and memo screens draw their own one-line header (menu, title, search, bell).
+  if (pathname === ROUTES.schedule || pathname === ROUTES.memo) return null
 
   return (
     <div className="mobile-topbar sticky top-0 z-20 flex shrink-0 items-center justify-between bg-surface px-2 pb-1 pt-[calc(env(safe-area-inset-top)+0.25rem)] md:hidden" data-mobile-topbar>
-      <Link to={ROUTES.more} data-mobile-tab="more" className="icon-btn" aria-current={moreActive ? 'page' : undefined} aria-label={t('nav.more')}>
-        <Menu className="size-5" strokeWidth={1.5} aria-hidden="true" />
-      </Link>
+      <MobileMoreLink className="icon-btn" iconClassName="size-5" strokeWidth={1.5} />
       {isSupabaseConfigured ? <NotificationBell align="right" /> : null}
     </div>
   )

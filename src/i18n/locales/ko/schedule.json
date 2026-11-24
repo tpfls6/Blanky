@@ -10,7 +10,7 @@
   "emptyRange": "이 범위의 할 일이 없습니다.",
   "taskRange": "할 일 범위",
   "conflicts": "AI 일정 {{count}}개가 다른 일정과 겹쳐요. 직접 만든 일정은 유지됩니다.",
-  "replanHome": "빠른 추가에서 재배치 확인",
+  "replanHome": "AI 추가에서 재배치 확인",
   "kindEvent": "일정",
   "kindTask": "할 일",
   "mobile": {
@@ -68,7 +68,7 @@
     "now": "현재 시각 {{time}}",
     "add": "추가",
     "closeAdd": "추가 닫기",
-    "quickAdd": "빠른 추가",
+    "quickAdd": "AI 추가",
     "manualAdd": "직접 추가",
     "quickHint": "말하듯 적으면 일정·할 일·일기·메모·독서로 나눠 저장해요.",
     "searchPlaceholder": "일정, 할 일 검색",
@@ -199,5 +199,20 @@
       "all": "저장·삭제·완료가 지난 반복을 포함한 전체에 적용됩니다."
     },
     "seriesLink": "반복 일정 관리에서 미리보기와 함께 수정하기"
+  },
+  "deleteConfirm": {
+    "title": "삭제할까요?",
+    "untitled": "제목 없음",
+    "event": "'{{title}}' 일정을 휴지통으로 옮겨요. 휴지통에서 복구할 수 있어요.",
+    "task": "'{{title}}' 할 일을 휴지통으로 옮겨요. 휴지통에서 복구할 수 있어요.",
+    "future": "'{{title}}'의 {{date}}부터 이후 반복을 삭제해요. 이전 반복은 남아요.",
+    "all": "'{{title}}'의 반복 전체를 휴지통으로 옮겨요. 휴지통에서 복구할 수 있어요.",
+    "this": "'{{title}}'의 {{date}} 하루만 삭제해요. 나머지 반복은 그대로 둬요."
+  },
+  "discardConfirm": {
+    "title": "작성을 그만둘까요?",
+    "body": "입력한 내용은 저장되지 않아요.",
+    "confirm": "나가기",
+    "cancel": "계속 작성"
   }
 }

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AddFab } from '../../components/common/AddFab.tsx';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { sameBook } from '@blanky/types';
 import type { BookMetadata, BookPatch, Highlight, HighlightInput, LibraryBook, ReadingLibrary, ReadingNote, ReadingStatus, Shelf, ShelfInput } from '@blanky/types';
@@ -166,6 +167,7 @@ export function ReadingWorkspace({ userId, legacyBooks = noLegacyBooks, legacyLo
  {confirm ? <Modal title={text.say('confirmDeleteTitle')} close={() => setConfirm(null)}><p>{text.say(confirmBody)}</p><div className="reading-actions"><button disabled={busy} className="btn btn-primary" onClick={() => void act(confirm).then(ok => { if (ok)
         setConfirm(null); })}>{t('delete')}</button><button className="btn btn-ghost" disabled={busy} onClick={() => setConfirm(null)}>{t('cancel')}</button></div></Modal> : null}
  {drag.active?<div className="reading-drag-preview" style={{left:drag.active.x+14,top:drag.active.y+14}} aria-hidden="true">{text.say(drag.active.kind==='book'?'addToShelf':'reorderShelves')} · {drag.active.label}</div>:null}
+ {!repository ? <AddFab hidden={Boolean(bookId) || search} onManual={() => setSearch(true)}/> : null}
  </div></ReadingErrorContext.Provider>;
 }
 function ShelfModal({ text, shelf, order, busy, close, save, remove }: {

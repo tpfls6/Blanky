@@ -1,0 +1,23 @@
+/* Phone + button over list pages: same spot, size and color as the schedule home's (.mcal-fab),
+   16px from the right and 16px above the bottom tab bar. */
+.add-fab { position: fixed; right: 16px; bottom: calc(4.25rem + env(safe-area-inset-bottom) + 16px); z-index: 33; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--accent-color); color: var(--accent-on); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent-color) 45%, transparent); touch-action: manipulation; }
+.add-fab:focus-visible { outline: 2px solid var(--focus-outline); outline-offset: 3px; }
+.add-fab svg { transition: transform .25s; }
+.add-fab[aria-expanded='true'] svg { transform: rotate(45deg); }
+.add-fab-dim { position: fixed; inset: 0; z-index: 31; background: rgb(0 0 0 / 35%); opacity: 0; pointer-events: none; transition: opacity .25s; }
+.add-fab-dim[data-open] { opacity: 1; pointer-events: auto; }
+.add-fab-dial { position: fixed; right: 16px; bottom: calc(4.25rem + env(safe-area-inset-bottom) + 84px); z-index: 32; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; pointer-events: none; }
+.add-fab-dial[data-open] { pointer-events: auto; }
+.theme-app-layout[data-keyboard-open='true'] :is(.add-fab, .add-fab-dial, .add-fab-dim) { visibility: hidden; }
+
+/* Dial options, shared with the schedule home's dial (.mcal-dial.add-dial). */
+.add-dial button { display: flex; align-items: center; gap: 10px; opacity: 0; transform: translateY(12px); transition: .22s; }
+.add-dial button span { padding: 8px 14px; border-radius: 999px; background: var(--surface); color: var(--fg); font-size: 14px; font-weight: 600; box-shadow: 0 4px 14px rgb(0 0 0 / 15%); }
+.add-dial button i { display: grid; place-items: center; width: 48px; height: 48px; margin-right: 4px; border-radius: 50%; background: var(--surface); color: var(--accent-color); box-shadow: 0 4px 14px rgb(0 0 0 / 15%); }
+.add-dial[data-open] button { opacity: 1; transform: none; }
+.add-dial[data-open] button:nth-child(2) { transition-delay: .04s; }
+
+/* AI add stands apart from manual add: gradient icon and a tinted, outlined label. */
+.add-dial button[data-add='quick'] span { border: 1.5px solid color-mix(in srgb, #8b5cf6 55%, var(--accent-color)); background: color-mix(in srgb, #8b5cf6 10%, var(--surface)); color: color-mix(in srgb, #7c3aed 70%, var(--fg)); }
+html.dark .add-dial button[data-add='quick'] span { color: color-mix(in srgb, #c4b5fd 80%, var(--fg)); }
+.add-dial button i.ai-add-icon { background: linear-gradient(135deg, #8b5cf6, #ec4899 55%, var(--accent-color)); color: #fff; box-shadow: 0 4px 16px rgb(139 92 246 / 40%); }

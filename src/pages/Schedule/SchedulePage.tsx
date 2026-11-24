@@ -134,7 +134,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
     if (review.locked.current || asking.current || !draft) return
     if (JSON.stringify(draft) !== draftStart.current) {
       asking.current = true
-      const discard = await confirm('입력 중인 내용을 삭제하고 나갈까요?', { title: '작성 취소', confirmLabel: '삭제' })
+      const discard = await confirm(t('schedule.discardConfirm.body'), { title: t('schedule.discardConfirm.title'), confirmLabel: t('schedule.discardConfirm.confirm'), cancelLabel: t('schedule.discardConfirm.cancel'), tone: 'neutral' })
       asking.current = false
       if (!discard) return
     }
@@ -236,7 +236,7 @@ export function DailyBoard({ editing = false }: { editing?: boolean }) {
   const deleteDraft = draft?.id
     ? async () => {
         const before = library.items.find(item => item.id === draft.id)
-        if (!before || !await confirm(deleteMessage(draft))) return
+        if (!before || !await confirm(deleteMessage(draft, t), { title: t('schedule.deleteConfirm.title'), confirmLabel: t('delete') })) return
         void review.run(() => commitDraft(library.items, library.commitWork, before, null, draft), finishDraft)
       }
     : undefined
@@ -519,12 +519,14 @@ const SCOPES: { value: SeriesScope; label: string }[] = [
   { value: 'all', label: '전체' },
 ]
 
-function deleteMessage(draft: ScheduleDraft): string {
-  const title = draft.title || '이 항목'
-  if (!draft.occurrence) return `${title}을 삭제할까요? 휴지통에서 복구할 수 있습니다.`
-  if (draft.scope === 'future') return `${title}의 ${draft.occurrence}부터 이후 반복을 삭제할까요? 이전 반복은 남습니다.`
-  if (draft.scope === 'all') return `${title}의 반복 전체를 삭제할까요? 휴지통에서 복구할 수 있습니다.`
-  return `${title}의 ${draft.occurrence} 하루만 삭제할까요? 나머지 반복은 그대로 둡니다.`
+/** Quotes the title so the particle never depends on its last syllable. */
+function deleteMessage(draft: ScheduleDraft, t: (key: string, vars?: Record<string, string>) => string): string {
+  const title = draft.title || t('schedule.deleteConfirm.untitled')
+  if (!draft.occurrence) return t(draft.kind === 'task' ? 'schedule.deleteConfirm.task' : 'schedule.deleteConfirm.event', { title })
+  const date = draft.occurrence
+  if (draft.scope === 'future') return t('schedule.deleteConfirm.future', { title, date })
+  if (draft.scope === 'all') return t('schedule.deleteConfirm.all', { title })
+  return t('schedule.deleteConfirm.this', { title, date })
 }
 
 type TaskNav = { filter: string; showDone: boolean; open: Record<string, boolean> }

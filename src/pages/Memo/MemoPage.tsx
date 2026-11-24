@@ -19,6 +19,7 @@ import { useI18n } from '../../i18n/useI18n.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
 import { categoryPath } from '../../utils/work.ts'
 import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
+import { ROUTES } from '../../constants/routes.ts'
 
 export type MemoSource = {
   heading: string
@@ -57,7 +58,10 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
   }
   // Home's 보기 names one memo in the router state; otherwise the newest is selected,
   // except on a phone, where the memo tab opens on its list.
-  const openId = (useLocation().state as { openId?: unknown } | null)?.openId
+  const location = useLocation()
+  const openId = (location.state as { openId?: unknown } | null)?.openId
+  // Only the memo tab itself hides MobileTopBar; custom pages and previews keep it, so they keep their own header.
+  const appBar = !source && location.pathname === ROUTES.memo
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     if (!source && typeof openId === 'string' && memos.some(memo => memo.id === openId)) return openId
     if (!source && window.matchMedia?.(PHONE_QUERY).matches) return null
@@ -165,7 +169,7 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
   }
 
   const page = (
-    <div className="memo-layout grid w-full gap-8 md:grid-cols-[260px_minmax(0,1fr)]">
+    <div className="memo-layout grid w-full gap-8 md:grid-cols-[260px_minmax(0,1fr)]" data-app-bar={appBar ? '' : undefined}>
       <div className={selected ? 'hidden min-h-0 md:flex md:flex-col' : phone ? 'memo-phone-column flex min-h-0 flex-col' : 'flex min-h-0 flex-col'}>
         {phone ? <>
           {createError ? <p role="alert" className="text-sm text-red-500">{createError}</p> : null}
@@ -180,6 +184,7 @@ export function MemoPage({ editing = false, source }: { editing?: boolean; sourc
             onFolder={chooseFolder}
             hideFolders={hideFolders}
             canFavorite={!source}
+            appBar={appBar}
             query={query}
             onQuery={setQuery}
             searching={searching}

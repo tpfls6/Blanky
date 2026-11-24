@@ -20,5 +20,5 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     request?.resolve(accepted)
   }
   const active = requests[0]
-  return <ConfirmContext.Provider value={confirm}>{children}{active && <ConfirmDialog key={active.id} title={active.options.title ?? '삭제할까요?'} body={active.message} confirmLabel={active.options.confirmLabel ?? '삭제'} onCancel={() => finish(false)} onConfirm={() => finish(true)} />}</ConfirmContext.Provider>
+  return <ConfirmContext.Provider value={confirm}>{children}{active && <ConfirmDialog key={active.id} title={active.options.title ?? '삭제할까요?'} body={active.message} confirmLabel={active.options.confirmLabel ?? '삭제'} cancelLabel={active.options.cancelLabel} tone={active.options.tone ?? 'danger'} onCancel={() => finish(false)} onConfirm={() => finish(true)} />}</ConfirmContext.Provider>
 }
