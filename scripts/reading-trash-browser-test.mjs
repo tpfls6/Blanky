@@ -249,6 +249,17 @@ try {
   const trashText = await evaluate('document.querySelector("main").innerText.replace("메모 하나","")')
   assert.doesNotMatch(trashText, /[가-힣]/, 'english trash has no Korean: ' + trashText)
   assert.ok(trashText.includes('Restore') && trashText.includes('Memo'))
+  // The delete-forever confirm is translated too (title, body and buttons); cancelling keeps the row.
+  await evaluate(rowOf('메모 하나') + '.querySelector(".trash-more").click()')
+  await wait('document.querySelector("dialog[open].customization-sheet")', 'english row sheet')
+  await evaluate('[...document.querySelectorAll("dialog[open] .more-row")].find(b=>b.textContent==="Delete forever").click()')
+  await wait('document.querySelector(".app-confirm-dialog[open]")', 'english purge confirm')
+  const purgeText = await evaluate('document.querySelector(".app-confirm-dialog[open]").innerText')
+  assert.doesNotMatch(purgeText, /[가-힣]/, 'english purge confirm has no Korean: ' + purgeText)
+  assert.ok(purgeText.includes('Delete forever') && purgeText.includes('Delete'), purgeText)
+  await evaluate('document.querySelector(".app-confirm-dialog[open] .app-confirm-close").click()')
+  await wait('!document.querySelector(".app-confirm-dialog[open]")', 'purge confirm cancelled')
+  assert.ok(await evaluate('!!' + rowOf('메모 하나')), 'row kept after cancel')
   const koreanDefaults = { title: '책 제목', author: '저자', rating: '평점', note: '독서 감상', image: '이미지', status: '독서 상태', startedAt: '시작일', finishedAt: '완독일', tags: '책 태그', category: '책 종류', item: '책', unit: '권', library: '서재', shelf: '책장', highlight: '문장', memo: '메모', tagline: '읽고, 기억하고, 나만의 책장에 담아요.', statusWant: '읽을 예정', statusReading: '읽는 중', statusDone: '완독', statusStopped: '중단' }
   await evaluate('(()=>{const lib=' + library + ';lib.customPages.push({id:"pg-ko",name:"Old reading",icon:"Library",description:"",sort:1,schemaVersion:1,blocks:[],template:"reading",fieldLabels:' + q(koreanDefaults) + ',createdAt:' + q(now) + ',updatedAt:' + q(now) + '},{id:"pg-box",name:"Boxes",icon:"Library",description:"",sort:2,schemaVersion:1,blocks:[],template:"reading",fieldLabels:{item:"Box",shelf:"Crate"},createdAt:' + q(now) + ',updatedAt:' + q(now) + '});localStorage.setItem(' + q(libraryKey) + ',JSON.stringify(lib))})()')
   await navigate(base + '/pages/pg-ko')

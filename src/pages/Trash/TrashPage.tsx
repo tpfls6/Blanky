@@ -57,7 +57,7 @@ export function TrashPage() {
   }
 
   const purge = async (id: string) => {
-    if (!await confirm(t('trash.purgeBody'))) return
+    if (!await confirm(t('trash.purgeBody'), { title: t('trash.purgeForever'), confirmLabel: t('trash.purge') })) return
     clear(id)
     purgeTrash(id)
   }
