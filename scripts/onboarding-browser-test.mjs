@@ -222,7 +222,8 @@ try {
   for (const width of [1440, 375]) {
     await send('Emulation.setDeviceMetricsOverride', { width, height: width === 375 ? 812 : 1000, deviceScaleFactor: 1, mobile: width === 375 })
     // The home guide now runs on the schedule screen's quick-add sheet.
-    for (const [path, count] of [['/schedule?add=quick', 3], ['/diary', 3], ['/reading', 3], ['/memo', 3], ['/store', 2], ['/store?tab=templates', 2], ['/custom', 3], ['/settings/general', 2]]) {
+    // 앱 레이아웃 is desktop-only, so below lg the custom guide stops after 내 테마.
+    for (const [path, count] of [['/schedule?add=quick', 3], ['/diary', 3], ['/reading', 3], ['/memo', 3], ['/store', 2], ['/store?tab=templates', 2], ['/custom', width === 375 ? 2 : 3], ['/settings/general', 2]]) {
       await navigate(base + path + (path.includes('?') ? '&' : '?') + 'tour=1')
       for (let step = 0; step < count; step++) {
         await wait(`(()=>{const p=document.querySelector('[data-page-tour]');return p && getComputedStyle(p).visibility==='visible' && p.textContent.includes('${step + 1} / ${count}')})()`, path + ' spotlight ' + step)

@@ -1,8 +1,9 @@
-﻿import { useCallback } from 'react'
+﻿import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useOnboarding } from './useOnboarding.ts'
 import { SpotlightTour, type TourStep } from './SpotlightTour.tsx'
 import type { PageTourId } from './tourState.ts'
+import { SETTINGS_COMPACT_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
 
 const TOURS: Record<PageTourId, TourStep[]> = {
   home: [
@@ -45,6 +46,9 @@ export function Onboarding() { return <PageTour page="home" /> }
 export function PageTour({ page }: { page: PageTourId; className?: string }) {
   const { open, close } = useOnboarding(page)
   const [, setParams] = useSearchParams()
+  // 앱 레이아웃 is desktop-only, so below lg the custom tour skips its layout step.
+  const compact = useMediaQuery(SETTINGS_COMPACT_QUERY)
+  const steps = useMemo(() => compact ? TOURS[page].filter(step => step.prepare !== 'layout') : TOURS[page], [compact, page])
   const prepare = useCallback((action: string) => {
     if (action === 'memo-list') {
       const back = document.querySelector<HTMLButtonElement>('[data-tour="memo-back"]')
@@ -59,6 +63,6 @@ export function PageTour({ page }: { page: PageTourId; className?: string }) {
     }
     setParams(current => { const next = new URLSearchParams(current); next.set('tab', action); return next }, { replace: true })
   }, [setParams])
-  return open ? <SpotlightTour key={page} steps={TOURS[page]} onClose={close} prepare={prepare} /> : null
+  return open ? <SpotlightTour key={page} steps={steps} onClose={close} prepare={prepare} /> : null
 }
 

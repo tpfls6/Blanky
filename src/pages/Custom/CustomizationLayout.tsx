@@ -17,7 +17,7 @@ export function CustomizationLayout({ children, mobileAction }: { children: Reac
   const { t } = useI18n()
   const [params] = useSearchParams()
   const tab = TABS.find(item => item.id === params.get('tab'))?.id ?? 'templates'
-  // The tour walks every tab and ends on 레이아웃, so a visit that named a tab (내 테마 opens ?tab=themes)
+  // The tour walks every tab and ends on 레이아웃 (desktop only), so a visit that named a tab (내 테마 opens ?tab=themes)
   // keeps it and the tour waits for a visit without one; a replay link still starts it.
   const [namedTab] = useState(() => params.has('tab'))
   const target = (id: string) => {
@@ -45,8 +45,9 @@ export function CustomizationLayout({ children, mobileAction }: { children: Reac
         </div>
       </nav>
       <div className="min-w-0 flex-1">
-        <nav aria-label={t('nav.custom')} className="mb-3 grid grid-cols-3 border-b border-line lg:hidden">
-          {TABS.map(({ id, key }) => (
+        {/* Below lg 앱 레이아웃 is desktop-only (phone screens use their own layout), so only two tabs. */}
+        <nav aria-label={t('nav.custom')} className="mb-3 grid grid-cols-2 border-b border-line lg:hidden">
+          {TABS.filter(({ id }) => id !== 'layout').map(({ id, key }) => (
             <Link key={id} to={{ pathname: ROUTES.custom, search: target(id).toString() }} aria-current={tab === id ? 'page' : undefined} className="customization-menu grid min-h-11 place-items-center border-b-2 border-transparent px-1 text-center text-sm leading-tight text-neutral-500">
               {t(key)}
             </Link>

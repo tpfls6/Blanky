@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, MoreHorizontal, PenLine, Plus, Search, Store, Trash2, Upload, X } from 'lucide-react'
+import { ChevronRight, LayoutTemplate, MoreHorizontal, PanelsTopLeft, PenLine, Plus, Search, Store, Trash2, Upload, X } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { PAGE_GAP_OPTIONS, PAGE_IDS, type PageId } from '../../features/pages/layout.ts'
@@ -288,7 +288,19 @@ export function CustomPage() {
               </section>
             ) : null}
           </section>
-        ) : tab === 'themes' ? <MyThemesPage compact={phone} /> : (
+        ) : tab === 'themes' ? <MyThemesPage compact={phone} /> : compact ? (
+          // Below lg the phone screens use their own layout, so a direct ?tab=layout visit gets a notice instead of the desktop editor.
+          <div className="mt-4 rounded-2xl border border-line bg-surface p-5 text-center">
+            <span className="mx-auto grid size-8 place-items-center rounded-[10px] bg-accent-light text-accent"><PanelsTopLeft aria-hidden="true" className="size-4.5" strokeWidth={1.8} /></span>
+            <h1 className="mt-3 text-[15px] font-semibold">{t('custom.layoutDesktopOnlyTitle')}</h1>
+            <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">{t('custom.layoutDesktopOnlyBody')}</p>
+            <div className="mt-4 flex justify-center">
+              <Link className="btn btn-primary inline-flex min-h-11 items-center gap-1.5" to={ROUTES.custom}>
+                <LayoutTemplate aria-hidden="true" className="size-4" strokeWidth={1.8} />{t('custom.backToTemplates')}
+              </Link>
+            </div>
+          </div>
+        ) : (
           <>
             <h1 className="sr-only text-2xl font-medium tracking-tight md:not-sr-only">{t('custom.tabLayout')}</h1>
             <div className="md:mt-8">
