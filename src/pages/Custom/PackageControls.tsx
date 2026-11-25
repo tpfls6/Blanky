@@ -270,8 +270,8 @@ function InstalledList({ items, compact, hideEmpty, onRemove, onImport }: { item
 
   if (!items.length && hideEmpty) return null
   if (!items.length && onImport) return (
-    <div className="mt-4 rounded-2xl border border-line bg-surface p-5 text-center">
-      <span className="mx-auto grid size-8 place-items-center rounded-[10px] bg-accent-light text-accent"><LayoutTemplate aria-hidden="true" className="size-4.5" strokeWidth={1.8} /></span>
+    <div className="mt-4 px-2 py-8 text-center">
+      <span className="mx-auto grid size-12 place-items-center rounded-[14px] bg-accent-light text-accent"><LayoutTemplate aria-hidden="true" className="size-6" strokeWidth={1.8} /></span>
       <h2 className="mt-3 text-[15px] font-semibold">{t('custom.emptyTemplatesTitle')}</h2>
       <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">{t('custom.emptyTemplatesBody')}</p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -289,12 +289,12 @@ function InstalledList({ items, compact, hideEmpty, onRemove, onImport }: { item
   return (
     <section className="mt-4 md:mt-8">
       <h2 className="mb-2 font-medium max-lg:text-[15px] max-lg:font-semibold">{t('custom.installedTemplates')}</h2>
-      <div className={compact ? 'divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface' : 'divide-y divide-line'}>
+      <div className={compact ? 'more-card custom-list' : 'divide-y divide-line'}>
         {items.map((item) => {
           const Row = compact ? 'span' : 'div'
           const Name = compact ? 'span' : 'h2'
           const identity = (
-            <Row className={compact ? 'flex min-w-0 flex-1 items-center gap-2' : 'flex min-w-0 items-start gap-2'}>
+            <Row className={compact ? 'flex min-w-0 flex-1 items-center gap-3' : 'flex min-w-0 items-start gap-2'}>
               <span className={compact ? 'grid size-8 shrink-0 place-items-center rounded-[10px] bg-accent-light text-accent' : 'mt-0.5 shrink-0 text-neutral-400 max-lg:text-[var(--muted)]'}>
                 <IconView name={item.manifest.icon} className="size-4" />
               </span>
@@ -335,11 +335,11 @@ function InstalledList({ items, compact, hideEmpty, onRemove, onImport }: { item
           return compact ? (
             <article key={item.installedId}>
               <details className="group">
-                <summary className="customization-template-summary flex min-h-14 cursor-pointer list-none items-center gap-2 px-3 py-2">
+                <summary className="customization-template-summary flex min-h-[54px] cursor-pointer list-none items-center gap-2 px-[var(--row-x,14px)] py-2 active:bg-[var(--press)]">
                   {identity}
                   <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-[var(--muted)] group-open:rotate-90" strokeWidth={1.7} />
                 </summary>
-                <div className="border-t border-line px-3 py-3">
+                <div className="pb-3 pl-[calc(var(--row-x,14px)+44px)] pr-[var(--row-x,14px)]">
                   {actions}
                   <PackagePreview pkg={item} />
                 </div>

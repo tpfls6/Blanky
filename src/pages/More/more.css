@@ -1,5 +1,6 @@
 /* More, menu layout and phone settings share one look: a 56px app bar with a 19px bold title (as on memo and
-   schedule), rounded 16px group cards and 54px rows with a 32px icon tile. Colors come from the theme tokens. */
+   schedule), groups of 54px rows with a 32px icon tile. Below lg the groups are flat (see the end of the file);
+   desktop keeps rounded 16px cards. Colors come from the theme tokens. */
 .more-page { flex: 0 0 auto; width: 100%; max-width: 40rem; margin-inline: auto; }
 /* These screens draw their own app bar, so the shared phone top bar (☰ · bell) steps aside. */
 .theme-app-layout > main:has(.more-bar) > [data-mobile-topbar] { display: none; }
@@ -34,9 +35,10 @@
 .more-tiles .more-tiles-empty { grid-column: 1 / -1; min-height: 0; padding: 14px; border: 1px dashed var(--line); background: none; color: var(--muted); font-size: 12.5px; }
 
 .more-card { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
-.more-row { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 10px 14px; font-size: 15px; text-align: left; }
-.more-row + .more-row::before, .more-row + .more-tours::before, .more-blk + :is(.more-row, .more-blk)::before, .more-row + .more-blk::before { content: ''; position: absolute; top: 0; right: 0; left: 14px; height: 1px; background: var(--line); }
-.more-row-ic + .more-row::before, .more-row + .more-row-ic::before, .more-row-ic + .more-tours::before { left: 58px; }
+.more-row { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 10px var(--row-x, 14px); font-size: 15px; text-align: left; }
+.more-row + .more-row::before, .more-row + .more-tours::before, .more-blk + :is(.more-row, .more-blk)::before, .more-row + .more-blk::before { content: ''; position: absolute; top: 0; right: 0; left: var(--row-x, 14px); height: 1px; background: var(--line); }
+/* After an icon row the hairline starts at the text, past the 32px tile and its 12px gap. */
+.more-row-ic + .more-row::before, .more-row + .more-row-ic::before, .more-row-ic + .more-tours::before { left: calc(var(--row-x, 14px) + 44px); }
 .more-ri { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--hover); color: var(--muted); }
 .more-rt { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 1px; overflow-wrap: anywhere; }
 .more-rt small { font-size: 12px; line-height: 1.4; color: var(--muted); }
@@ -46,7 +48,7 @@
 .more-chev-toggle { transition: transform .15s; }
 [aria-expanded='true'] > .more-chev-toggle { transform: rotate(90deg); }
 .more-row[hidden] + .more-row::before { display: none; }
-.more-tours { position: relative; display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 14px 58px; }
+.more-tours { position: relative; display: flex; flex-wrap: wrap; gap: 6px; padding: 12px var(--row-x, 14px) 14px calc(var(--row-x, 14px) + 44px); }
 .more-foot { margin-top: 28px; font-size: 12px; color: var(--faint); text-align: center; }
 
 .more-page a, .more-page button, .more-card button { scroll-margin-top: 64px; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -62,7 +64,7 @@
 .more-seg { display: inline-flex; flex: none; padding: 3px; border-radius: 10px; background: var(--hover); }
 .more-seg button { min-height: 30px; padding: 0 11px; border-radius: 8px; font-size: 13px; color: var(--muted); white-space: nowrap; }
 .more-seg button[aria-checked='true'] { background: var(--surface); color: var(--fg); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
-.more-blk { position: relative; padding: 14px; }
+.more-blk { position: relative; padding: 14px var(--row-x, 14px); }
 .more-blk-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; font-size: 15px; }
 .more-blk-title small { font-size: 12px; color: var(--muted); }
 .more-themes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -160,7 +162,7 @@ body.menu-dragging, body.menu-dragging * { cursor: grabbing !important; }
 .more-toast[data-on] { opacity: 1; transform: translate(-50%, 0); }
 @media (min-width: 768px) { .more-toast { bottom: 24px; } }
 
-/* Settings below lg: the chips give way to the app bar, and each Group becomes a labelled card. Desktop is unchanged. */
+/* Settings below lg: the chips give way to the app bar, and each Group becomes a labelled flat block. Desktop is unchanged. */
 .settings-app-bar { display: none; }
 @media (max-width: 1023px) {
   .settings-app-bar { display: flex; }
@@ -172,11 +174,34 @@ body.menu-dragging, body.menu-dragging * { cursor: grabbing !important; }
   .settings-section > * + * { padding-top: 0; border-top: 0; }
   .settings-section { display: flex; flex-direction: column; }
   .settings-group { display: flex; flex-direction: column; }
-  .settings-group-title { order: 0; margin: 22px 4px 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
-  .settings-group-body { order: 1; margin-top: 0; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
-  .settings-group-hint { order: 2; margin: 8px 4px 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
-  .settings-reset { margin-top: 22px; padding-top: 0; border-top: 0; }
-  .settings-reset > button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--danger); font-size: 15px; text-align: left; }
+  .settings-group-title { order: 0; margin: 26px 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .settings-group-body { order: 1; margin-top: 0; padding: 4px 0; }
+  .settings-group-hint { order: 2; margin: 8px 0 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
+  .settings-reset { margin: 36px -16px 0; padding-top: 0; border-top: 0; }
+  .settings-reset > button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 54px; padding: 10px 16px; color: var(--danger); font-size: 15px; text-align: left; }
+  .settings-reset > button:active { background: var(--press); }
   .settings-reset .more-ri { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
   .settings-page .settings-danger { color: var(--danger); }
+}
+
+/* Below lg the groups are flat lists: no box, rows run edge to edge (the card bleeds over the 16px page padding and
+   gives it back as row padding, 20px in settings sheets), hairlines start at the text, and the small muted titles
+   separate groups. Danger rows sit apart at the bottom. The theme hero stays a card: it frames a preview image. */
+@media (max-width: 1023px) {
+  .more-card:not(.theme-hero) { --row-x: 16px; overflow: visible; margin-inline: calc(-1 * var(--row-x)); border: 0; border-radius: 0; background: none; }
+  .more-sheet-body .more-card { --row-x: 20px; }
+  .more-label { margin: 26px 0 6px; }
+  .more-hint { margin-inline: 0; }
+  .more-save-row { margin-inline: 0; }
+  .more-profile { margin-inline: -16px; padding: 12px 16px; border: 0; border-radius: 0; background: none; }
+  .more-row + .more-row-danger { margin-top: 20px; }
+  .more-row + .more-row-danger::before { display: none; }
+  /* Menu layout: a zone shows its drop ring inside the flat list, and an empty zone keeps a dashed target. */
+  .more-dzone[data-state='over'] { box-shadow: inset 0 0 0 2px var(--accent-color); }
+  .more-dzone[data-state='full'] { box-shadow: inset 0 0 0 2px var(--danger); }
+  /* Drag rows lead with the grip (20px after its negative margins) and, on the bar, the 18px number; the hairline
+     still starts at the text. */
+  .more-drow + .more-drow::before { left: calc(var(--row-x) + 76px); }
+  .more-dzone[data-zone='bar'] .more-drow + .more-drow::before { left: calc(var(--row-x) + 106px); }
+  .more-dzone-empty { width: auto; margin-inline: var(--row-x); border: 1px dashed var(--line); border-radius: 12px; }
 }

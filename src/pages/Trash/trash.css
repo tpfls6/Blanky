@@ -14,7 +14,7 @@
 .trash-info > svg { margin-top: 2px; }
 
 .trash-list li { position: relative; }
-.trash-list li + li::before { content: ''; position: absolute; top: 0; right: 0; left: 58px; height: 1px; background: var(--line); }
+.trash-list li + li::before { content: ''; position: absolute; top: 0; right: 0; left: calc(var(--row-x, 14px) + 44px); height: 1px; background: var(--line); }
 .trash-row { gap: 10px; padding-right: 6px; }
 .trash-ri { background: color-mix(in srgb, var(--fg) 7%, var(--surface)); color: var(--trash-soft); }
 .trash-title { overflow: hidden; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
@@ -24,11 +24,16 @@
 .trash-page .trash-more { flex: none; min-width: 44px; min-height: 44px; padding: 0; border-radius: 12px; color: var(--trash-soft); }
 
 /* A failed 복구 explains itself under its row. */
-.trash-page .trash-alert { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 14px 12px 58px; padding: 8px 6px 8px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.45; }
+.trash-page .trash-alert { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 var(--row-x, 14px) 12px calc(var(--row-x, 14px) + 44px); padding: 8px 6px 8px 12px; border-radius: 12px; font-size: 12.5px; line-height: 1.45; }
 
 .trash-ri-danger { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
 .trash-danger { color: var(--danger); }
 .customization-sheet .more-row:active { background: var(--press); }
+/* Below lg the sheet rows are flat (more.css); 영구 삭제 sits apart from 복구 like the other danger rows. */
+@media (max-width: 1023px) {
+  .more-row + .trash-danger { margin-top: 16px; }
+  .more-row + .trash-danger::before { display: none; }
+}
 
 .trash-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 96px 20px 24px; text-align: center; }
 .trash-empty-tile { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: color-mix(in srgb, var(--fg) 7%, var(--surface)); color: var(--trash-soft); }

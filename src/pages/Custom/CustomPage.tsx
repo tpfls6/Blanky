@@ -114,7 +114,7 @@ function PageListRow({ page }: { page: UserPage }) {
 
   return (
     <article className="flex min-h-[54px] min-w-0 items-center gap-1 pr-1.5">
-      <Link to={ROUTES.page(page.id)} className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pl-3.5 active:bg-[var(--press)]">
+      <Link to={ROUTES.page(page.id)} className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pl-[var(--row-x,14px)] active:bg-[var(--press)]">
         <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-accent-light text-accent"><IconView name={page.icon} className="size-4.5" /></span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px]">{page.name}</span>
@@ -283,15 +283,15 @@ export function CustomPage() {
               <section className="mt-4">
                 <h2 className="mb-2 font-medium max-lg:text-[15px] max-lg:font-semibold">{t('custom.myPages')}</h2>
                 {compact
-                  ? <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">{pages.map((page) => <PageListRow key={page.id} page={page} />)}</div>
+                  ? <div className="more-card custom-list">{pages.map((page) => <PageListRow key={page.id} page={page} />)}</div>
                   : <div className="grid gap-3 xl:grid-cols-2">{pages.map((page) => <PageRow key={page.id} page={page} />)}</div>}
               </section>
             ) : null}
           </section>
         ) : tab === 'themes' ? <MyThemesPage compact={phone} /> : compact ? (
           // Below lg the phone screens use their own layout, so a direct ?tab=layout visit gets a notice instead of the desktop editor.
-          <div className="mt-4 rounded-2xl border border-line bg-surface p-5 text-center">
-            <span className="mx-auto grid size-8 place-items-center rounded-[10px] bg-accent-light text-accent"><PanelsTopLeft aria-hidden="true" className="size-4.5" strokeWidth={1.8} /></span>
+          <div className="mt-4 px-2 py-8 text-center">
+            <span className="mx-auto grid size-12 place-items-center rounded-[14px] bg-accent-light text-accent"><PanelsTopLeft aria-hidden="true" className="size-6" strokeWidth={1.8} /></span>
             <h1 className="mt-3 text-[15px] font-semibold">{t('custom.layoutDesktopOnlyTitle')}</h1>
             <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">{t('custom.layoutDesktopOnlyBody')}</p>
             <div className="mt-4 flex justify-center">

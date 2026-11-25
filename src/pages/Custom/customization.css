@@ -66,7 +66,7 @@
 .theme-thumb > span { display: flex; flex-direction: column; gap: 3px; padding: 3px; border-radius: 4px; }
 .theme-thumb em { height: 4px; border-radius: 2px; }
 .theme-row { gap: 8px; padding-right: 6px; }
-.theme-row + .theme-row::before { left: 70px; }
+.theme-row + .theme-row::before { left: calc(var(--row-x, 14px) + 56px); }
 .theme-row-link { display: flex; flex: 1; min-width: 0; align-items: center; gap: 12px; }
 .theme-pill { position: relative; display: inline-flex; flex: none; align-items: center; height: 30px; padding: 0 12px; border-radius: 99px; background: var(--accent-light); color: var(--accent-text); font-size: 13px; font-weight: 600; }
 .theme-pill:disabled { opacity: .5; }
@@ -83,3 +83,13 @@
 .more-row-danger { color: var(--danger); }
 .more-row-danger .more-ri { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
 .theme-empty { padding: 28px 16px; border: 1px dashed var(--line); border-radius: 16px; font-size: 13px; color: var(--muted); text-align: center; }
+
+/* Below lg the lists are flat (see more.css): sheet groups and empty notices are spaced, not boxed. */
+@media (max-width: 1023px) {
+  .customization-sheet .more-card + .more-card { margin-top: 16px; }
+  .theme-empty { padding: 28px 0; border: 0; border-radius: 0; }
+}
+
+/* /custom template lists below lg: .more-card rows of their own markup; hairlines start at the text, past the 32px tile. */
+.custom-list > * { position: relative; }
+.custom-list > * + *::before { content: ''; position: absolute; top: 0; right: 0; left: calc(var(--row-x, 14px) + 44px); height: 1px; background: var(--line); }
