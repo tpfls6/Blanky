@@ -277,7 +277,11 @@ try {
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true)
   assert.equal(await evaluate('!!document.querySelector("main input[type=file]")'), false)
   await shot('03-mobile-templates')
+  // + opens a sheet: 파일 가져오기 / 스토어 둘러보기.
   await evaluate('document.querySelector(".add-fab[data-tour=new-page]").click()')
+  await wait('[...document.querySelectorAll("dialog[open] .more-row")].map(el => el.textContent).join("|").includes("스토어 둘러보기")', 'mobile add sheet')
+  assert.equal(await evaluate('document.querySelector("dialog[open] a.more-row").getAttribute("href")'), '/store?tab=templates')
+  await evaluate('[...document.querySelectorAll("dialog[open] button.more-row")].find(b => b.textContent.includes("파일 가져오기")).click()')
   await wait('document.querySelector("dialog[open] input[type=file]")?.accept.includes(".blankytpl")', 'mobile template import')
   await uploadTemplate(JSON.stringify({ formatVersion: 1, kind: 'blanky.template-package', id: 'mobile-diary', name: '모바일 검증 일기', description: '', author: 'tester', version: '1.0.0', pageType: 'diary', icon: 'BookOpen' }))
   await wait('document.querySelector("dialog[open] .theme-import-review")', 'mobile template review')

@@ -91,6 +91,7 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
   const [query, setQuery] = useState('')
   const [recent, setRecent] = useState<string[]>([])
   const [place, setPlace] = useState<{ sheet: boolean; style: CSSProperties } | null>(null)
+  const [host, setHost] = useState<Element | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -113,6 +114,8 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
     const update = () => {
       const rect = buttonRef.current?.getBoundingClientRect()
       if (rect) setPlace(placePanel(rect))
+      // Inside a modal <dialog> the rest of the page is inert, so the panel joins the dialog instead of <body>.
+      setHost(buttonRef.current?.closest('dialog[open]') ?? document.body)
     }
     update()
     window.addEventListener('resize', update)
@@ -251,7 +254,7 @@ export function IconPicker({ value, onChange, color, onColor, plain }: IconPicke
           style={{ backgroundColor: color }}
         />
       ) : null}
-      {open && place ? createPortal(place.sheet ? <div className="fixed inset-0 z-50 flex items-end bg-black/20">{panel}</div> : panel, document.body) : null}
+      {open && place ? createPortal(place.sheet ? <div className="fixed inset-0 z-50 flex items-end bg-black/20">{panel}</div> : panel, host ?? document.body) : null}
     </span>
   )
 }

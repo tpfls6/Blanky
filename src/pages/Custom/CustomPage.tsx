@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronRight, Plus, Search, X } from 'lucide-react'
+import { ChevronRight, MoreHorizontal, PenLine, Plus, Search, Store, Trash2, Upload, X } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { PAGE_GAP_OPTIONS, PAGE_IDS, type PageId } from '../../features/pages/layout.ts'
@@ -18,9 +18,10 @@ import { MakeTemplatePage } from './MakeTemplatePage.tsx'
 import { TemplateImport } from './PackageControls.tsx'
 import { CustomizationLayout } from './CustomizationLayout.tsx'
 import { MyThemesPage } from '../Themes/MyThemesPage.tsx'
-import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
-import { CustomizationAdd } from './CustomizationSheet.tsx'
+import { PHONE_QUERY, SETTINGS_COMPACT_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
+import { CustomizationAdd, CustomizationSheet } from './CustomizationSheet.tsx'
 import { MobileHeader } from '../../components/layout/MobileTopBar.tsx'
+import '../More/more.css'
 
 const PHONE_LAYOUT_PAGES = ['schedule', 'memo', 'reading', 'diary'] as const satisfies readonly PageId[]
 
@@ -30,22 +31,58 @@ function matches(query: string, page: { name: string; description?: string }) {
   return page.name.toLowerCase().includes(text) || (page.description ?? '').toLowerCase().includes(text)
 }
 
-function PageRow({ page }: { page: UserPage }) {
+function usePageRemove(page: UserPage) {
   const { t } = useI18n()
   const confirm = useConfirm()
-  const { records, removeUserPage, updateUserPage } = useLibrary()
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(page.name)
-  const [icon, setIcon] = useState(page.icon)
-  const [description, setDescription] = useState(page.description ?? '')
-
-  const remove = async () => {
+  const { records, removeUserPage } = useLibrary()
+  return async () => {
     const count = recordsForPage(records, page.id).length
     const ok = await confirm(t('custom.deleteBody', { name: page.name, count }), {
       title: t('custom.deleteTitle', { name: page.name }),
     })
     if (ok) removeUserPage(page.id)
   }
+}
+
+// Name, icon and description; desktop shows it under the card, phones and tablets inside the ⋯ sheet.
+function PageEditForm({ page, className, onDone }: { page: UserPage; className: string; onDone: () => void }) {
+  const { t } = useI18n()
+  const { updateUserPage } = useLibrary()
+  const [name, setName] = useState(page.name)
+  const [icon, setIcon] = useState(page.icon)
+  const [description, setDescription] = useState(page.description ?? '')
+
+  return (
+    <form className={className} onSubmit={event => {
+      event.preventDefault()
+      if (!name.trim()) return
+      updateUserPage(page.id, { name: name.trim(), icon, description: description.trim() })
+      onDone()
+    }}>
+      <div className="flex items-center gap-2">
+        <IconPicker value={icon} onChange={setIcon} />
+        <input aria-label={t('custom.pageName')} required value={name} onChange={event => setName(event.target.value)} className="field min-w-0 flex-1" />
+      </div>
+      <label className="block text-xs">
+        <span className="text-neutral-400 max-lg:text-[var(--muted)]">{t('custom.pageDescription')}</span>
+        <textarea value={description} onChange={event => setDescription(event.target.value)} rows={2} className="field mt-1 w-full" />
+      </label>
+      <div className="flex justify-end gap-2">
+        <button className="btn btn-ghost" type="button" onClick={onDone}>{t('cancel')}</button>
+        <button className="btn btn-line" type="submit">{t('save')}</button>
+      </div>
+    </form>
+  )
+}
+
+function pageKind(page: UserPage, t: (key: string) => string) {
+  return page.template ? t(`custom.kind.${page.template}`) : t('custom.userTemplate')
+}
+
+function PageRow({ page }: { page: UserPage }) {
+  const { t } = useI18n()
+  const remove = usePageRemove(page)
+  const [editing, setEditing] = useState(false)
 
   return (
     <article className="min-w-0 rounded-md border border-line p-4">
@@ -53,36 +90,61 @@ function PageRow({ page }: { page: UserPage }) {
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-light text-accent"><IconView name={page.icon} className="size-5" /></span>
         <div className="min-w-0 flex-1">
           <span className="block break-words font-medium group-hover:underline">{page.name}</span>
-          <p className="mt-1 text-xs text-neutral-400">{page.template ? t(`custom.kind.${page.template}`) : t('custom.userTemplate')}</p>
+          <p className="mt-1 text-xs text-neutral-400">{pageKind(page, t)}</p>
           {page.description ? <p className="mt-2 line-clamp-2 text-xs text-neutral-500">{page.description}</p> : null}
         </div>
         <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-neutral-400 md:hidden" strokeWidth={1.7} />
       </Link>
       <div className="mt-3 flex gap-1">
-        <button type="button" className="btn btn-ghost" onClick={() => {
-          setName(page.name); setIcon(page.icon); setDescription(page.description ?? ''); setEditing(!editing)
-        }}>{t('edit')}</button>
+        <button type="button" className="btn btn-ghost" onClick={() => setEditing(!editing)}>{t('edit')}</button>
         <button type="button" className="btn btn-ghost" onClick={() => void remove()}>{t('delete')}</button>
       </div>
-      {editing ? <form className="mt-3 grid gap-3 border-t border-line pt-3" onSubmit={event => {
-        event.preventDefault()
-        if (!name.trim()) return
-        updateUserPage(page.id, { name: name.trim(), icon, description: description.trim() })
-        setEditing(false)
-      }}>
-        <div className="flex items-center gap-2">
-          <IconPicker value={icon} onChange={setIcon} />
-          <input aria-label={t('custom.pageName')} required value={name} onChange={event => setName(event.target.value)} className="field min-w-0 flex-1" />
-        </div>
-        <label className="block text-xs">
-          <span className="text-neutral-400">{t('custom.pageDescription')}</span>
-          <textarea value={description} onChange={event => setDescription(event.target.value)} rows={2} className="field mt-1 w-full" />
-        </label>
-        <div className="flex justify-end gap-2">
-          <button className="btn btn-ghost" type="button" onClick={() => setEditing(false)}>{t('cancel')}</button>
-          <button className="btn btn-line" type="submit">{t('save')}</button>
-        </div>
-      </form> : null}
+      {editing ? <PageEditForm page={page} className="mt-3 grid gap-3 border-t border-line pt-3" onDone={() => setEditing(false)} /> : null}
+    </article>
+  )
+}
+
+/** Phone and tablet row (More style): the whole 54px row opens the page, ⋯ opens 정보 수정 / 삭제 in a sheet. */
+function PageListRow({ page }: { page: UserPage }) {
+  const { t } = useI18n()
+  const remove = usePageRemove(page)
+  const [sheet, setSheet] = useState<'menu' | 'edit' | null>(null)
+  const kind = pageKind(page, t)
+  const close = () => setSheet(null)
+
+  return (
+    <article className="flex min-h-[54px] min-w-0 items-center gap-1 pr-1.5">
+      <Link to={ROUTES.page(page.id)} className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pl-3.5 active:bg-[var(--press)]">
+        <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-accent-light text-accent"><IconView name={page.icon} className="size-4.5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px]">{page.name}</span>
+          <span className="block truncate text-xs text-[var(--muted)]">{kind}{page.description ? ' · ' + page.description : ''}</span>
+        </span>
+      </Link>
+      <button type="button" className="theme-more" aria-label={t('themes.moreActions', { name: page.name })} aria-haspopup="dialog" onClick={() => setSheet('menu')}>
+        <MoreHorizontal aria-hidden="true" className="size-5" strokeWidth={1.7} />
+      </button>
+      {sheet ? <CustomizationSheet
+        title={sheet === 'edit' ? t('custom.editInfo') : page.name}
+        subtitle={sheet === 'menu' ? kind : undefined}
+        onClose={close}
+      >
+        {sheet === 'menu' ? <>
+          <div className="more-card">
+            <button type="button" className="more-row" onClick={() => setSheet('edit')}>
+              <span className="more-ri"><PenLine aria-hidden="true" className="size-4.5" strokeWidth={1.8} /></span>
+              <span className="more-rt">{t('custom.editInfo')}</span>
+              <ChevronRight aria-hidden="true" className="more-chev size-4.5" />
+            </button>
+          </div>
+          <div className="more-card">
+            <button type="button" className="more-row more-row-danger" onClick={() => { close(); void remove() }}>
+              <span className="more-ri"><Trash2 aria-hidden="true" className="size-4.5" strokeWidth={1.8} /></span>
+              <span className="more-rt">{t('delete')}</span>
+            </button>
+          </div>
+        </> : <PageEditForm page={page} className="grid gap-3 pb-2" onDone={close} />}
+      </CustomizationSheet> : null}
     </article>
   )
 }
@@ -96,7 +158,7 @@ function LayoutPanel({ phone }: { phone: boolean }) {
 
   return (
     <div>
-      <p className="text-sm text-neutral-400">{t('custom.layoutsHint')}</p>
+      <p className="text-sm text-neutral-400 max-lg:text-[var(--muted)]">{t('custom.layoutsHint')}</p>
       <div data-tour="layout-controls" className="mt-4 grid grid-cols-4 gap-1.5 md:flex md:flex-wrap" role="group" aria-label={t('custom.layoutPage')}>
         {(phone ? PHONE_LAYOUT_PAGES : PAGE_IDS).map((id) => (
           <button
@@ -140,7 +202,7 @@ function LayoutPanel({ phone }: { phone: boolean }) {
           {t('custom.resetLayout')}
         </button>
       </div>
-      {notice ? <p className="mt-2 text-sm text-neutral-500" role="status">{notice}</p> : null}
+      {notice ? <p className="mt-2 text-sm text-neutral-500 max-lg:text-[var(--muted)]" role="status">{notice}</p> : null}
       <div className="customization-layout-preview mt-4 overflow-hidden rounded-md border border-line bg-surface">
         {layoutPage === 'schedule' ? <DailyBoard editing /> : null}
         {layoutPage === 'diary' ? <DiaryPage editing /> : null}
@@ -158,9 +220,12 @@ export function CustomPage() {
   const { customPages } = useLibrary()
   const [query, setQuery] = useState('')
   const [making, setMaking] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const phone = useMediaQuery(PHONE_QUERY)
+  // Below lg (phones and tablets) the list uses the More-style card rows; desktop keeps its cards.
+  const compact = useMediaQuery(SETTINGS_COMPACT_QUERY)
 
   if (making) return <><MobileHeader /><MakeTemplatePage onCancel={() => setMaking(false)} /></>
 
@@ -191,12 +256,35 @@ export function CustomPage() {
               <span className="sr-only">{t('custom.search')}</span>
               <input type="search" autoFocus={phone} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('custom.search')} className="field w-full" />
             </label> : null}
-            {phone ? <CustomizationAdd label={t('custom.importTemplate')} onClick={() => setImportOpen(true)} tour="new-page" /> : null}
-            <TemplateImport dropzone={false} hideEmpty={pages.length > 0} query={query} sheet={phone ? { open: importOpen, onClose: () => setImportOpen(false) } : undefined} />
+            {phone ? <CustomizationAdd label={t('custom.addTemplate')} onClick={() => setAddOpen(true)} tour="new-page" /> : null}
+            {addOpen ? <CustomizationSheet title={t('custom.addTemplate')} onClose={() => setAddOpen(false)}>
+              <div className="more-card">
+                <button type="button" className="more-row" onClick={() => { setAddOpen(false); setImportOpen(true) }}>
+                  <span className="more-ri more-ri-accent"><Upload aria-hidden="true" className="size-4.5" strokeWidth={1.8} /></span>
+                  <span className="more-rt">{t('custom.importFile')}<small>.blankytpl · .json</small></span>
+                  <ChevronRight aria-hidden="true" className="more-chev size-4.5" />
+                </button>
+                <Link className="more-row" to={ROUTES.storeTemplates}>
+                  <span className="more-ri"><Store aria-hidden="true" className="size-4.5" strokeWidth={1.8} /></span>
+                  <span className="more-rt">{t('custom.browseStore')}<small>{t('custom.browseStoreHint')}</small></span>
+                  <ChevronRight aria-hidden="true" className="more-chev size-4.5" />
+                </Link>
+              </div>
+            </CustomizationSheet> : null}
+            <TemplateImport
+              dropzone={false}
+              hideEmpty={pages.length > 0}
+              query={query}
+              sheet={phone ? { open: importOpen, onClose: () => setImportOpen(false) } : undefined}
+              emptyCard={compact}
+              onImport={phone ? () => setImportOpen(true) : undefined}
+            />
             {pages.length ? (
               <section className="mt-4">
-                <h2 className="mb-2 font-medium">{t('custom.myPages')}</h2>
-                <div className="grid gap-3 xl:grid-cols-2">{pages.map((page) => <PageRow key={page.id} page={page} />)}</div>
+                <h2 className="mb-2 font-medium max-lg:text-[15px] max-lg:font-semibold">{t('custom.myPages')}</h2>
+                {compact
+                  ? <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">{pages.map((page) => <PageListRow key={page.id} page={page} />)}</div>
+                  : <div className="grid gap-3 xl:grid-cols-2">{pages.map((page) => <PageRow key={page.id} page={page} />)}</div>}
               </section>
             ) : null}
           </section>

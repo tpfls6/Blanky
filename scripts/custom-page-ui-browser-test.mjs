@@ -198,16 +198,21 @@ try {
   await wait('document.querySelector("main article")','mobile card')
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true)
   await shot('06-cards-mobile')
+  // Phone rows: one card, 54px rows, a 44px ⋯ and no inline 편집/삭제 buttons.
+  assert.ok(await evaluate('[...document.querySelectorAll("main article")].every((el)=>el.offsetHeight>=54 && el.querySelectorAll("button").length===1 && el.querySelector(".theme-more").offsetHeight>=44)'))
+  // Phone + opens a sheet (파일 가져오기 / 스토어 둘러보기); 템플릿 만들기 is desktop only.
   await evaluate('document.querySelector("[data-tour=new-page]").click()')
-  await wait('document.querySelector(".page-wizard")','mobile make template')
+  await wait('document.querySelector("dialog[open] a.more-row")?.getAttribute("href")==="/store?tab=templates"','mobile add sheet')
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true)
-  await shot('07-wizard-mobile')
+  await shot('07-add-sheet-mobile')
   await navigate(base + '/custom')
   // One list now holds every page (the builder page ui-widget too), so delete the renamed template page by name.
-  const renamedCard = '[...document.querySelectorAll("main article")].find((el)=>el.querySelector("a")?.textContent==="Renamed page")'
+  const renamedCard = '[...document.querySelectorAll("main article")].find((el)=>el.querySelector("a")?.textContent.startsWith("Renamed page"))'
   await wait(renamedCard,'back to cards')
-  await evaluate(renamedCard + '.querySelectorAll("button")[1].click()')
-  await wait('document.querySelector("dialog[open]")','delete confirmation')
+  await evaluate(renamedCard + '.querySelector(".theme-more").click()')
+  await wait('document.querySelector("dialog[open] .more-row-danger")','row action sheet')
+  await evaluate('document.querySelector("dialog[open] .more-row-danger").click()')
+  await wait('document.querySelector("dialog[open] .app-confirm-action")','delete confirmation')
   await evaluate('document.querySelector(".app-confirm-action").click()')
   await wait('!' + renamedCard,'deleted')
   await navigate()

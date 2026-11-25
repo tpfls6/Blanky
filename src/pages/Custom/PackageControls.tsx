@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { ChevronRight } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronRight, LayoutTemplate, Store, Upload } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { ROUTES } from '../../constants/routes.ts'
 import { IconView } from '../../constants/icons.ts'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
@@ -24,12 +24,16 @@ function previewSrc(pkg: TemplatePackage): string | null {
   return file ? 'data:' + file.mime + ';base64,' + file.data : null
 }
 
-export function TemplateImport({ list = true, dropzone = true, hideEmpty = false, sheet, query = '' }: {
+export function TemplateImport({ list = true, dropzone = true, hideEmpty = false, sheet, query = '', emptyCard = false, onImport }: {
   list?: boolean
   dropzone?: boolean
   hideEmpty?: boolean
   sheet?: { open: boolean; onClose: () => void }
   query?: string
+  /** Phones and tablets: the empty list becomes a card with 템플릿 가져오기 / 스토어 둘러보기. */
+  emptyCard?: boolean
+  /** Opens the import sheet; without it the card's button opens the file picker. */
+  onImport?: () => void
 }) {
   const { t } = useI18n()
   const { user } = useSession()
@@ -39,6 +43,7 @@ export function TemplateImport({ list = true, dropzone = true, hideEmpty = false
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [over, setOver] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const load = () => {
     if (!user) return
@@ -112,15 +117,15 @@ export function TemplateImport({ list = true, dropzone = true, hideEmpty = false
         >
           <strong>{t('custom.importTitle')}</strong>
           <p>{t('custom.importHint')}</p>
-          <input aria-label={t('custom.importTitle')} type="file" accept=".blankytpl,.json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void open(file) }} />
+          <input ref={fileRef} aria-label={t('custom.importTitle')} type="file" accept=".blankytpl,.json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void open(file) }} />
         </label>
       ) : (
         <label className="btn btn-line theme-import-label">
           {t('custom.importTitle')}
-          <input aria-label={t('custom.importTitle')} type="file" accept=".blankytpl,.json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void open(file) }} />
+          <input ref={fileRef} aria-label={t('custom.importTitle')} type="file" accept=".blankytpl,.json,application/json" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void open(file) }} />
         </label>
       )}
-      {message ? <p role={pending.length ? 'status' : 'alert'} className="mt-2 text-sm text-neutral-500">{message}</p> : null}
+      {message ? <p role={pending.length ? 'status' : 'alert'} className="mt-2 text-sm text-neutral-500 max-lg:text-[var(--muted)]">{message}</p> : null}
       {pending.map((pkg, index) => (
         <ImportReview
           key={pkg.manifest.id + index}
@@ -149,7 +154,13 @@ export function TemplateImport({ list = true, dropzone = true, hideEmpty = false
           sheet.onClose()
         }}>{importer}</CustomizationSheet>
         : importer}
-      {list ? <InstalledList items={visibleInstalled} compact={Boolean(sheet)} hideEmpty={hideEmpty} onRemove={(item) => void remove(item)} /> : null}
+      {list ? <InstalledList
+        items={visibleInstalled}
+        compact={Boolean(sheet)}
+        hideEmpty={hideEmpty}
+        onRemove={(item) => void remove(item)}
+        onImport={emptyCard ? onImport ?? (() => fileRef.current?.click()) : undefined}
+      /> : null}
     </div>
   )
 }
@@ -186,7 +197,7 @@ function ImportReview({
   return (
     <section className="theme-import-review" aria-label={t('custom.importReview')}>
       <h2 className="text-lg font-medium">{pkg.manifest.name}</h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-1 text-sm text-neutral-500 max-lg:text-[var(--muted)]">
         {t('custom.importMeta', { author: pkg.manifest.author || t('custom.unknownAuthor'), version: pkg.manifest.version })}
         {' · '}
         {t('custom.pageType.' + pkg.manifest.pageType)}
@@ -230,13 +241,13 @@ function PackagePreview({ pkg }: { pkg: TemplatePackage }) {
           </div>
         </TemplatePreviewProvider>
       ) : (
-        <p role="status" className="text-sm text-neutral-500">{t('custom.importEmptyBody')}</p>
+        <p role="status" className="text-sm text-neutral-500 max-lg:text-[var(--muted)]">{t('custom.importEmptyBody')}</p>
       )}
     </div>
   )
 }
 
-function InstalledList({ items, compact, hideEmpty, onRemove }: { items: InstalledTemplatePackage[]; compact: boolean; hideEmpty?: boolean; onRemove: (item: InstalledTemplatePackage) => void }) {
+function InstalledList({ items, compact, hideEmpty, onRemove, onImport }: { items: InstalledTemplatePackage[]; compact: boolean; hideEmpty?: boolean; onRemove: (item: InstalledTemplatePackage) => void; onImport?: () => void }) {
   const { t, locale } = useI18n()
   const navigate = useNavigate()
   const { addUserPage, adoptInstalledPage } = useLibrary()
@@ -257,23 +268,39 @@ function InstalledList({ items, compact, hideEmpty, onRemove }: { items: Install
     return built.page.id
   }
 
-  if (!items.length) return hideEmpty ? null : <p className="mt-6 text-sm text-neutral-400">{t('custom.emptyTemplates')}</p>
+  if (!items.length && hideEmpty) return null
+  if (!items.length && onImport) return (
+    <div className="mt-4 rounded-2xl border border-line bg-surface p-5 text-center">
+      <span className="mx-auto grid size-8 place-items-center rounded-[10px] bg-accent-light text-accent"><LayoutTemplate aria-hidden="true" className="size-4.5" strokeWidth={1.8} /></span>
+      <h2 className="mt-3 text-[15px] font-semibold">{t('custom.emptyTemplatesTitle')}</h2>
+      <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">{t('custom.emptyTemplatesBody')}</p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <button type="button" className="btn btn-primary inline-flex min-h-11 items-center gap-1.5" onClick={onImport}>
+          <Upload aria-hidden="true" className="size-4" strokeWidth={1.8} />{t('custom.importTemplate')}
+        </button>
+        <Link className="btn btn-line inline-flex min-h-11 items-center gap-1.5" to={ROUTES.storeTemplates}>
+          <Store aria-hidden="true" className="size-4" strokeWidth={1.8} />{t('custom.browseStore')}
+        </Link>
+      </div>
+    </div>
+  )
+  if (!items.length) return <p className="mt-6 text-sm text-neutral-400">{t('custom.emptyTemplates')}</p>
 
   return (
     <section className="mt-4 md:mt-8">
-      <h2 className="mb-2 font-medium">{t('custom.installedTemplates')}</h2>
-      <div className={compact ? 'divide-y divide-line rounded-lg border border-line' : 'divide-y divide-line'}>
+      <h2 className="mb-2 font-medium max-lg:text-[15px] max-lg:font-semibold">{t('custom.installedTemplates')}</h2>
+      <div className={compact ? 'divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface' : 'divide-y divide-line'}>
         {items.map((item) => {
           const Row = compact ? 'span' : 'div'
           const Name = compact ? 'span' : 'h2'
           const identity = (
             <Row className={compact ? 'flex min-w-0 flex-1 items-center gap-2' : 'flex min-w-0 items-start gap-2'}>
-              <span className={compact ? 'grid size-9 shrink-0 place-items-center rounded-lg bg-accent-light text-accent' : 'mt-0.5 shrink-0 text-neutral-400'}>
+              <span className={compact ? 'grid size-8 shrink-0 place-items-center rounded-[10px] bg-accent-light text-accent' : 'mt-0.5 shrink-0 text-neutral-400 max-lg:text-[var(--muted)]'}>
                 <IconView name={item.manifest.icon} className="size-4" />
               </span>
               <Row className="min-w-0">
                 <Name className="block truncate font-medium">{item.manifest.name}</Name>
-                <span className="block truncate text-xs text-neutral-400">
+                <span className="block truncate text-xs text-neutral-400 max-lg:text-[var(--muted)]">
                   {t('custom.pageType.' + item.manifest.pageType)} · v{item.manifest.version}
                   {item.manifest.author ? ' · ' + item.manifest.author : ''}
                 </span>
@@ -310,7 +337,7 @@ function InstalledList({ items, compact, hideEmpty, onRemove }: { items: Install
               <details className="group">
                 <summary className="customization-template-summary flex min-h-14 cursor-pointer list-none items-center gap-2 px-3 py-2">
                   {identity}
-                  <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-neutral-400 group-open:rotate-90" strokeWidth={1.7} />
+                  <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-[var(--muted)] group-open:rotate-90" strokeWidth={1.7} />
                 </summary>
                 <div className="border-t border-line px-3 py-3">
                   {actions}

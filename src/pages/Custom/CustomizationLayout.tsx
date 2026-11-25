@@ -45,7 +45,7 @@ export function CustomizationLayout({ children, mobileAction }: { children: Reac
         </div>
       </nav>
       <div className="min-w-0 flex-1">
-        <nav aria-label={t('nav.custom')} className="mb-4 grid grid-cols-3 border-b border-line lg:hidden">
+        <nav aria-label={t('nav.custom')} className="mb-3 grid grid-cols-3 border-b border-line lg:hidden">
           {TABS.map(({ id, key }) => (
             <Link key={id} to={{ pathname: ROUTES.custom, search: target(id).toString() }} aria-current={tab === id ? 'page' : undefined} className="customization-menu grid min-h-11 place-items-center border-b-2 border-transparent px-1 text-center text-sm leading-tight text-neutral-500">
               {t(key)}
