@@ -89,7 +89,11 @@
   .customization-sheet .more-card + .more-card { margin-top: 16px; }
   .theme-empty { padding: 28px 0; border: 0; border-radius: 0; }
 }
+/* Tablet pages are padded 24px, so the flat lists bleed (and pad their rows) by 24px to reach the edges; sheets keep theirs. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .customization-page .more-card:not(.theme-hero, dialog .more-card) { --row-x: 24px; }
+}
 
-/* /custom template lists below lg: .more-card rows of their own markup; hairlines start at the text, past the 32px tile. */
+/* /custom template lists below lg: .more-card rows of their own markup; the hairline spans the screen (more.css). */
 .custom-list > * { position: relative; }
 .custom-list > * + *::before { content: ''; position: absolute; top: 0; right: 0; left: calc(var(--row-x, 14px) + 44px); height: 1px; background: var(--line); }

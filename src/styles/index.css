@@ -46,6 +46,8 @@
   --field-error-border: color-mix(in srgb, var(--danger) 60%, var(--line));
   --field-error-ring: 0 0 0 3px color-mix(in srgb, var(--danger) 14%, transparent);
   --press: color-mix(in srgb, var(--fg) 7%, transparent);
+  /* Fainter hairline between the rows of the flat mobile lists. */
+  --line-soft: color-mix(in srgb, var(--line) 60%, transparent);
   accent-color: var(--accent-color);
 }
 

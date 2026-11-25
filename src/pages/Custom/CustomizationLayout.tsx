@@ -33,7 +33,7 @@ export function CustomizationLayout({ children, mobileAction }: { children: Reac
       <p className="mobile-tab-title">{t('nav.custom')}</p>
       {mobileAction}
     </MobileHeader>
-    <div className="mx-auto flex w-full max-w-6xl items-start gap-8 px-4 pb-6 md:px-6 md:pt-6 lg:gap-14">
+    <div className="customization-page mx-auto flex w-full max-w-6xl items-start gap-8 px-4 pb-6 md:px-6 md:pt-6 lg:gap-14">
       <nav aria-label={t('nav.custom')} className="sticky top-8 hidden w-48 shrink-0 lg:block">
         <p className="px-3 pb-3 text-sm font-medium tracking-tight">{t('nav.custom')}</p>
         <div className="flex flex-col gap-0.5">
