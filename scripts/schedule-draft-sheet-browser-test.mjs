@@ -1,11 +1,13 @@
 // Runs the real app in local mode with an isolated account and disposable Chromium profile.
 // Checks the schedule add/edit form: a centered modal on desktop, a full-screen page with back handling on phones.
 // Set SCHEDULE_TEST_CHROMIUM if a cached Playwright headless Chromium is unavailable.
-import { mkdir, writeFile, readdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, writeFile, readdir, mkdtemp, rm, readFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
+// The discard confirm's keep-writing label comes from the Korean catalog the app shows.
+const keepWriting = JSON.parse(await readFile(new URL('../src/i18n/locales/ko/schedule.json', import.meta.url), 'utf8')).discardConfirm.cancel
 const base = process.env.SCHEDULE_TEST_URL ?? 'http://127.0.0.1:5191'
 if (new URL(base).hostname !== '127.0.0.1') throw new Error('Test URL must be on loopback')
 const cache = join(homedir(), 'AppData', 'Local', 'ms-playwright')
@@ -230,7 +232,7 @@ try {
   await press('닫기')
   await wait('!!document.querySelector(".app-confirm-dialog[open]")', 'discard confirm')
   await shot('04-mobile-discard.png')
-  await evaluate('[...document.querySelectorAll(".app-confirm-dialog[open] button")].find(b => b.textContent.trim() === "취소").click()')
+  await evaluate('[...document.querySelectorAll(".app-confirm-dialog[open] button")].find(b => b.textContent.trim() === ' + JSON.stringify(keepWriting) + ').click()')
   await wait('!document.querySelector(".app-confirm-dialog[open]")', 'confirm dismissed')
   assert.equal(await isOpen(), true, 'kept editing')
   assert.equal(await evaluate(`${phoneTitle}.value`), '작성 중')

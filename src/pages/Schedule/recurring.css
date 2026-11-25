@@ -123,7 +123,7 @@ fieldset.rec-card[data-locked] { opacity: .55; }
    their look but take a 44px-wide tap area (the wider column gap keeps neighbours from overlapping). */
 @media (max-width: 1023px), (pointer: coarse) {
   .rec-page :is(.btn, .chip, .field, select) { min-height: 44px; }
-  .rec-page .rec-head .btn { min-width: 44px; }
+  .rec-page :is(.rec-head .btn, .rec-back) { min-width: 44px; }
   .rec-page .rec-head-actions .btn { min-height: 44px; }
   .rec-picker [role='group'][aria-label='반복 요일'] { column-gap: 16px; }
   .rec-picker [role='group'][aria-label='반복 요일'] .chip { position: relative; min-width: 28px; }

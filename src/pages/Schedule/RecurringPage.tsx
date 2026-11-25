@@ -76,7 +76,7 @@ export function RecurringPage() {
     <div className={phone ? 'rec-page' : 'rec-page mx-auto w-full max-w-6xl px-4 py-6 md:px-10 md:py-8'}>
       {!phone && <>
         <div className="flex items-center gap-3">
-          <Link to={ROUTES.schedule} className="btn btn-ghost shrink-0 px-2" aria-label="일정으로 돌아가기"><ArrowLeft size={16} strokeWidth={1.5} /></Link>
+          <Link to={ROUTES.schedule} className="btn btn-ghost rec-back shrink-0 px-2" aria-label="일정으로 돌아가기"><ArrowLeft size={16} strokeWidth={1.5} /></Link>
           <h1 className="min-w-0 flex-1 truncate text-2xl font-medium tracking-tight">{t('nav.recurring')}</h1>
         </div>
         <p className="rec-intro mt-2 text-sm">반복 일정을 한곳에서 확인하고, 수정 범위를 골라 바꿀 수 있습니다.</p>
