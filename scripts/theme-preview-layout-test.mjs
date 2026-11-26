@@ -57,7 +57,8 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 async function wait(expression, label) { for (let i = 0; i < 300; i++) { if (await evaluate(expression)) return; await pause(100) } throw new Error('Timed out: ' + label) }
 const q = value => JSON.stringify(value)
 async function click(selector) { await evaluate('document.querySelector(' + q(selector) + ').click()') }
-async function button(text) { await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim() === ' + q(text) + ').click()') }
+// A button by its visible text or, for icon-and-short-label buttons on phones, its accessible name.
+async function button(text) { await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.trim() === ' + q(text) + ' || b.getAttribute("aria-label") === ' + q(text) + ').click()') }
 async function fill(selector, value) {
   await evaluate('(()=>{const el=document.querySelector(' + q(selector) + '); const proto=el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto,"value").set.call(el,' + q(value) + '); el.dispatchEvent(new Event("input",{bubbles:true}));})()')
 }

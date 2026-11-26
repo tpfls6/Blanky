@@ -28,7 +28,7 @@ const TOURS: Record<PageTourId, TourStep[]> = {
   ],
   store: [
     { target: '[data-tour="store-tabs"]', title: '테마와 템플릿을 둘러봐요', body: '테마는 앱의 모습을, 템플릿은 페이지 구성을 바꿔요. 이 메뉴로 오갈 수 있어요.' },
-    { target: '.theme-page > input', title: '원하는 스타일을 찾아요', body: '이름이나 키워드로 검색하세요. 항목을 열면 상세 화면에서 미리 보고 설치·적용할 수 있어요.' },
+    { target: '[data-tour="store-search"]', title: '원하는 스타일을 찾아요', body: '이름이나 키워드로 검색하세요. 항목을 열면 상세 화면에서 미리 보고 설치·적용할 수 있어요.' },
   ],
   custom: [
     { target: '[data-tour="new-page"]', prepare: 'templates', title: '템플릿으로 페이지를 꾸며요', body: '새 템플릿을 만들거나 기존 페이지를 골라 나만의 구성을 만들어요.' },

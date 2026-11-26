@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Check, ChevronRight, Flag, Heart, LayoutTemplate, Library, Link2, Upload } from 'lucide-react'
 import { TemplatePreview } from '../Custom/TemplatePreview.tsx'
 import { ROUTES } from '../../constants/routes.ts'
 import { PageBuilder } from '../../features/builder/PageBuilder.tsx'
 import { officialListings } from '../../features/marketplace/official.ts'
 import { TemplatePreviewProvider } from '../../features/marketplace/preview.tsx'
 import { TEMPLATE_CATEGORIES, type TemplateListing, type TemplateSnapshot } from '../../features/marketplace/schema.ts'
+import { PHONE_QUERY, useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { useI18n } from '../../i18n/useI18n.ts'
 import { isSupabaseConfigured } from '../../services/supabase/client.ts'
 import { useLibrary } from '../../state/useLibrary.ts'
@@ -23,6 +25,9 @@ import {
   updateListing,
   type TemplateLibrary,
 } from '../../services/templates/index.ts'
+import { CreatorRow, SortMenu, StoreBar, StoreChip, StoreChips, StoreDetailBar, StoreMenuSheet, StoreStats, StoreToast, type StoreMenuItem } from './StoreChrome.tsx'
+import { useFlash } from './useFlash.ts'
+import { CustomizationSheet } from '../Custom/CustomizationSheet.tsx'
 import { StoreTabs } from './StoreTabs.tsx'
 import { TemplateThumbnail } from './TemplateThumbnail.tsx'
 
@@ -30,16 +35,30 @@ function categoryLabel(t: (key: string) => string, id: string) {
   return t('templates.cat.' + id)
 }
 
-function TemplateCard({ listing }: { listing: TemplateListing }) {
+/** Kind badge: the page kind when the template is one, else its category. */
+function kindOf(t: (key: string) => string, listing: TemplateListing) {
+  return listing.snapshot.pageType ? t(`custom.kind.${listing.snapshot.pageType}`) : categoryLabel(t, listing.category)
+}
+
+function TemplateCard({ listing, favored, onFavorite }: { listing: TemplateListing; favored: boolean; onFavorite?: () => void }) {
+  const { t, locale } = useI18n()
+  const installs = new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(listing.installCount)
   return (
-    <article>
+    <article className="store-card store-tcard">
       <Link to={ROUTES.templateDetail(listing.id)} className="block">
-        <TemplateThumbnail listing={listing} />
-        <h2 className="mt-3 font-medium">{listing.name}</h2>
-        <p className="text-xs text-neutral-500">{listing.creatorName} · {listing.category}</p>
-        <p className="mt-1 text-sm">{listing.description}</p>
-        <p className="mt-1 text-xs text-neutral-400">{listing.installCount} · {listing.tags.slice(0, 3).join(' · ')}</p>
+        <span className="store-tthumb">
+          <TemplateThumbnail listing={listing} />
+          <span className="store-badge">{kindOf(t, listing)}</span>
+        </span>
+        <h2 className="store-card-name">{listing.name}</h2>
+        <p className="store-card-by">{listing.creatorName} · {t('store.installs', { count: installs })}</p>
       </Link>
+      {/* Outside the link so the heart toggles without opening the detail. */}
+      {onFavorite ? (
+        <button type="button" className="store-fav" aria-pressed={favored} aria-label={t('store.favoriteOf', { name: listing.name })} onClick={onFavorite}>
+          <span className="store-fav-dot"><Heart className="size-4" strokeWidth={2} fill={favored ? 'currentColor' : 'none'} aria-hidden="true" /></span>
+        </button>
+      ) : null}
     </article>
   )
 }
@@ -99,9 +118,12 @@ function useStore() {
   return { user, state, setState, error, loading, refresh: () => user && loadTemplates(user.id).then(setState) }
 }
 
+type TemplateSort = 'featured' | 'popular' | 'new'
+
 export function TemplateStore() {
   const { t } = useI18n()
-  const { user, state, error, loading } = useStore()
+  const phone = useMediaQuery(PHONE_QUERY)
+  const { user, state, error, loading, refresh } = useStore()
   const [params, setParams] = useSearchParams()
   const [query, setQuery] = useState(params.get('q') ?? '')
   const [items, setItems] = useState<TemplateListing[]>(state.listings)
@@ -109,6 +131,7 @@ export function TemplateStore() {
   const category = params.get('category') ?? ''
   const view = params.get('view') ?? 'browse'
   const setView = (id: string) => setParams((current) => { const next = new URLSearchParams(current); if (id === 'browse') next.delete('view'); else next.set('view', id); return next })
+  const text = query.trim()
 
   useEffect(() => {
     if (!user) return
@@ -122,66 +145,111 @@ export function TemplateStore() {
     return items.filter((item) => item.status === 'published')
   }, [view, items, state, user])
 
+  const favorite = (id: string) => { if (!user) return; void toggleFavorite(user.id, id, !state.favorites.includes(id)).then(refresh) }
+  // 전체 and the categories pick a category; 즐겨찾기 and 설치함 switch the view (as the old tabs did).
+  const pickCategory = (id: string) => setParams((current) => { const next = new URLSearchParams(current); next.delete('view'); if (!id || category === id) next.delete('category'); else next.set('category', id); return next })
+  const pickView = (id: 'favorites' | 'installed') => setParams((current) => { const next = new URLSearchParams(current); if (view === id) next.delete('view'); else next.set('view', id); return next })
+  const menu: StoreMenuItem[] = [
+    { label: t('store.publishTemplate'), icon: Upload, to: ROUTES.templatePublish, accent: true },
+    { label: t('store.myTemplates'), icon: LayoutTemplate, onClick: () => setView('mine') },
+    { label: t('templates.library'), icon: Library, to: ROUTES.templateLibrary },
+  ]
+
   return (
-    <section data-theme-protected className="theme-page">
-      <header className="flex flex-wrap justify-between gap-3">
-        <div>
-          <h1>{t('templates.store')}</h1>
-          <p className="text-sm text-neutral-500">{t('templates.tagline')}</p>
-        </div>
-        <div className="flex gap-2">
+    <section data-theme-protected className="theme-page store-page">
+      <StoreBar phone={phone} query={view === 'mine' ? '' : query} onQuery={(value) => { setQuery(value); if (view === 'mine') setView('browse') }} searchLabel={t('templates.search')} menu={menu} onBack={view === 'mine' ? () => setView('browse') : undefined}
+        actions={<>
           <button type="button" className="btn btn-line" aria-pressed={view === 'mine'} onClick={() => setView(view === 'mine' ? 'browse' : 'mine')}>{t('templates.myTemplates')}</button>
           <Link className="btn btn-primary" to={ROUTES.templatePublish}>{t('templates.publish')}</Link>
-        </div>
-      </header>
-      <StoreTabs current="templates" />
-      {view === 'mine' ? null : (
-        <>
-          <input className="field my-5 w-full max-w-lg" aria-label={t('templates.search')} placeholder={t('templates.search')} value={query} onChange={(event) => setQuery(event.target.value)} />
-          <div className="mb-4 flex flex-wrap gap-2">
-            {TEMPLATE_CATEGORIES.map((id) => (
-              <button key={id} type="button" className={category === id ? 'chip chip-on' : 'chip'} onClick={() => setParams((current) => { const next = new URLSearchParams(current); if (category === id) next.delete('category'); else next.set('category', id); return next })}>
-                {categoryLabel(t, id)}
-              </button>
-            ))}
+        </>} />
+      <div className="store-body">
+        <StoreTabs current="templates" />
+        {view === 'mine' ? null : (
+          <StoreChips label={t('store.filters')}>
+            <StoreChip on={view === 'browse' && !category} onClick={() => pickCategory('')}>{t('store.all')}</StoreChip>
+            {TEMPLATE_CATEGORIES.map((id) => <StoreChip key={id} on={view === 'browse' && category === id} onClick={() => pickCategory(id)}>{categoryLabel(t, id)}</StoreChip>)}
+            <StoreChip on={view === 'favorites'} onClick={() => pickView('favorites')}><Heart className="size-3.5" strokeWidth={2} aria-hidden="true" />{t('templates.favorites')}</StoreChip>
+            <StoreChip on={view === 'installed'} onClick={() => pickView('installed')}>{t('store.installed')}</StoreChip>
+          </StoreChips>
+        )}
+        {error ? (
+          <p role="alert" className="store-state">{t('templates.loadError')} {error}</p>
+        ) : loading ? (
+          <div className="theme-grid" aria-busy="true" role="status" aria-label={t('templates.loading')}>
+            {[0, 1, 2].map((item) => <div key={item} className="template-thumb animate-pulse bg-neutral-100" />)}
           </div>
-        </>
-      )}
-      <div className={(view === 'mine' ? 'mt-5 ' : '') + 'mb-6 flex flex-wrap gap-4'}>
-        {[['featured', t('templates.featured')], ['popular', t('templates.popular')], ['new', t('templates.new')], ['favorites', t('templates.favorites')], ['installed', t('templates.installed')]].map(([id, label]) => (
-          <button key={id} type="button" className={(id === 'favorites' || id === 'installed' ? view : view === 'browse' ? tab : '') === id ? 'tab tab-on' : 'tab'} onClick={() => setParams((current) => { const next = new URLSearchParams(current); if (id === 'favorites' || id === 'installed') next.set('view', id); else { next.delete('view'); next.set('sort', id) } return next })}>{label}</button>
-        ))}
+        ) : view === 'mine' ? (
+          <MyTemplates listings={shown} />
+        ) : (
+          <>
+            <SortMenu<TemplateSort> count={text ? t('store.results', { count: shown.length }) : t('store.countTemplates', { count: shown.length })} value={tab === 'popular' || tab === 'new' ? tab : 'featured'}
+              onChange={(value) => setParams((current) => { const next = new URLSearchParams(current); next.set('sort', value); return next })}
+              options={(['featured', 'popular', 'new'] as const).map((value) => ({ value, label: t('store.sort.' + value) }))} />
+            {!shown.length ? (
+              <p className="store-state">{t('templates.empty')}</p>
+            ) : text ? (
+              <ul className="more-card store-results">
+                {shown.map((item) => (
+                  <li key={item.id}>
+                    <Link to={ROUTES.templateDetail(item.id)} className="more-row">
+                      <span className="store-art-sm store-tthumb-sm"><TemplateThumbnail listing={item} /></span>
+                      <span className="more-rt"><span className="store-card-name">{item.name}</span><small>{item.creatorName} · {kindOf(t, item)}</small></span>
+                      <ChevronRight className="more-chev size-4.5" aria-hidden="true" />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="theme-grid">
+                {shown.map((item) => <TemplateCard key={item.id} listing={item} favored={state.favorites.includes(item.id)} onFavorite={user ? () => favorite(item.id) : undefined} />)}
+              </div>
+            )}
+          </>
+        )}
       </div>
-      {error ? (
-        <p role="alert" className="store-state">{t('templates.loadError')} {error}</p>
-      ) : loading ? (
-        <div className="theme-grid" aria-busy="true" role="status" aria-label={t('templates.loading')}>
-          {[0, 1, 2].map((item) => <div key={item} className="template-thumb animate-pulse bg-neutral-100" />)}
-        </div>
-      ) : view === 'mine' ? (
-        <MyTemplates listings={shown} />
-      ) : shown.length ? (
-        <div className="theme-grid">
-          {shown.map((item) => <TemplateCard key={item.id} listing={item} />)}
-        </div>
-      ) : (
-        <p className="store-state">{t('templates.empty')}</p>
-      )}
     </section>
   )
 }
 
-export function TemplateDetailPage() {
+const REPORT_REASONS = ['spam', 'inappropriate', 'copyright', 'broken', 'other'] as const
+
+/** Report sheet: a reason (required) and optional details, sent as one reason string as before. */
+function ReportSheet({ name, onSubmit, onClose }: { name: string; onSubmit: (reason: string) => void; onClose: () => void }) {
   const { t } = useI18n()
+  const [reason, setReason] = useState('')
+  const [detail, setDetail] = useState('')
+  return (
+    <CustomizationSheet title={t('store.reportTitle')} subtitle={name} onClose={onClose}>
+      <div className="more-card" role="radiogroup" aria-label={t('store.reportTitle')}>
+        {REPORT_REASONS.map((id) => (
+          <button key={id} type="button" role="radio" aria-checked={reason === id} className="more-row store-option" onClick={() => setReason(id)}>
+            <span className="more-rt">{t('store.reason.' + id)}</span>
+            {reason === id ? <Check className="size-4.5 shrink-0" strokeWidth={2} aria-hidden="true" /> : null}
+          </button>
+        ))}
+      </div>
+      <textarea className="field store-report-detail" value={detail} maxLength={500} onChange={(event) => setDetail(event.target.value)} aria-label={t('store.reportDetail')} placeholder={t('store.reportDetail')} />
+      <button type="button" className="btn store-report-submit" disabled={!reason} onClick={() => { onClose(); onSubmit(t('store.reason.' + reason) + (detail.trim() ? ': ' + detail.trim() : '')) }}>{t('store.reportSubmit')}</button>
+    </CustomizationSheet>
+  )
+}
+
+export function TemplateDetailPage() {
+  const { t, locale } = useI18n()
   const { templateId } = useParams()
   const navigate = useNavigate()
   const { user } = useSession()
   const { adoptInstalledPage } = useLibrary()
   const { state, refresh } = useStore()
+  const phone = useMediaQuery(PHONE_QUERY)
   const [listing, setListing] = useState<TemplateListing | null>(null)
   const [message, setMessage] = useState('')
+  const [messages, setMessages] = useState(0)
   const [busy, setBusy] = useState(false)
   const [hint, setHint] = useState(true)
+  const [sheet, setSheet] = useState<'menu' | 'report' | null>(null)
+  const [openPage, setOpenPage] = useState('')
+  const toast = useFlash(message, messages, openPage ? 6000 : 3500)
 
   useEffect(() => {
     if (!user || !templateId) return
@@ -190,68 +258,80 @@ export function TemplateDetailPage() {
 
   if (!listing) return <section className="theme-page"><p role="status" className="store-state">{t('templates.loading')}</p></section>
 
+  const say = (text: string, page = '') => { setMessage(text); setOpenPage(page); setMessages((n) => n + 1) }
   const installed = state.installed.find((item) => item.listingId === listing.id)
   const favored = state.favorites.includes(listing.id)
   const guide = listing.snapshot.guide.trim()
+  const fields = listing.snapshot.pageType ? [t(`custom.kind.${listing.snapshot.pageType}`)] : listing.snapshot.collections.flatMap((item) => item.blocks.map((block) => block.props.label).filter(Boolean)) as string[]
+  const byCreator = state.listings.filter((item) => item.status === 'published' && item.creatorId === listing.creatorId).length
+  const share = () => void navigator.clipboard.writeText(window.location.origin + sharePath(listing.id)).then(() => say(t('templates.copied')))
+  const install = () => {
+    if (!user) return
+    setBusy(true)
+    void installTemplate(user.id, listing)
+      .then((installedPage) => {
+        adoptInstalledPage(installedPage, !isSupabaseConfigured)
+        setHint(false)
+        // Opening an installed one goes straight to its page; a first install stays here and offers 열기.
+        if (installed) navigate(ROUTES.page(installedPage.page.id))
+        else { say(t('store.installedToast'), installedPage.page.id); void refresh() }
+      })
+      .catch((err: Error) => say(err.message))
+      .finally(() => setBusy(false))
+  }
+  const favorite = <button type="button" className="btn btn-line store-fav-btn" aria-pressed={favored} aria-label={favored ? t('templates.unfavorite') : t('templates.favorite')} onClick={() => { if (!user) return; void toggleFavorite(user.id, listing.id, !favored).then(refresh) }}>
+    <Heart className="size-5" strokeWidth={2} fill={favored ? 'currentColor' : 'none'} aria-hidden="true" />{phone ? null : favored ? t('templates.unfavorite') : t('templates.favorite')}
+  </button>
+  const primary = <button type="button" className="btn btn-primary" disabled={busy} onClick={install}>{installed ? t('templates.openInstalled') : t('templates.install')}</button>
 
   return (
-    <section data-theme-protected className="theme-page">
-      <Link className="text-sm" to={ROUTES.storeTemplates}>{t('templates.back')}</Link>
-      <div className="store-split">
-        <div>
-          <h1>{listing.name}</h1>
-          <Link className="text-sm text-neutral-500" to={ROUTES.creator(listing.creatorId ?? 'blanky')}>{listing.creatorName}</Link>
-          <p className="store-meta mt-3"><span>{categoryLabel(t, listing.category)}</span><span>v{listing.currentVersion}</span><span>{listing.installCount}</span></p>
-          {listing.description ? <p className="mt-5 whitespace-pre-wrap">{listing.description}</p> : null}
-          {guide && guide !== listing.description.trim() ? (
-            <>
-              <h2 className="mt-6 text-sm font-medium">{t('templates.guide')}</h2>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-600">{guide}</p>
-            </>
-          ) : null}
-          {listing.snapshot.pageType ? (
-            <p className="mt-4 text-sm">{t(`custom.kind.${listing.snapshot.pageType}`)}</p>
-          ) : (
-            <p className="mt-4 text-sm">{t('templates.fields')}: {listing.snapshot.collections.flatMap((item) => item.blocks.map((block) => block.props.label).filter(Boolean)).join(' · ')}</p>
-          )}
-          {hint ? <p className="mt-4 text-sm text-neutral-500">{t('templates.installHint')}</p> : null}
-          <div className="mt-6 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy}
-              onClick={() => {
-                if (!user) return
-                setBusy(true)
-                void installTemplate(user.id, listing)
-                  .then((installedPage) => {
-                    adoptInstalledPage(installedPage, !isSupabaseConfigured)
-                    setHint(false)
-                    navigate(ROUTES.page(installedPage.page.id))
-                  })
-                  .catch((err: Error) => setMessage(err.message))
-                  .finally(() => setBusy(false))
-              }}
-            >
-              {installed ? t('templates.openInstalled') : t('templates.install')}
-            </button>
-            <button type="button" className="btn btn-line" onClick={() => { if (!user) return; void toggleFavorite(user.id, listing.id, !favored).then(refresh) }}>{favored ? t('templates.unfavorite') : t('templates.favorite')}</button>
-            <button type="button" className="btn btn-ghost" onClick={() => void navigator.clipboard.writeText(window.location.origin + sharePath(listing.id)).then(() => setMessage(t('templates.copied')))}>{t('templates.share')}</button>
-            <button type="button" className="btn btn-ghost" onClick={() => { const reason = window.prompt(t('templates.reportAsk')); if (reason) void reportTemplate(listing.id, reason).then(() => setMessage(t('templates.reported'))) }}>{t('templates.report')}</button>
-            {state.admin ? (
-              <>
-                <button type="button" className="btn btn-line" onClick={() => void reviewTemplate(listing.id, 'published').then(refresh)}>{t('templates.approve')}</button>
-                <button type="button" className="btn btn-ghost" onClick={() => void reviewTemplate(listing.id, 'rejected', 'policy').then(refresh)}>{t('templates.reject')}</button>
-              </>
-            ) : null}
+    <section data-theme-protected className="theme-page store-page store-detail">
+      {phone ? <StoreDetailBar onShare={share} onMore={() => setSheet('menu')} backTo={ROUTES.storeTemplates} /> : <Link className="text-sm" to={ROUTES.storeTemplates}>{t('templates.back')}</Link>}
+      {state.admin ? (
+        <div className="store-review" role="group" aria-label={t('store.adminReview')}>
+          <p><span className="store-badge-inline">{t('templates.status.' + listing.status)}</span><b>{t('store.adminReview')}</b></p>
+          <div>
+            <button type="button" className="btn btn-line" onClick={() => void reviewTemplate(listing.id, 'rejected', 'policy').then(refresh)}>{t('templates.reject')}</button>
+            <button type="button" className="btn btn-primary" onClick={() => void reviewTemplate(listing.id, 'published').then(refresh)}>{t('templates.approve')}</button>
           </div>
-          <p role="status" className="mt-3">{message}</p>
+        </div>
+      ) : null}
+      {phone ? <div className="store-hero store-hero-template"><TemplateThumbnail listing={listing} /></div> : null}
+      <div className="store-split">
+        <div className="store-info">
+          <p className="store-badges">{listing.snapshot.pageType ? <span className="store-badge-inline">{t(`custom.kind.${listing.snapshot.pageType}`)}</span> : null}<span className="store-badge-inline store-badge-gray">{categoryLabel(t, listing.category)}</span></p>
+          <h1>{listing.name}</h1>
+          {!phone ? <div className="store-detail-actions">{favorite}{primary}
+            <button type="button" className="btn btn-ghost" onClick={share}><Link2 className="size-4" strokeWidth={1.8} aria-hidden="true" />{t('templates.share')}</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setSheet('report')}><Flag className="size-4" strokeWidth={1.8} aria-hidden="true" />{t('templates.report')}</button>
+          </div> : null}
+          <CreatorRow to={ROUTES.creator(listing.creatorId ?? 'blanky')} name={listing.creatorName} hint={listing.creatorId ? (byCreator ? t('store.creatorTemplates', { count: byCreator }) : t('store.creatorPage')) : t('store.official')} />
+          <StoreStats items={[
+            { value: new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }).format(listing.installCount), label: t('store.installsLabel') },
+            { value: 'v' + listing.currentVersion, label: t('store.version') },
+          ]} />
+          {listing.description ? <><h2 className="more-label">{t('store.about')}</h2><p className="store-desc">{listing.description}</p></> : null}
+          {fields.length ? <><h2 className="more-label">{t('store.included')}</h2><ul className="store-tags">{fields.map((item, index) => <li key={item + index}>{item}</li>)}</ul></> : null}
+          {guide && guide !== listing.description.trim() ? (
+            <details className="more-card store-guide">
+              <summary className="more-row"><span className="more-rt">{t('templates.guide')}</span><ChevronRight className="more-chev more-chev-toggle size-4.5" aria-hidden="true" /></summary>
+              <p>{guide}</p>
+            </details>
+          ) : null}
+          {hint ? <p className="more-hint">{t('templates.installHint')}</p> : null}
         </div>
         <div className="store-split-preview">
           {listing.thumbnailUrl ? <img className="mb-4 w-full rounded-xl" src={listing.thumbnailUrl} alt="" /> : null}
           <ListingPreview snapshot={listing.snapshot} heading={listing.name} />
         </div>
       </div>
+      {phone ? <div className="store-actionbar">{favorite}{primary}</div> : null}
+      <StoreToast message={toast} action={toast && openPage ? <Link to={ROUTES.page(openPage)}>{t('store.open')}</Link> : undefined} />
+      {sheet === 'menu' ? <StoreMenuSheet title={listing.name} subtitle={listing.creatorName} onClose={() => setSheet(null)} groups={[
+        [{ label: t('store.copyLink'), icon: Link2, onClick: share }],
+        [{ label: t('templates.report'), icon: Flag, danger: true, onClick: () => setSheet('report') }],
+      ]} /> : null}
+      {sheet === 'report' ? <ReportSheet name={listing.name} onClose={() => setSheet(null)} onSubmit={(reason) => void reportTemplate(listing.id, reason).then(() => say(t('templates.reported')))} /> : null}
     </section>
   )
 }

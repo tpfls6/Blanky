@@ -148,12 +148,12 @@ try {
       const owner = '11111111-1111-4111-8111-111111111111'
       localStorage.setItem('blanky.accounts.v1', JSON.stringify([{ id: owner, name: 'Test', nickname: 'Test', email: 'test@example.test', password: 'test-only', avatar: null }]))
       localStorage.setItem('blanky.session.v1', owner)
-      localStorage.setItem('blanky.library.' + owner, JSON.stringify({ categories: [], items: [], settings: { locale: 'ko', customTemplatesGuideSeen: true }, customPages: [], pageTemplates: [], recordTypes: [], records: [] }))
+      localStorage.setItem('blanky.library.' + owner, JSON.stringify({ categories: [], items: [], settings: { locale: 'ko', customTemplatesGuideSeen: true, onboardingDone: true, onboardingPages: ['store'] }, customPages: [], pageTemplates: [], recordTypes: [], records: [] }))
       localStorage.setItem('store-layout-seeded', '1')
     }).toString() + ')()',
   })
   await navigate(base + '/store')
-  await wait('document.querySelector("h1")?.textContent.includes("테마 스토어")', 'theme store')
+  await wait('document.querySelector(".store-head h1")?.textContent === "스토어"', 'store')
 
   for (const count of [0, 1, 3]) {
     await seed(count)
@@ -201,6 +201,96 @@ try {
     }
   }
 
+  // S1 browsing. Desktop: one header line, underline tabs, chips, small sort dropdown, 4 columns.
+  await viewport(false)
+  await navigate(base + '/store')
+  await wait('document.querySelectorAll(".theme-grid .store-card").length >= 4', 'theme cards')
+  assert.equal(await evaluate('document.querySelector(".store-head h1").textContent'), '스토어')
+  assert.equal(await evaluate('document.querySelector(".store-tabs [aria-current=page]").textContent'), '테마')
+  assert.equal(await evaluate('new Set([...document.querySelectorAll(".theme-grid .store-card")].slice(0, 4).map(c => Math.round(c.getBoundingClientRect().top))).size'), 1, 'four cards in one desktop row')
+  assert.deepEqual(await evaluate('[...document.querySelectorAll(".store-chips button")].map(b => b.textContent)'), ['전체', '무료', '유료', '설치함'])
+  // Featured row: up to four equal cards in one row, none stretched or cut off; no "평점 없음" filler on cards.
+  const feat = await evaluate('[...document.querySelectorAll(".store-fcard")].filter(c => c.getClientRects().length).map(c => { const r = c.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), Math.round(r.top), r.right <= innerWidth] })')
+  assert.ok(feat.length >= 2 && feat.length <= 4 && feat.every(([w, h, top, inside]) => w === feat[0][0] && h === feat[0][1] && top === feat[0][2] && inside), JSON.stringify(feat))
+  assert.equal(await evaluate('[...document.querySelectorAll(".store-card-meta")].some(m => m.textContent.includes("평점 없음"))'), false)
+  // Sort: opens right under its button, arrows move, Esc closes back to the button, a pick reorders, outside closes.
+  await evaluate('document.querySelector(".store-sort").click()')
+  await wait('document.querySelector("[role=listbox]")', 'sort menu')
+  const menu = await evaluate('(() => { const b = document.querySelector(".store-sort").getBoundingClientRect(), m = document.querySelector("[role=listbox]").getBoundingClientRect(); return { gap: m.top - b.bottom, right: Math.abs(m.right - b.right) < 12, items: [...document.querySelectorAll("[role=option]")].map(o => o.textContent + (o.getAttribute("aria-selected") === "true" ? "*" : "")), focus: document.activeElement.textContent, heights: [...document.querySelectorAll("[role=option]")].map(o => o.getBoundingClientRect().height) } })()')
+  assert.ok(menu.gap > -8 && menu.gap < 8 && menu.right, JSON.stringify(menu))
+  assert.deepEqual(menu.items, ['추천순*', '인기순', '최신순'])
+  assert.equal(menu.focus, '추천순')
+  assert.ok(menu.heights.every(h => h >= 44), 'sort options 44px')
+  await evaluate('document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }))')
+  assert.equal(await evaluate('document.activeElement.textContent'), '인기순')
+  await evaluate('document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))')
+  await wait('!document.querySelector("[role=listbox]") && document.activeElement?.classList.contains("store-sort")', 'esc closes to button')
+  await evaluate('document.querySelector(".store-sort").click()')
+  await wait('document.querySelector("[role=listbox]")', 'sort menu again')
+  await evaluate('[...document.querySelectorAll("[role=option]")].find(o => o.textContent === "최신순").click()')
+  await wait('!document.querySelector("[role=listbox]") && document.querySelector(".store-sort").textContent === "최신순"', 'picked newest')
+  await evaluate('document.querySelector(".store-sort").click()')
+  await wait('document.querySelector("[role=listbox]")', 'sort menu third')
+  await evaluate('document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))')
+  await wait('!document.querySelector("[role=listbox]")', 'outside closes')
+  await shot('s1-themes-desktop')
+  log('S1 desktop: header, tabs, chips, sort dropdown, 4 columns')
+
+  // Phone: own app bar, 🔍 turns into a field (results as rows) and 취소 clears it, ⋯ sheet, chips in one line, 2 columns.
+  await viewport(true)
+  await navigate(base + '/store')
+  await wait('document.querySelector(".store-bar") && document.querySelectorAll(".theme-grid .store-card").length >= 2', 'phone store')
+  assert.equal(await evaluate('Boolean(document.querySelector(".store-head"))'), false)
+  assert.equal(await evaluate('new Set([...document.querySelectorAll(".theme-grid .store-card")].slice(0, 2).map(c => Math.round(c.getBoundingClientRect().top))).size'), 1, 'two cards per phone row')
+  assert.equal(await evaluate('new Set([...document.querySelectorAll(".store-chips button")].map(b => Math.round(b.getBoundingClientRect().top))).size'), 1, 'chips stay on one line')
+  assert.ok(await evaluate('[...document.querySelectorAll(".store-bar button, .store-tabs a, .store-chips button, .store-sort")].every(el => el.getBoundingClientRect().height >= 44)'), 'phone controls 44px')
+  assert.ok(await evaluate('document.querySelectorAll(".store-feat .store-fcard").length >= 2'), 'featured row')
+  await evaluate('document.querySelector(".store-bar [data-tour=store-search]").click()')
+  await wait('document.querySelector(".store-bar input")', 'search field')
+  await evaluate('(() => { const input = document.querySelector(".store-bar input"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "노을"); input.dispatchEvent(new Event("input", { bubbles: true })) })()')
+  await wait('document.querySelectorAll(".store-results li").length === 1', 'search rows')
+  assert.match(await evaluate('document.querySelector(".store-results li").innerText'), /노을 테마/)
+  await shot('s1-search-mobile')
+  await click('취소')
+  await wait('!document.querySelector(".store-bar input") && !document.querySelector(".store-results") && document.querySelector(".theme-grid")', 'search cancelled')
+  await evaluate('document.querySelector(".store-bar [aria-haspopup=dialog]").click()')
+  await wait('document.querySelector("dialog[open].customization-sheet")', 'store sheet')
+  assert.deepEqual(await evaluate('[...document.querySelectorAll("dialog[open] .more-row .more-rt")].map(r => r.firstChild.textContent)'), ['테마 만들기', '내가 등록한 테마', '설치한 테마 관리'])
+  await evaluate('[...document.querySelectorAll("dialog[open] .more-row")][1].click()')
+  await wait('location.search.includes("view=mine") && !document.querySelector("dialog[open]") && document.querySelector("[data-testid=my-themes]")', 'mine from sheet')
+  await evaluate('document.querySelector(".store-bar .more-ib").click()')
+  await wait('!location.search.includes("view=mine") && document.querySelector(".theme-grid") && !document.querySelector("[data-testid=my-themes]")', 'back leaves mine view')
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'phone store fits')
+  await shot('s1-themes-mobile')
+  // Templates: categories + 즐겨찾기 · 설치함 chips, and ♡ on a card toggles the favorite in place.
+  await navigate(base + '/store?tab=templates')
+  await wait('document.querySelectorAll(".theme-grid .store-tcard").length >= 2', 'template cards')
+  const chips = await evaluate('[...document.querySelectorAll(".store-chips button")].map(b => b.textContent)')
+  assert.equal(chips[0], '전체'); assert.deepEqual(chips.slice(-2), ['즐겨찾기', '설치함'])
+  const fav = '.theme-grid .store-tcard .store-fav'
+  assert.equal(await evaluate('document.querySelector(' + q(fav) + ').getAttribute("aria-pressed")'), 'false')
+  await evaluate('document.querySelector(' + q(fav) + ').click()')
+  await wait('document.querySelector(' + q(fav) + ').getAttribute("aria-pressed") === "true" && location.pathname === "/store"', 'favorite toggled in place')
+  await evaluate('[...document.querySelectorAll(".store-chips button")].find(b => b.textContent === "즐겨찾기").click()')
+  await wait('document.querySelectorAll(".theme-grid .store-tcard").length === 1', 'favorites chip')
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'phone templates fit')
+  await shot('s1-templates-mobile')
+  await evaluate('document.querySelector(' + q(fav) + ').click()')
+  await wait('document.querySelectorAll(".theme-grid .store-tcard").length === 0', 'unfavorited')
+  log('S1 phone: app bar search/cancel, sheet, chips, 2 columns, template favorite')
+
+  // The store guide still finds both targets (tabs, then search: the field on desktop, 🔍 on phones).
+  for (const mobile of [false, true]) {
+    await viewport(mobile)
+    await navigate(base + '/store?tour=1')
+    await wait('document.querySelector("[data-page-tour]")?.textContent.includes("1 / 2")', 'store tour step 1')
+    await evaluate('document.querySelector(".spotlight-actions .btn-primary").click()')
+    await wait('document.querySelector("[data-page-tour]")?.textContent.includes("2 / 2")', 'store tour step 2')
+    assert.ok(await evaluate('(() => { const p = document.querySelector("[data-page-tour]"); const target = [...document.querySelectorAll(p.dataset.tourTarget)].find(e => e.getClientRects().length); return Boolean(target) && target.matches("[data-tour=store-search]") })()'), 'store tour step 2 target ' + (mobile ? 'mobile' : 'desktop'))
+    await evaluate('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))')
+  }
+  log('store guide reaches tabs and search on desktop and phone')
+
   // Detail screens and the in-store panel keep text left, preview right; stacked on mobile.
   for (const mobile of [false, true]) {
     await viewport(mobile)
@@ -219,6 +309,56 @@ try {
     await checkSplit('my themes', mobile)
     await shot('my-themes-' + tag)
   }
+  // S2/S3 details on phones: hero under a floating bar, creator row, stats, pinned action bar that never covers content.
+  await viewport(true)
+  await navigate(base + '/store/themes/mine-theme-0')
+  await wait('document.querySelector(".store-detail-bar-over") && document.querySelector(".store-hero") && document.querySelector(".store-actionbar")', 'phone theme detail')
+  assert.deepEqual(await evaluate('[...document.querySelectorAll(".store-actionbar button")].map(b => b.textContent)'), ['미리보기', '적용하기'], 'owned theme: preview + apply')
+  assert.ok(await evaluate('[...document.querySelectorAll(".store-detail-bar button, .store-actionbar button, .store-creator a")].every(el => { const r = el.getBoundingClientRect(); return r.height >= 40 && r.width >= 40 })'), 'detail targets')
+  assert.ok(await evaluate('document.querySelector(".store-creator a").getAttribute("href").startsWith("/creator/")'))
+  assert.equal(await evaluate('[...document.querySelectorAll(".store-stats dt")].some(d => d.textContent.includes("평점"))'), false, 'no rating cell without ratings')
+  await evaluate('document.querySelector("main").scrollTop = 1e6'); await pause(150)
+  const cover = await evaluate('(() => { const bar = document.querySelector(".store-actionbar").getBoundingClientRect(); const last = document.querySelector(".store-split").lastElementChild.getBoundingClientRect(); return { last: last.bottom, bar: bar.top } })()')
+  assert.ok(cover.last <= cover.bar + 1, 'action bar covers the end ' + JSON.stringify(cover))
+  await shot('s2-theme-mobile')
+  await evaluate('document.querySelector(".store-detail-bar [aria-haspopup=dialog]").click()')
+  await wait('document.querySelector("dialog[open].customization-sheet")', 'theme sheet')
+  assert.deepEqual(await evaluate('[...document.querySelectorAll("dialog[open] .more-rt")].map(r => r.firstChild.textContent)'), ['링크 복사', '파일로 내보내기', '내 테마에서 관리'])
+  await evaluate('document.querySelector("dialog[open] .customization-sheet-header button").click()')
+  await wait('!document.querySelector("dialog[open]")', 'theme sheet closed')
+  // A theme not owned yet reads 무료 설치.
+  await navigate(base + '/store/themes/' + await evaluate('(async () => (await import("/packages/types/src/theme.ts")).BUILTIN_THEMES[1].id)()'))
+  await wait('document.querySelector(".store-actionbar .btn-primary")', 'builtin detail')
+  log('S2 phone theme detail: ' + await evaluate('document.querySelector(".store-actionbar .btn-primary").textContent'))
+
+  await navigate(base + '/store/templates/mine-template-0')
+  await wait('document.querySelector(".store-detail-bar") && document.querySelector(".store-actionbar .store-fav-btn")', 'phone template detail')
+  assert.match(await evaluate('document.querySelector(".store-actionbar .btn-primary").textContent'), /내 페이지/)
+  await evaluate('document.querySelector(".store-actionbar .store-fav-btn").click()')
+  await wait('document.querySelector(".store-actionbar .store-fav-btn").getAttribute("aria-pressed") === "true"', 'detail favorite')
+  await evaluate('document.querySelector(".store-actionbar .store-fav-btn").click()')
+  await wait('document.querySelector(".store-actionbar .store-fav-btn").getAttribute("aria-pressed") === "false"', 'detail unfavorite')
+  // Report: a reason sheet instead of window.prompt; 신고하기 waits for a reason.
+  await evaluate('document.querySelector(".store-detail-bar [aria-haspopup=dialog]").click()')
+  await wait('document.querySelector("dialog[open].customization-sheet")', 'template sheet')
+  assert.deepEqual(await evaluate('[...document.querySelectorAll("dialog[open] .more-rt")].map(r => r.firstChild.textContent)'), ['링크 복사', '신고'])
+  await evaluate('[...document.querySelectorAll("dialog[open] .more-row")].find(b => b.textContent === "신고").click()')
+  await wait('document.querySelector("dialog[open] [role=radiogroup]")', 'report sheet')
+  assert.equal(await evaluate('document.querySelector("dialog[open] .store-report-submit").disabled'), true)
+  await evaluate('[...document.querySelectorAll("dialog[open] [role=radio]")].find(b => b.textContent === "작동하지 않음").click()')
+  await evaluate('document.querySelector("dialog[open] .store-report-submit").click()')
+  await wait('!document.querySelector("dialog[open]") && document.querySelector(".store-toast[data-on]")?.textContent.includes("신고를 접수했습니다.")', 'reported toast')
+  assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'template detail fits')
+  await shot('s3-template-mobile')
+  log('S2/S3 phone details: hero, creator, stats, action bar, sheets, report reasons')
+
+  // Desktop keeps two columns with the buttons at the top of the info column.
+  await viewport(false)
+  await navigate(base + '/store/templates/mine-template-0')
+  await wait('document.querySelector(".store-detail-actions")', 'desktop template actions')
+  assert.ok(await evaluate('document.querySelector(".store-detail-actions").getBoundingClientRect().top < document.querySelector(".store-creator").getBoundingClientRect().top'), 'actions above creator')
+  assert.equal(await evaluate('Boolean(document.querySelector(".store-actionbar"))'), false)
+
   await viewport(false)
   await navigate(base + '/store/themes/missing-theme')
   await wait('document.querySelector("[role=alert]")?.textContent.includes("테마를 찾을 수 없습니다.")', 'missing theme state')
@@ -228,6 +368,9 @@ try {
   await navigate(base + '/store/templates/mine-template-0')
   await wait('[...document.querySelectorAll("button")].some(b => b.textContent.includes("내 페이지에 추가"))', 'install button')
   await evaluate('[...document.querySelectorAll("button")].find(b => b.textContent.includes("내 페이지에 추가")).click()')
+  // A first install stays on the detail and offers 열기 in a toast.
+  await wait('document.querySelector(".store-toast[data-on] a")?.textContent === "열기"', 'install toast')
+  await evaluate('document.querySelector(".store-toast[data-on] a").click()')
   await wait('location.pathname.startsWith("/pages/")', 'installed page')
   for (const mobile of [false, true]) {
     await viewport(mobile)
